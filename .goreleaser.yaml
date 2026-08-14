@@ -1,0 +1,76 @@
+version: 2
+
+project_name: portop
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: portop
+    main: ./cmd/portop
+    binary: portop
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/padovan93/portop/internal/cli.Version={{.Version}}
+
+archives:
+  - id: tarball
+    ids: [portop]
+    formats: [tar.gz]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - README.md
+      - LICENSE
+
+nfpms:
+  - id: deb
+    ids: [portop]
+    package_name: portop
+    vendor: portop
+    homepage: https://github.com/padovan93/portop
+    maintainer: Luca Padovan <padovan.93@gmail.com>
+    description: >-
+      TUI in stile htop per vedere quali processi stanno davvero usando
+      le porte TCP/UDP del sistema.
+    license: MIT
+    formats:
+      - deb
+    section: net
+    priority: optional
+    bindir: /usr/bin
+    contents:
+      - src: README.md
+        dst: /usr/share/doc/portop/README.md
+      - src: LICENSE
+        dst: /usr/share/doc/portop/LICENSE
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ .Tag }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+
+release:
+  github:
+    owner: padovan93
+    name: portop
+  draft: false
+  prerelease: auto
