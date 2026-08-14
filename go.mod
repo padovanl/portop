@@ -1,6 +1,8 @@
 module github.com/padovan93/portop
 
-go 1.24.13
+go 1.24.2
+
+toolchain go1.24.13
 
 require (
 	github.com/atotto/clipboard v0.1.4

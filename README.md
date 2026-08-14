@@ -1,5 +1,9 @@
 # portop
 
+[![CI](https://github.com/padovan93/portop/actions/workflows/ci.yml/badge.svg)](https://github.com/padovan93/portop/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/padovan93/portop)](https://github.com/padovan93/portop/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **What's really using your ports?** A terminal UI for TCP/UDP ports — like `htop`, but for ports.
 
 ```
