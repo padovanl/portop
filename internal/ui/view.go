@@ -104,7 +104,7 @@ func (m Model) renderDetail() string {
 	}
 
 	b.WriteString("\n" + styleMuted.Render("esc/enter to close"))
-	return styleModal.Render(b.String())
+	return styleModal.Width(m.modalWidth()).Render(b.String())
 }
 
 func (m Model) renderConfirmKill() string {
@@ -115,7 +115,7 @@ func (m Model) renderConfirmKill() string {
 	b.WriteString(styleKey.Render("y") + " terminate (SIGTERM)   ")
 	b.WriteString(styleKey.Render("f") + " force (SIGKILL)   ")
 	b.WriteString(styleKey.Render("esc") + " cancel")
-	return styleModal.Render(b.String())
+	return styleModal.Width(m.modalWidth()).Render(b.String())
 }
 
 func (m Model) renderHelp() string {
@@ -141,7 +141,21 @@ func (m Model) renderHelp() string {
 		fmt.Fprintf(&b, "%s  %s\n", styleKey.Render(padTrunc(r[0], 8)), r[1])
 	}
 	b.WriteString("\n" + styleMuted.Render("press any key to close"))
-	return styleModal.Render(b.String())
+	return styleModal.Width(m.modalWidth()).Render(b.String())
+}
+
+// modalWidth keeps popups a comfortable, mostly-fixed size instead of
+// stretching to the width of their widest line (e.g. a long cmdline in
+// the detail view) or the full terminal width.
+func (m Model) modalWidth() int {
+	w := m.width - 12
+	if w > 88 {
+		w = 88
+	}
+	if w < 40 {
+		w = 40
+	}
+	return w
 }
 
 func orDash(s string) string {

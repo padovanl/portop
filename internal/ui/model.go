@@ -59,13 +59,13 @@ const (
 func (s sortMode) String() string {
 	switch s {
 	case sortByProcess:
-		return "processo"
+		return "process"
 	case sortByPID:
 		return "PID"
 	case sortByCPU:
 		return "CPU"
 	default:
-		return "porta"
+		return "port"
 	}
 }
 

@@ -64,7 +64,7 @@ func (m Model) renderTable() string {
 	b.WriteByte('\n')
 
 	if len(m.filtered) == 0 {
-		b.WriteString(styleMuted.Render("  nessuna porta corrisponde ai filtri correnti"))
+		b.WriteString(styleMuted.Render("  no ports match the current filters"))
 		return b.String()
 	}
 
