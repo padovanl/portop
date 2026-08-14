@@ -104,8 +104,7 @@ type Model struct {
 	detailInfo *procinfo.Info
 	detailErr  error
 
-	killTarget      app.Row
-	killConfirmText string
+	killTarget app.Row
 
 	statusMsg   string
 	statusIsErr bool
