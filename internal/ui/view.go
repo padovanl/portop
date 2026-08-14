@@ -17,14 +17,20 @@ func (m Model) View() string {
 	b.WriteString(m.renderTitle())
 	b.WriteByte('\n')
 	if m.mode == modeFilter {
-		b.WriteString("search: " + m.filterInput.View())
+		b.WriteString(styleTag.Render("❯ ") + m.filterInput.View())
 		b.WriteByte('\n')
 	}
 	b.WriteString(m.renderTable())
 	b.WriteByte('\n')
+	b.WriteString(styleDivider.Render(strings.Repeat("─", innerWidth(m.width))))
+	b.WriteByte('\n')
 	b.WriteString(m.renderStatusBar())
 
-	base := b.String()
+	// lipgloss's Width() sizes the padded content box, with the border
+	// added outside that — so the box needs the padding (2 cols) added
+	// back on top of innerWidth (which is what the divider/table lines
+	// inside are actually sized to).
+	base := styleAppBorder.Width(innerWidth(m.width) + 2).Render(b.String())
 
 	switch m.mode {
 	case modeDetail:
@@ -37,35 +43,61 @@ func (m Model) View() string {
 	return base
 }
 
-func (m Model) renderTitle() string {
-	title := styleTitle.Render("portop") + styleMuted.Render(" — what's really using your ports?")
-	filters := fmt.Sprintf("[%s] [sort: %s]", m.ipFilter, m.sort)
-	if m.showEstablished {
-		filters = "[LISTEN+ESTABLISHED] " + filters
-	} else {
-		filters = "[LISTEN] " + filters
+// innerWidth is the content width available inside the app's outer
+// border + 1-column padding on each side.
+func innerWidth(termWidth int) int {
+	w := termWidth - 4
+	if w < 40 {
+		w = 40
 	}
-	return title + "   " + styleMuted.Render(filters)
+	return w
+}
+
+func (m Model) renderTitle() string {
+	badge := styleBadge.Render("portop")
+	tagline := styleMuted.Render(" what's really using your ports?")
+
+	scope := "LISTEN"
+	if m.showEstablished {
+		scope = "LISTEN+ESTABLISHED"
+	}
+	tags := styleTag.Render("["+scope+"]") + " " +
+		styleTag.Render(fmt.Sprintf("[%s]", m.ipFilter)) + " " +
+		styleTag.Render(fmt.Sprintf("[sort: %s]", m.sort))
+
+	return badge + tagline + "   " + tags
 }
 
 func (m Model) renderStatusBar() string {
 	count := fmt.Sprintf("%d/%d sockets", len(m.filtered), len(m.rows))
-	help := "enter details · k kill · o open · f search · v ipv4/6 · e established · s sort · c copy · n clear new · ? help · q quit"
 
 	var msg string
 	if m.statusMsg != "" {
 		if m.statusIsErr {
 			msg = styleDanger.Render(m.statusMsg)
 		} else {
-			msg = styleMuted.Render(m.statusMsg)
+			msg = styleOk.Render(m.statusMsg)
 		}
 	} else if m.lastErr != nil {
 		msg = styleDanger.Render("scan error: " + m.lastErr.Error())
 	}
 
 	line1 := styleMuted.Render(count) + "   " + msg
-	line2 := styleMuted.Render(help)
-	return styleStatusBar.Width(maxInt(20, m.width)).Render(line1 + "\n" + line2)
+	line2 := renderKeyHints()
+	return line1 + "\n" + line2
+}
+
+func renderKeyHints() string {
+	hints := [][2]string{
+		{"enter", "details"}, {"k", "kill"}, {"o", "open"}, {"f", "search"},
+		{"v", "ipv4/6"}, {"e", "established"}, {"s", "sort"}, {"c", "copy"},
+		{"n", "clear new"}, {"?", "help"}, {"q", "quit"},
+	}
+	parts := make([]string, len(hints))
+	for i, h := range hints {
+		parts[i] = styleKey.Render(h[0]) + styleFaint.Render(" "+h[1])
+	}
+	return strings.Join(parts, styleFaint.Render("  ·  "))
 }
 
 func (m Model) renderDetail() string {
@@ -76,7 +108,8 @@ func (m Model) renderDetail() string {
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s\n", styleTitle.Render("Process details"))
-	fmt.Fprintf(&b, "%s :%d (%s)\n\n", row.ProcessName, row.LocalPort, row.Protocol)
+	fmt.Fprintf(&b, "%s %s :%d (%s)\n\n",
+		stateStyle(string(row.State)).Render("●"), row.ProcessName, row.LocalPort, row.Protocol)
 
 	if m.detailErr != nil {
 		b.WriteString(styleDanger.Render("could not read /proc: " + m.detailErr.Error()))
@@ -84,22 +117,25 @@ func (m Model) renderDetail() string {
 		b.WriteString(styleMuted.Render("loading..."))
 	} else {
 		info := m.detailInfo
-		fmt.Fprintf(&b, "PID:        %d\n", info.PID)
-		fmt.Fprintf(&b, "User:       %s\n", orDash(info.User))
-		fmt.Fprintf(&b, "Cmdline:    %s\n", orDash(info.Cmdline))
-		fmt.Fprintf(&b, "Executable: %s\n", orDash(info.Exe))
-		fmt.Fprintf(&b, "Cwd:        %s\n", orDash(info.Cwd))
-		fmt.Fprintf(&b, "Threads:    %d\n", info.NumThreads)
-		fmt.Fprintf(&b, "Open files: %d\n", info.OpenFiles)
-		fmt.Fprintf(&b, "RSS:        %.1f MiB\n", float64(info.RSSBytes)/1024/1024)
+		field := func(label, val string) {
+			fmt.Fprintf(&b, "%s %s\n", styleTag.Render(padTrunc(label, 11)), val)
+		}
+		field("PID:", strconv.Itoa(info.PID))
+		field("User:", orDash(info.User))
+		field("Cmdline:", orDash(info.Cmdline))
+		field("Executable:", orDash(info.Exe))
+		field("Cwd:", orDash(info.Cwd))
+		field("Threads:", strconv.Itoa(info.NumThreads))
+		field("Open files:", strconv.Itoa(info.OpenFiles))
+		field("RSS:", fmt.Sprintf("%.1f MiB", float64(info.RSSBytes)/1024/1024))
 		if !info.StartTime.IsZero() {
-			fmt.Fprintf(&b, "Started:    %s\n", info.StartTime.Format("2006-01-02 15:04:05"))
+			field("Started:", info.StartTime.Format("2006-01-02 15:04:05"))
 		}
 		if row.SystemdUnit != "" {
-			fmt.Fprintf(&b, "Systemd:    %s\n", row.SystemdUnit)
+			field("Systemd:", row.SystemdUnit)
 		}
 		if row.ContainerName != "" {
-			fmt.Fprintf(&b, "Container:  %s\n", row.ContainerName)
+			field("Container:", row.ContainerName)
 		}
 	}
 
@@ -109,12 +145,12 @@ func (m Model) renderDetail() string {
 
 func (m Model) renderConfirmKill() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s\n\n", styleTitle.Render("Kill this process?"))
+	fmt.Fprintf(&b, "%s\n\n", styleDanger.Render("Kill this process?"))
 	fmt.Fprintf(&b, "%s (PID %s) listening on :%d\n\n",
 		m.killTarget.ProcessName, strconv.Itoa(m.killTarget.PID), m.killTarget.LocalPort)
-	b.WriteString(styleKey.Render("y") + " terminate (SIGTERM)   ")
-	b.WriteString(styleKey.Render("f") + " force (SIGKILL)   ")
-	b.WriteString(styleKey.Render("esc") + " cancel")
+	b.WriteString(styleKey.Render("y") + styleFaint.Render(" terminate (SIGTERM)   "))
+	b.WriteString(styleKey.Render("f") + styleFaint.Render(" force (SIGKILL)   "))
+	b.WriteString(styleKey.Render("esc") + styleFaint.Render(" cancel"))
 	return styleModal.Width(m.modalWidth()).Render(b.String())
 }
 
