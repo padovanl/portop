@@ -73,15 +73,15 @@ You can. But you'll be doing all of this by hand, every time:
 
 |                              | ss / netstat | lsof | bandwhich | portop |
 |------------------------------|:---:|:---:|:---:|:---:|
-| Live, refreshing view        | – | – | ✓ | ✓ |
-| Kill from the UI              | – | – | – | ✓ |
-| Open port in browser          | – | – | – | ✓ |
-| systemd unit shown            | – | – | – | ✓ |
-| Docker container shown        | – | – | – | ✓ |
-| New-port alerts               | – | – | – | ✓ |
-| Baseline drift / audit mode   | – | – | – | ✓ |
-| Fuzzy filter/search           | – | – | – | ✓ |
-| Themeable / remappable        | – | – | – | ✓ |
+| Live, refreshing view        | ❌ | ❌ | ✅ | ✅ |
+| Kill from the UI              | ❌ | ❌ | ❌ | ✅ |
+| Open port in browser          | ❌ | ❌ | ❌ | ✅ |
+| systemd unit shown            | ❌ | ❌ | ❌ | ✅ |
+| Docker container shown        | ❌ | ❌ | ❌ | ✅ |
+| New-port alerts               | ❌ | ❌ | ❌ | ✅ |
+| Baseline drift / audit mode   | ❌ | ❌ | ❌ | ✅ |
+| Fuzzy filter/search           | ❌ | ❌ | ❌ | ✅ |
+| Themeable / remappable        | ❌ | ❌ | ❌ | ✅ |
 
 ## 📥 Installation
 
