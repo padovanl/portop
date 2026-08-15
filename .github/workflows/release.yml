@@ -9,8 +9,26 @@ permissions:
   contents: write
 
 jobs:
+  # Tags are meant to be cut from main only (development happens on
+  # develop/feature branches). This refuses the release if someone tags a
+  # commit that never made it into main.
+  check-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Ensure tag points at a commit on main
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "::error::${GITHUB_REF_NAME} is not on main; merge to main before tagging a release."
+            exit 1
+          fi
+
   release:
     name: build and publish release
+    needs: check-branch
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
