@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/padovan93/portop/internal/app"
+	"github.com/padovan93/portop/internal/scanner"
+	"github.com/padovan93/portop/internal/services"
 )
 
 func sortRows(rows []app.Row, mode sortMode) {
@@ -43,8 +45,13 @@ type column struct {
 // whether or not a given row has a marker.
 const markerWidth = 2
 
-func columnsFor(showEstablished bool) []column {
-	cols := []column{
+// columnsFor picks which columns to display for the given terminal
+// width: the core columns (port through CPU%) always fit even in a
+// narrow 80-column terminal, and REMOTE/SYSTEMD/CONTAINER are added
+// back in, widest-value-first, only as space allows — rather than
+// letting rows overflow the box and wrap mid-line.
+func columnsFor(showEstablished bool, width int) []column {
+	core := []column{
 		{"PORT", 11},
 		{"PROTO", 5},
 		{"STATE", 12},
@@ -52,15 +59,34 @@ func columnsFor(showEstablished bool) []column {
 		{"PID", 7},
 		{"CPU", 6},
 	}
+	optional := []column{{"SYSTEMD", 16}, {"CONTAINER", 16}}
 	if showEstablished {
-		cols = append(cols, column{"REMOTE", 30})
+		optional = append([]column{{"REMOTE", 30}}, optional...)
 	}
-	cols = append(cols, column{"SYSTEMD", 16}, column{"CONTAINER", 16})
+
+	budget := innerWidth(width) - markerWidth
+	cols := core
+	used := totalWidth(core)
+	for _, c := range optional {
+		if used+c.width > budget {
+			break
+		}
+		cols = append(cols, c)
+		used += c.width
+	}
 	return cols
 }
 
+func totalWidth(cols []column) int {
+	w := 0
+	for _, c := range cols {
+		w += c.width
+	}
+	return w
+}
+
 func (m Model) renderTable() string {
-	cols := columnsFor(m.showEstablished)
+	cols := columnsFor(m.showEstablished, m.width)
 
 	var b strings.Builder
 	b.WriteString(strings.Repeat(" ", markerWidth))
@@ -133,7 +159,13 @@ func (m Model) visibleRows() rowWindow {
 func cellValue(r app.Row, colTitle string) string {
 	switch colTitle {
 	case "PORT":
-		return ":" + strconv.Itoa(int(r.LocalPort))
+		v := ":" + strconv.Itoa(int(r.LocalPort))
+		if r.State == scanner.StateListen {
+			if name, ok := services.Lookup(r.LocalPort, string(r.Protocol)); ok {
+				v += " " + name
+			}
+		}
+		return v
 	case "PROTO":
 		v := string(r.Protocol)
 		if r.IPv6 {

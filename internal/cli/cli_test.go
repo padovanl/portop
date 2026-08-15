@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"net"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/padovan93/portop/internal/app"
+	"github.com/padovan93/portop/internal/baseline"
 	"github.com/padovan93/portop/internal/scanner"
 )
 
@@ -97,6 +99,101 @@ func TestRunJSONFilterByPort(t *testing.T) {
 	}
 	if len(rows) == 0 {
 		t.Error("expected at least the matching listener row, got none")
+	}
+}
+
+func TestBaselineSaveThenDiff(t *testing.T) {
+	baselinePath := filepath.Join(t.TempDir(), "baseline.json")
+	commonFlags := []string{"--baseline-path", baselinePath, "--no-dns", "--no-systemd", "--no-docker"}
+
+	lnKept, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer lnKept.Close()
+	keptPort := lnKept.Addr().(*net.TCPAddr).Port
+
+	lnRemoved, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	removedPort := lnRemoved.Addr().(*net.TCPAddr).Port
+
+	var out, errOut bytes.Buffer
+	code := Run(append([]string{"--save-baseline"}, commonFlags...), &out, &errOut)
+	if code != 0 {
+		t.Fatalf("--save-baseline exit code = %d, stderr = %s", code, errOut.String())
+	}
+	if !strings.Contains(out.String(), baselinePath) {
+		t.Errorf("--save-baseline output = %q, want it to mention the path", out.String())
+	}
+
+	// No drift yet: both listeners are still up, matching the baseline.
+	out.Reset()
+	errOut.Reset()
+	code = Run(append([]string{"--diff"}, commonFlags...), &out, &errOut)
+	if code != 0 {
+		t.Fatalf("--diff (no drift) exit code = %d, want 0, stderr = %s", code, errOut.String())
+	}
+	if !strings.Contains(out.String(), "no changes") {
+		t.Errorf("--diff (no drift) output = %q, want it to report no changes", out.String())
+	}
+
+	// Introduce drift: close one listener, open a new one.
+	lnRemoved.Close()
+	lnNew, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer lnNew.Close()
+	newPort := lnNew.Addr().(*net.TCPAddr).Port
+
+	out.Reset()
+	errOut.Reset()
+	code = Run(append([]string{"--diff"}, commonFlags...), &out, &errOut)
+	if code != 3 {
+		t.Fatalf("--diff (drift) exit code = %d, want 3, stderr = %s", code, errOut.String())
+	}
+	if !strings.Contains(out.String(), strconv.Itoa(newPort)) {
+		t.Errorf("--diff output missing newly added port %d: %s", newPort, out.String())
+	}
+	if !strings.Contains(out.String(), strconv.Itoa(removedPort)) {
+		t.Errorf("--diff output missing removed port %d: %s", removedPort, out.String())
+	}
+	if strings.Contains(out.String(), strconv.Itoa(keptPort)+" ") {
+		t.Errorf("--diff output should not list the unchanged port %d: %s", keptPort, out.String())
+	}
+
+	// Same drift, machine-readable.
+	out.Reset()
+	errOut.Reset()
+	code = Run(append([]string{"--diff", "--json"}, commonFlags...), &out, &errOut)
+	if code != 3 {
+		t.Fatalf("--diff --json exit code = %d, want 3", code)
+	}
+	var report struct {
+		Added   []baseline.Entry `json:"added"`
+		Removed []baseline.Entry `json:"removed"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, out.String())
+	}
+	if len(report.Added) != 1 || int(report.Added[0].Port) != newPort {
+		t.Errorf("Added = %+v, want just port %d", report.Added, newPort)
+	}
+	if len(report.Removed) != 1 || int(report.Removed[0].Port) != removedPort {
+		t.Errorf("Removed = %+v, want just port %d", report.Removed, removedPort)
+	}
+}
+
+func TestDiffWithoutBaselineFails(t *testing.T) {
+	var out, errOut bytes.Buffer
+	code := Run([]string{"--diff", "--baseline-path", filepath.Join(t.TempDir(), "missing.json")}, &out, &errOut)
+	if code != 1 {
+		t.Errorf("exit code = %d, want 1", code)
+	}
+	if !strings.Contains(errOut.String(), "save-baseline") {
+		t.Errorf("stderr = %q, want a hint to run --save-baseline", errOut.String())
 	}
 }
 
