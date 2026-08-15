@@ -16,10 +16,10 @@ func isRoot() bool {
 	return runtime.GOOS != "windows" && os.Geteuid() == 0
 }
 
-// unresolvedHint explains why a row has no PID: on Linux/macOS this is
-// almost always another user's process (docker-proxy, systemd-resolved,
-// sshd before it drops privileges, ...) whose /proc/<pid>/fd table isn't
-// readable without root — the same limitation lsof/ss -p have.
+// unresolvedHint explains why a row has no PID: almost always another
+// user's process (docker-proxy, systemd-resolved, sshd before it drops
+// privileges, ...) whose /proc/<pid>/fd table isn't readable without
+// root — the same limitation lsof/ss -p have.
 func unresolvedHint() string {
 	if isRoot() {
 		return "no process associated with this row"

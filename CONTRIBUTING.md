@@ -38,7 +38,8 @@ make release # local snapshot release build (deb + tar.gz, not published)
 ```
 
 `make e2e` opens real listening sockets and shells out to the compiled
-binary, so it only makes sense on Linux/macOS.
+binary; like portop itself, it only runs on Linux (the scanner reads
+`/proc/net` directly).
 
 ## Releasing
 
