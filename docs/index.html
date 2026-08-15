@@ -156,7 +156,7 @@
       <a href="#compare">Why portop</a>
       <a href="#install">Install</a>
       <a href="#keys">Keys</a>
-      <a href="https://github.com/padovan93/portop">GitHub</a>
+      <a href="https://github.com/padovanl/portop">GitHub</a>
     </div>
   </div>
 </nav>
@@ -168,21 +168,21 @@
 
   <div class="cta">
     <a class="btn btn-primary" href="#install">Install portop</a>
-    <a class="btn btn-ghost" href="https://github.com/padovan93/portop">View on GitHub</a>
+    <a class="btn btn-ghost" href="https://github.com/padovanl/portop">View on GitHub</a>
   </div>
 
   <div class="install">
-    <span class="cmd"><span class="prompt">$ </span><code>curl -fsSL https://raw.githubusercontent.com/padovan93/portop/main/install.sh | sh</code></span>
+    <span class="cmd"><span class="prompt">$ </span><code>curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh | sh</code></span>
     <button class="copy-btn" onclick="copyInstall(this)">copy</button>
   </div>
 
   <div class="badges">
-    <a href="https://github.com/padovan93/portop/actions/workflows/ci.yml"><img src="https://github.com/padovan93/portop/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
-    <a href="https://github.com/padovan93/portop/releases/latest"><img src="https://img.shields.io/github/v/release/padovan93/portop" alt="Latest release"></a>
-    <a href="https://github.com/padovan93/portop/releases"><img src="https://img.shields.io/github/downloads/padovan93/portop/total" alt="Downloads"></a>
-    <a href="https://github.com/padovan93/portop/blob/main/go.mod"><img src="https://img.shields.io/github/go-mod/go-version/padovan93/portop" alt="Go version"></a>
-    <a href="https://goreportcard.com/report/github.com/padovan93/portop"><img src="https://goreportcard.com/badge/github.com/padovan93/portop" alt="Go Report Card"></a>
-    <a href="https://github.com/padovan93/portop/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+    <a href="https://github.com/padovanl/portop/actions/workflows/ci.yml"><img src="https://github.com/padovanl/portop/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+    <a href="https://github.com/padovanl/portop/releases/latest"><img src="https://img.shields.io/github/v/release/padovanl/portop" alt="Latest release"></a>
+    <a href="https://github.com/padovanl/portop/releases"><img src="https://img.shields.io/github/downloads/padovanl/portop/total" alt="Downloads"></a>
+    <a href="https://github.com/padovanl/portop/blob/main/go.mod"><img src="https://img.shields.io/github/go-mod/go-version/padovanl/portop" alt="Go version"></a>
+    <a href="https://goreportcard.com/report/github.com/padovanl/portop"><img src="https://goreportcard.com/badge/github.com/padovanl/portop" alt="Go Report Card"></a>
+    <a href="https://github.com/padovanl/portop/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
   </div>
 </div>
 
@@ -237,7 +237,7 @@
       <div>
         <h4>curl installer</h4>
         <pre class="block"><span class="c"># detects OS/arch, verifies checksum</span>
-curl -fsSL https://raw.githubusercontent.com/padovan93/portop/main/install.sh | sh</pre>
+curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh | sh</pre>
       </div>
       <div>
         <h4>Debian / Ubuntu (.deb)</h4>
@@ -251,7 +251,7 @@ sudo install -m 755 portop /usr/local/bin/portop</pre>
       </div>
       <div>
         <h4>From source</h4>
-        <pre class="block">go install github.com/padovan93/portop/cmd/portop@latest</pre>
+        <pre class="block">go install github.com/padovanl/portop/cmd/portop@latest</pre>
       </div>
     </div>
   </div>
@@ -280,16 +280,16 @@ sudo install -m 755 portop /usr/local/bin/portop</pre>
   <div class="wrap">
     <span>MIT licensed. Built with Go and <a href="https://github.com/charmbracelet/bubbletea">Bubble Tea</a>.</span>
     <span>
-      <a href="https://github.com/padovan93/portop">GitHub</a> ·
-      <a href="https://github.com/padovan93/portop/releases">Releases</a> ·
-      <a href="https://github.com/padovan93/portop/blob/main/CONTRIBUTING.md">Contributing</a>
+      <a href="https://github.com/padovanl/portop">GitHub</a> ·
+      <a href="https://github.com/padovanl/portop/releases">Releases</a> ·
+      <a href="https://github.com/padovanl/portop/blob/main/CONTRIBUTING.md">Contributing</a>
     </span>
   </div>
 </footer>
 
 <script>
 function copyInstall(btn){
-  var text = "curl -fsSL https://raw.githubusercontent.com/padovan93/portop/main/install.sh | sh";
+  var text = "curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh | sh";
   navigator.clipboard.writeText(text).then(function(){
     var old = btn.textContent;
     btn.textContent = "copied!";

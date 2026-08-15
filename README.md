@@ -1,15 +1,15 @@
 # portop
 
-[![CI](https://github.com/padovan93/portop/actions/workflows/ci.yml/badge.svg)](https://github.com/padovan93/portop/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/padovan93/portop)](https://github.com/padovan93/portop/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/padovan93/portop/total)](https://github.com/padovan93/portop/releases)
-[![Go Report Card](https://goreportcard.com/badge/github.com/padovan93/portop)](https://goreportcard.com/report/github.com/padovan93/portop)
-[![Go version](https://img.shields.io/github/go-mod/go-version/padovan93/portop)](go.mod)
+[![CI](https://github.com/padovanl/portop/actions/workflows/ci.yml/badge.svg)](https://github.com/padovanl/portop/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/padovanl/portop)](https://github.com/padovanl/portop/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/padovanl/portop/total)](https://github.com/padovanl/portop/releases)
+[![Go Report Card](https://goreportcard.com/badge/github.com/padovanl/portop)](https://goreportcard.com/report/github.com/padovanl/portop)
+[![Go version](https://img.shields.io/github/go-mod/go-version/padovanl/portop)](go.mod)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **What's really using your ports?** A terminal UI for TCP/UDP ports — like `htop`, but for ports.
 
-**[padovan93.github.io/portop →](https://padovan93.github.io/portop/)**
+**[padovanl.github.io/portop →](https://padovanl.github.io/portop/)**
 
 ![portop demo: filtering to a port, viewing process details, the kill confirmation, and the help overlay](docs/assets/demo.gif)
 
@@ -63,7 +63,7 @@ You can. But you'll be doing all of this by hand, every time:
 ### One-line installer (Linux/macOS)
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/padovan93/portop/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh | sh
 ```
 
 Detects your OS/arch, verifies the release checksum, and installs to
@@ -72,7 +72,7 @@ Detects your OS/arch, verifies the release checksum, and installs to
 ### Debian/Ubuntu (.deb)
 
 Download the `.deb` for your architecture from the
-[latest release](https://github.com/padovan93/portop/releases/latest) and:
+[latest release](https://github.com/padovanl/portop/releases/latest) and:
 
 ```sh
 sudo dpkg -i portop_*_amd64.deb
@@ -81,7 +81,7 @@ sudo dpkg -i portop_*_amd64.deb
 ### Any Linux/macOS (tarball)
 
 Download the `tar.gz` for your OS/architecture from the
-[latest release](https://github.com/padovan93/portop/releases/latest):
+[latest release](https://github.com/padovanl/portop/releases/latest):
 
 ```sh
 tar -xzf portop_*_linux_amd64.tar.gz
@@ -91,7 +91,7 @@ sudo install -m 755 portop /usr/local/bin/portop
 ### From source
 
 ```sh
-go install github.com/padovan93/portop/cmd/portop@latest
+go install github.com/padovanl/portop/cmd/portop@latest
 ```
 
 ## Usage

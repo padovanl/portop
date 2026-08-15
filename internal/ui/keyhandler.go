@@ -8,8 +8,8 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/padovan93/portop/internal/app"
-	"github.com/padovan93/portop/internal/openurl"
+	"github.com/padovanl/portop/internal/app"
+	"github.com/padovanl/portop/internal/openurl"
 )
 
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {

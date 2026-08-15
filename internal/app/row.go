@@ -10,10 +10,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/padovan93/portop/internal/dnscache"
-	"github.com/padovan93/portop/internal/docker"
-	"github.com/padovan93/portop/internal/scanner"
-	"github.com/padovan93/portop/internal/systemdinfo"
+	"github.com/padovanl/portop/internal/dnscache"
+	"github.com/padovanl/portop/internal/docker"
+	"github.com/padovanl/portop/internal/scanner"
+	"github.com/padovanl/portop/internal/systemdinfo"
 )
 
 // Row is a single, fully enriched table row.

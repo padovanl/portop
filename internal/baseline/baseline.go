@@ -13,8 +13,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/padovan93/portop/internal/app"
-	"github.com/padovan93/portop/internal/scanner"
+	"github.com/padovanl/portop/internal/app"
+	"github.com/padovanl/portop/internal/scanner"
 )
 
 // Entry is one listening socket as recorded in a baseline snapshot.

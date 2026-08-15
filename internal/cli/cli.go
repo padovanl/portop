@@ -17,11 +17,11 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/padovan93/portop/internal/app"
-	"github.com/padovan93/portop/internal/baseline"
-	"github.com/padovan93/portop/internal/config"
-	"github.com/padovan93/portop/internal/scanner"
-	"github.com/padovan93/portop/internal/ui"
+	"github.com/padovanl/portop/internal/app"
+	"github.com/padovanl/portop/internal/baseline"
+	"github.com/padovanl/portop/internal/config"
+	"github.com/padovanl/portop/internal/scanner"
+	"github.com/padovanl/portop/internal/ui"
 )
 
 // Version is set at build time via -ldflags "-X .../cli.Version=...".

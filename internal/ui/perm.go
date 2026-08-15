@@ -5,7 +5,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/padovan93/portop/internal/app"
+	"github.com/padovanl/portop/internal/app"
 )
 
 // isRoot reports whether portop is likely able to see every process's
