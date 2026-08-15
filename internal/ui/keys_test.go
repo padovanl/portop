@@ -61,3 +61,14 @@ func TestAllThemesHaveValidColors(t *testing.T) {
 		}
 	}
 }
+
+func TestThemeNamesMatchesThemesMap(t *testing.T) {
+	if len(ThemeNames) != len(Themes) {
+		t.Fatalf("ThemeNames has %d entries, Themes map has %d", len(ThemeNames), len(Themes))
+	}
+	for _, name := range ThemeNames {
+		if _, ok := Themes[name]; !ok {
+			t.Errorf("ThemeNames contains %q, which is not in the Themes map", name)
+		}
+	}
+}

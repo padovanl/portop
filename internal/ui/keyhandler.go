@@ -22,6 +22,8 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleDetailKey(msg)
 	case modeHelp:
 		return m.handleHelpKey(msg)
+	case modeSettings:
+		return m.handleSettingsKey(msg)
 	default:
 		return m.handleNormalKey(msg)
 	}
@@ -113,6 +115,11 @@ func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, keys.Help):
 		m.mode = modeHelp
+
+	case key.Matches(msg, keys.Settings):
+		m.mode = modeSettings
+		m.settingsCursor = settingsThemeRow
+		m.settingsCapturing = false
 	}
 	return m, nil
 }
@@ -159,6 +166,65 @@ func (m Model) handleDetailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) handleHelpKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	m.mode = modeNormal
+	return m, nil
+}
+
+// handleSettingsKey drives the "," settings screen: ↑/↓ move between the
+// theme row, one row per remappable action, and a "reset" row; ←/→ on
+// the theme row cycles the live palette; enter on an action row starts
+// "press a key" capture (any next key becomes that action's new
+// binding, esc cancels); enter on the reset row restores every default
+// keybinding. Every committed change is persisted immediately.
+func (m Model) handleSettingsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.settingsCapturing {
+		pressed := msg.String()
+		if pressed == "esc" {
+			m.settingsCapturing = false
+			return m, nil
+		}
+		action := KeyActions[m.settingsCursor-1]
+		m.keyOverrides[action] = []string{pressed}
+		ApplyKeyBindings(m.keyOverrides)
+		m.settingsCapturing = false
+		m.persistSettings()
+		return m, nil
+	}
+
+	switch msg.String() {
+	case "esc":
+		m.mode = modeNormal
+	case "up":
+		if m.settingsCursor > 0 {
+			m.settingsCursor--
+		}
+	case "down":
+		if m.settingsCursor < settingsRowCount()-1 {
+			m.settingsCursor++
+		}
+	case "left":
+		if m.settingsCursor == settingsThemeRow {
+			m.settingsThemeIdx = (m.settingsThemeIdx - 1 + len(ThemeNames)) % len(ThemeNames)
+			ApplyPalette(Themes[ThemeNames[m.settingsThemeIdx]])
+			m.persistSettings()
+		}
+	case "right":
+		if m.settingsCursor == settingsThemeRow {
+			m.settingsThemeIdx = (m.settingsThemeIdx + 1) % len(ThemeNames)
+			ApplyPalette(Themes[ThemeNames[m.settingsThemeIdx]])
+			m.persistSettings()
+		}
+	case "enter":
+		switch {
+		case m.settingsCursor == settingsThemeRow:
+			// no-op: theme is chosen with left/right, not enter
+		case m.settingsCursor == settingsResetRow():
+			m.keyOverrides = make(map[string][]string)
+			ApplyKeyBindings(nil)
+			m.persistSettings()
+		default:
+			m.settingsCapturing = true
+		}
+	}
 	return m, nil
 }
 

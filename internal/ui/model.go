@@ -12,6 +12,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/padovanl/portop/internal/app"
+	"github.com/padovanl/portop/internal/config"
 	"github.com/padovanl/portop/internal/notify"
 	"github.com/padovanl/portop/internal/procctl"
 	"github.com/padovanl/portop/internal/procinfo"
@@ -25,6 +26,7 @@ const (
 	modeConfirmKill
 	modeDetail
 	modeHelp
+	modeSettings
 )
 
 type ipFilterMode int
@@ -78,6 +80,19 @@ type Config struct {
 	ResolveSystemd  bool
 	ResolveDocker   bool
 	NotifyOnNewPort bool
+
+	// ConfigPath is where the settings screen (",") persists live theme
+	// and keybinding changes. Empty disables persistence: changes still
+	// apply for the running session, they just won't survive a restart.
+	ConfigPath string
+	// Theme is the theme name already applied (via ApplyPalette) before
+	// New is called — used only to seed the settings screen's cursor at
+	// the right entry.
+	Theme string
+	// KeyOverrides is the keybinding map already applied (via
+	// ApplyKeyBindings) before New is called — the settings screen
+	// mutates its own copy of this and persists it back to ConfigPath.
+	KeyOverrides map[string][]string
 }
 
 // Model is the root Bubble Tea model for portop.
@@ -110,8 +125,23 @@ type Model struct {
 	statusIsErr bool
 	lastErr     error
 
+	// settings screen (",") state
+	configPath        string
+	keyOverrides      map[string][]string // live, mutable copy of cfg.KeyOverrides
+	settingsCursor    int
+	settingsThemeIdx  int
+	settingsCapturing bool
+
 	quitting bool
 }
+
+// settingsRowCount is the theme row, one row per remappable action, and
+// the "reset keybindings" row.
+func settingsRowCount() int { return 1 + len(KeyActions) + 1 }
+
+const settingsThemeRow = 0
+
+func settingsResetRow() int { return len(KeyActions) + 1 }
 
 // New builds the initial model. The TUI starts collecting as soon as
 // Init's command runs.
@@ -121,13 +151,29 @@ func New(cfg Config) Model {
 	fi.CharLimit = 64
 	fi.SetValue(cfg.InitialFilter)
 
+	overrides := make(map[string][]string, len(cfg.KeyOverrides))
+	for action, ks := range cfg.KeyOverrides {
+		overrides[action] = append([]string(nil), ks...)
+	}
+
+	themeIdx := 0
+	for i, name := range ThemeNames {
+		if name == cfg.Theme {
+			themeIdx = i
+			break
+		}
+	}
+
 	return Model{
-		cfg:             cfg,
-		collector:       app.NewCollector(),
-		filterInput:     fi,
-		showEstablished: cfg.ShowEstablished,
-		ipFilter:        ipAll,
-		newSeen:         make(map[app.Key]bool),
+		cfg:              cfg,
+		collector:        app.NewCollector(),
+		filterInput:      fi,
+		showEstablished:  cfg.ShowEstablished,
+		ipFilter:         ipAll,
+		newSeen:          make(map[app.Key]bool),
+		configPath:       cfg.ConfigPath,
+		keyOverrides:     overrides,
+		settingsThemeIdx: themeIdx,
 	}
 }
 
@@ -256,6 +302,31 @@ func keyForRow(r app.Row) app.Key {
 func (m *Model) setStatus(msg string, isErr bool) {
 	m.statusMsg = msg
 	m.statusIsErr = isErr
+}
+
+// persistSettings writes the settings screen's current theme and
+// keybinding overrides to configPath, preserving any other fields
+// already in the file (refresh_interval, resolve_*, ...) so the
+// settings screen never has to know about — let alone touch — anything
+// beyond what it itself controls.
+func (m *Model) persistSettings() {
+	if m.configPath == "" {
+		return
+	}
+	fileCfg, err := config.Load(m.configPath)
+	if err != nil {
+		m.setStatus("settings: could not read "+m.configPath+": "+err.Error(), true)
+		return
+	}
+	fileCfg.Theme = ThemeNames[m.settingsThemeIdx]
+	if len(m.keyOverrides) == 0 {
+		fileCfg.Keybindings = nil
+	} else {
+		fileCfg.Keybindings = m.keyOverrides
+	}
+	if err := config.Save(m.configPath, fileCfg); err != nil {
+		m.setStatus("settings: could not save "+m.configPath+": "+err.Error(), true)
+	}
 }
 
 func (m *Model) selected() (app.Row, bool) {

@@ -53,6 +53,21 @@ func Load(path string) (Config, error) {
 	return cfg, nil
 }
 
+// Save writes cfg to path as YAML, creating parent directories as
+// needed. Used by the in-app settings screen (`,`) so a live change
+// (theme, a rebound key) survives a restart without the user ever
+// having to open the file themselves.
+func Save(path string, cfg Config) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
+}
+
 // BoolOr returns *p if set, otherwise fallback — used to let config.yml
 // supply a flag's default while still letting the flag itself override.
 func BoolOr(p *bool, fallback bool) bool {
@@ -85,7 +100,8 @@ const defaultConfigTemplate = `# portop config.yml
 # resolve_docker: true      # associate the owning Docker container
 # watch_new: false          # desktop notification on a new LISTEN port
 
-# Color theme: default | dracula | nord | mono
+# Color theme: default | dracula | nord | solarized | gruvbox | catppuccin
+# | tokyo-night | monokai | darcula | vscode | ubuntu | mono
 # theme: default
 
 # Keybinding overrides: action -> list of keys. Anything left out keeps
@@ -95,11 +111,16 @@ const defaultConfigTemplate = `# portop config.yml
 # bar, so put your preferred one first.
 #
 # Valid actions: up, down, top, bottom, enter, kill, open, filter, sort,
-# protocol, established, new_mark, copy, refresh, help, quit, escape
+# protocol, established, new_mark, copy, refresh, help, quit, escape,
+# settings
 #
 # keybindings:
 #   up: ["up", "k"]
 #   down: ["down", "j"]
 #   kill: ["x"]
 #   quit: ["q", "ctrl+c"]
+#
+# You don't need to hand-edit this section at all, though: press "," in
+# the app to open Settings, where themes and keys can be changed live —
+# portop keeps this file in sync with whatever you pick there.
 `

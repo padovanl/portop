@@ -40,6 +40,8 @@ func (m Model) View() string {
 		return overlay(base, m.renderConfirmKill(), m.width, m.height)
 	case modeHelp:
 		return overlay(base, m.renderHelp(), m.width, m.height)
+	case modeSettings:
+		return overlay(base, m.renderSettings(), m.width, m.height)
 	}
 	return base
 }
@@ -180,6 +182,7 @@ func (m Model) renderHelp() string {
 		{keys.NewMark, "clear the new-port highlight"},
 		{keys.Refresh, "refresh now"},
 		{keys.Help, "this help"},
+		{keys.Settings, "open settings"},
 		{keys.Quit, "quit"},
 	}
 	for _, r := range rows {
@@ -187,6 +190,82 @@ func (m Model) renderHelp() string {
 		fmt.Fprintf(&b, "%s  %s\n", styleKey.Render(padTrunc(label, 10)), r.desc)
 	}
 	b.WriteString("\n" + styleMuted.Render("press any key to close"))
+	return styleModal.Width(m.modalWidth()).Render(b.String())
+}
+
+// renderSettings draws the "," settings screen: a live theme picker and
+// the full remappable keybinding list, both editable in place.
+func (m Model) renderSettings() string {
+	var b strings.Builder
+	b.WriteString(styleTitle.Render("Settings") + "\n\n")
+
+	themeLine := fmt.Sprintf("Theme: %-12s %d/%d", ThemeNames[m.settingsThemeIdx], m.settingsThemeIdx+1, len(ThemeNames))
+	if m.settingsCursor == settingsThemeRow {
+		b.WriteString(styleRowSelected.Render(themeLine) + "\n\n")
+	} else {
+		b.WriteString(themeLine + "\n\n")
+	}
+
+	n := len(KeyActions)
+	// Fixed chrome around the action list: modal border+padding (4),
+	// title+blank (2), theme+blank (2), the tag line (1), blank+reset
+	// (2), blank+hint (2) — the rest of the modal's height budget goes
+	// to action rows, scrolled to keep the cursor in view exactly like
+	// the main table does.
+	maxRows := max(3, m.height-13)
+	start := 0
+	if n > maxRows {
+		center := m.settingsCursor - 1
+		if center < 0 {
+			center = 0
+		}
+		if center > n-1 {
+			center = n - 1
+		}
+		start = center - maxRows/2
+		if start < 0 {
+			start = 0
+		}
+		if start+maxRows > n {
+			start = n - maxRows
+		}
+	}
+	end := min(start+maxRows, n)
+
+	tag := styleTag.Render("Keybindings") + styleFaint.Render(" (enter to rebind)")
+	if n > maxRows && m.settingsCursor >= 1 && m.settingsCursor <= n {
+		tag += styleFaint.Render(fmt.Sprintf("  %d/%d", m.settingsCursor, n))
+	}
+	b.WriteString(tag + "\n")
+
+	bindings := CurrentKeyBindings()
+	for i := start; i < end; i++ {
+		action := KeyActions[i]
+		row := i + 1
+		label := strings.Join(bindings[action], "/")
+		if m.settingsCapturing && m.settingsCursor == row {
+			label = styleDanger.Render("press a key...")
+		}
+		line := fmt.Sprintf("%-28s %s", actionDesc[action], label)
+		if m.settingsCursor == row {
+			b.WriteString(styleRowSelected.Render(line) + "\n")
+		} else {
+			b.WriteString(line + "\n")
+		}
+	}
+
+	resetLine := "Reset keybindings to defaults"
+	if m.settingsCursor == settingsResetRow() {
+		b.WriteString("\n" + styleRowSelected.Render(resetLine) + "\n")
+	} else {
+		b.WriteString("\n" + styleMuted.Render(resetLine) + "\n")
+	}
+
+	hint := "↑/↓ move · ←/→ browse themes · enter rebind/reset · esc close"
+	if m.settingsCapturing {
+		hint = "press any key to bind it · esc to cancel"
+	}
+	b.WriteString("\n" + styleMuted.Render(hint))
 	return styleModal.Width(m.modalWidth()).Render(b.String())
 }
 
@@ -214,6 +293,14 @@ func orDash(s string) string {
 // version never produces more lines than `base` already has.
 func overlay(base, modal string, width, height int) string {
 	baseLines := strings.Split(base, "\n")
+	// The base view can render shorter than the terminal (e.g. a short
+	// socket list leaves the table nowhere near full height) — pad it
+	// out to the real canvas size first, so a modal taller than the
+	// *current* base view still has the *terminal's* actual room to
+	// work with instead of being silently clipped.
+	for len(baseLines) < height {
+		baseLines = append(baseLines, "")
+	}
 	modalLines := strings.Split(modal, "\n")
 
 	top := (len(baseLines) - len(modalLines)) / 2

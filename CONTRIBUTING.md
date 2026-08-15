@@ -4,8 +4,10 @@
 
 - `main` — always releasable. Protected: no direct pushes, no force-pushes,
   no deletion. Every change lands via a pull request from `develop` (or a
-  `release/*`/`hotfix/*` branch). Every push to `main` is tagged and
-  published as a release.
+  `release/*`/`hotfix/*` branch). Pushing a `vX.Y.Z` tag on `main` triggers
+  the release pipeline; the release workflow independently refuses to run
+  if that tag isn't actually reachable from `main`, so there's no way to
+  accidentally ship something that skipped `develop`.
 - `develop` — integration branch for day-to-day work. Feature branches
   (`feat/...`, `fix/...`) target `develop` via pull request.
 
@@ -41,20 +43,31 @@ make release # local snapshot release build (deb + tar.gz, not published)
 binary; like portop itself, it only runs on Linux (the scanner reads
 `/proc/net` directly).
 
-## Releasing
+## Releasing (maintainers)
 
-Releases are cut from `main` only. Merge `develop` into `main` via PR, then
-push a `vX.Y.Z` tag on `main`:
+This section only applies if you have push access to `main` — regular
+contributors don't need any of this.
+
+Releases are cut from `main` only, and only from a commit that arrived
+there via a pull request from `develop` with every required check green.
+To ship a release:
 
 ```sh
+# 1. Open a PR from develop into main, wait for CI to go green, merge it.
 git checkout main && git pull
-git tag vX.Y.Z
-git push origin vX.Y.Z
+
+# 2. Tag and push — this is the only step that actually triggers a release.
+scripts/release.sh vX.Y.Z
 ```
 
-The `release` GitHub Actions workflow builds the `.deb` and `.tar.gz`
-artifacts with GoReleaser and publishes them to the GitHub release for that
-tag.
+`scripts/release.sh` refuses to run unless you're on `main`, the working
+tree is clean, local `main` matches `origin/main`, and the tag doesn't
+already exist locally or on the remote — then it tags and pushes after a
+confirmation prompt. That push triggers the [release
+workflow](.github/workflows/release.yml), which independently re-checks
+the tag is reachable from `main` (so there's no way to accidentally ship
+a tag that skipped the PR) before building the `.deb`/`.tar.gz` artifacts
+with GoReleaser and publishing them to a new GitHub Release.
 
 ## Code style
 
