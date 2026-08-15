@@ -297,7 +297,7 @@ func ApplyPalette(p Palette) {
 	colorBorder = ac(p.Border, p.BorderDark)
 
 	styleAppBorder = lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
+		Border(lipgloss.ThickBorder()).
 		BorderForeground(colorAccent2).
 		Padding(0, 1)
 
@@ -329,7 +329,7 @@ func ApplyPalette(p Palette) {
 	styleProtoUDP = lipgloss.NewStyle().Foreground(colorUDP).Bold(true)
 
 	styleModal = lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
+		Border(lipgloss.ThickBorder()).
 		BorderForeground(colorAccent2).
 		Padding(1, 2)
 
