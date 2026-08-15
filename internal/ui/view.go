@@ -46,11 +46,7 @@ func (m Model) View() string {
 // innerWidth is the content width available inside the app's outer
 // border + 1-column padding on each side.
 func innerWidth(termWidth int) int {
-	w := termWidth - 4
-	if w < 40 {
-		w = 40
-	}
-	return w
+	return max(termWidth-4, 40)
 }
 
 func (m Model) renderTitle() string {
@@ -72,14 +68,17 @@ func (m Model) renderStatusBar() string {
 	count := fmt.Sprintf("%d/%d sockets", len(m.filtered), len(m.rows))
 
 	var msg string
-	if m.statusMsg != "" {
-		if m.statusIsErr {
-			msg = styleDanger.Render(m.statusMsg)
-		} else {
-			msg = styleOk.Render(m.statusMsg)
-		}
-	} else if m.lastErr != nil {
+	switch {
+	case m.statusMsg != "" && m.statusIsErr:
+		msg = styleDanger.Render(m.statusMsg)
+	case m.statusMsg != "":
+		msg = styleOk.Render(m.statusMsg)
+	case m.lastErr != nil:
 		msg = styleDanger.Render("scan error: " + m.lastErr.Error())
+	default:
+		if hint := unresolvedStatusHint(m.rows); hint != "" {
+			msg = styleFaint.Render(hint)
+		}
 	}
 
 	line1 := styleMuted.Render(count) + "   " + msg
@@ -184,14 +183,7 @@ func (m Model) renderHelp() string {
 // stretching to the width of their widest line (e.g. a long cmdline in
 // the detail view) or the full terminal width.
 func (m Model) modalWidth() int {
-	w := m.width - 12
-	if w > 88 {
-		w = 88
-	}
-	if w < 40 {
-		w = 40
-	}
-	return w
+	return min(max(m.width-12, 40), 88)
 }
 
 func orDash(s string) string {
@@ -206,5 +198,5 @@ func orDash(s string) string {
 // the base view; this keeps behavior identical across terminal widths
 // without needing manual ANSI cursor positioning.
 func overlay(base, top string, width, height int) string {
-	return base + "\n\n" + lipgloss.PlaceHorizontal(maxInt(20, width), lipgloss.Center, top)
+	return base + "\n\n" + lipgloss.PlaceHorizontal(max(20, width), lipgloss.Center, top)
 }

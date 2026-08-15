@@ -44,7 +44,7 @@ func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, keys.Top):
 		m.cursor = 0
 	case key.Matches(msg, keys.Bottom):
-		m.cursor = maxInt(0, len(m.filtered)-1)
+		m.cursor = max(0, len(m.filtered)-1)
 
 	case key.Matches(msg, keys.Enter):
 		if row, ok := m.selected(); ok && row.PID != 0 {
@@ -53,14 +53,14 @@ func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.detailErr = nil
 			return m, loadDetailCmd(row.PID)
 		}
-		m.setStatus("no process associated with this row", true)
+		m.setStatus(unresolvedHint(), true)
 
 	case key.Matches(msg, keys.Kill):
 		if row, ok := m.selected(); ok && row.PID != 0 {
 			m.killTarget = row
 			m.mode = modeConfirmKill
 		} else {
-			m.setStatus("no process associated with this row", true)
+			m.setStatus(unresolvedHint(), true)
 		}
 
 	case key.Matches(msg, keys.Open):
@@ -182,7 +182,7 @@ func (m *Model) refilter() {
 
 	m.filtered = out
 	if m.cursor >= len(m.filtered) {
-		m.cursor = maxInt(0, len(m.filtered)-1)
+		m.cursor = max(0, len(m.filtered)-1)
 	}
 }
 
@@ -203,11 +203,4 @@ func rowMatches(r app.Row, query string) bool {
 		return true
 	}
 	return false
-}
-
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

@@ -16,7 +16,6 @@ var (
 	colorSelected = lipgloss.AdaptiveColor{Light: "#DCEBFF", Dark: "#1B3350"}
 	colorZebra    = lipgloss.AdaptiveColor{Light: "#F4F6F9", Dark: "#171C27"}
 	colorBorder   = lipgloss.AdaptiveColor{Light: "#D0D5DD", Dark: "#2E3648"}
-	colorAppBg    = lipgloss.AdaptiveColor{Light: "#FFFFFF", Dark: "#0B0E14"}
 
 	styleAppBorder = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
@@ -38,8 +37,6 @@ var (
 	styleHeader = lipgloss.NewStyle().Bold(true).Foreground(colorAccent2)
 
 	styleDivider = lipgloss.NewStyle().Foreground(colorBorder)
-
-	styleRow = lipgloss.NewStyle()
 
 	styleRowZebra = lipgloss.NewStyle().Background(colorZebra)
 
@@ -63,8 +60,6 @@ var (
 
 	styleProtoTCP = lipgloss.NewStyle().Foreground(colorTCP).Bold(true)
 	styleProtoUDP = lipgloss.NewStyle().Foreground(colorUDP).Bold(true)
-
-	styleStatusBar = lipgloss.NewStyle().Foreground(colorMuted)
 
 	styleModal = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).

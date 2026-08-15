@@ -15,8 +15,10 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/padovan93/portop/internal/app"
+	"github.com/padovan93/portop/internal/baseline"
 	"github.com/padovan93/portop/internal/scanner"
 	"github.com/padovan93/portop/internal/ui"
 )
@@ -31,6 +33,10 @@ Usage:
   portop <port|name>     launch the TUI pre-filtered on a port or process
   portop --listen         show only listening (LISTEN) sockets
   portop --json           print a JSON snapshot and exit
+  portop --save-baseline  remember which ports are currently listening
+  portop --diff           compare live ports against the saved baseline
+                           (exit code 3 if something changed — handy in
+                           a cron job or systemd timer)
 
 Options:
 `
@@ -54,6 +60,9 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	watchNew := fs.Bool("watch-new", false, "send a desktop notification when a new LISTEN port appears")
 	interval := fs.Duration("interval", 2*time.Second, "TUI refresh interval")
 	showVersion := fs.Bool("version", false, "print the version and exit")
+	saveBaseline := fs.Bool("save-baseline", false, "record which ports are currently listening")
+	diffBaseline := fs.Bool("diff", false, "compare live listening ports against the saved baseline")
+	baselinePath := fs.String("baseline-path", "", "baseline file path (default: OS config dir)/portop/baseline.json")
 
 	// The stdlib flag package stops parsing at the first non-flag
 	// argument, which would break "portop 8080 --json" (flag package
@@ -90,7 +99,19 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		ResolveDNS:     !*noDNS,
 	}
 
-	if *jsonMode {
+	path := *baselinePath
+	if path == "" {
+		if p, err := baseline.DefaultPath(); err == nil {
+			path = p
+		}
+	}
+
+	switch {
+	case *saveBaseline:
+		return runSaveBaseline(stdout, stderr, path, opts)
+	case *diffBaseline:
+		return runDiffBaseline(stdout, stderr, path, *jsonMode, opts)
+	case *jsonMode:
 		return runJSON(stdout, stderr, filter, *listenOnly, opts)
 	}
 
@@ -141,6 +162,103 @@ func runJSON(stdout, stderr io.Writer, filter string, listenOnly bool, opts app.
 		return 1
 	}
 	return 0
+}
+
+func runSaveBaseline(stdout, stderr io.Writer, path string, opts app.Options) int {
+	if path == "" {
+		fmt.Fprintln(stderr, "portop: could not determine a baseline path (try --baseline-path)")
+		return 1
+	}
+	collector := app.NewCollector()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	rows, err := collector.Collect(ctx, opts)
+	if err != nil {
+		fmt.Fprintln(stderr, "portop: "+err.Error())
+		return 1
+	}
+
+	entries := baseline.FromRows(rows)
+	if err := baseline.Save(path, entries); err != nil {
+		fmt.Fprintln(stderr, "portop: saving baseline: "+err.Error())
+		return 1
+	}
+	fmt.Fprintf(stdout, "saved baseline of %d listening port(s) to %s\n", len(entries), path)
+	return 0
+}
+
+var (
+	styleDiffAdded   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#B4530A", Dark: "#FFB454"}).Bold(true)
+	styleDiffRemoved = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#6B7280", Dark: "#8A93A6"})
+)
+
+// runDiffBaseline compares the live LISTEN ports against a previously
+// saved baseline and reports what changed. It exits 3 if anything
+// changed (added or removed), so it composes with cron/systemd timers
+// and `&&`/`||` shell chains without extra parsing.
+func runDiffBaseline(stdout, stderr io.Writer, path string, jsonOut bool, opts app.Options) int {
+	if path == "" {
+		fmt.Fprintln(stderr, "portop: could not determine a baseline path (try --baseline-path)")
+		return 1
+	}
+	saved, savedAt, err := baseline.Load(path)
+	if err != nil {
+		fmt.Fprintln(stderr, "portop: no baseline found at "+path+" — run 'portop --save-baseline' first")
+		return 1
+	}
+
+	collector := app.NewCollector()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	rows, err := collector.Collect(ctx, opts)
+	if err != nil {
+		fmt.Fprintln(stderr, "portop: "+err.Error())
+		return 1
+	}
+
+	current := baseline.FromRows(rows)
+	added, removed := baseline.Diff(saved, current)
+
+	if jsonOut {
+		enc := json.NewEncoder(stdout)
+		enc.SetIndent("", "  ")
+		_ = enc.Encode(struct {
+			BaselineSavedAt string           `json:"baseline_saved_at"`
+			Added           []baseline.Entry `json:"added"`
+			Removed         []baseline.Entry `json:"removed"`
+		}{BaselineSavedAt: savedAt.Format(time.RFC3339), Added: orEmpty(added), Removed: orEmpty(removed)})
+	} else {
+		fmt.Fprintf(stdout, "baseline saved %s (%d ports)\n", savedAt.Format("2006-01-02 15:04:05"), len(saved))
+		if len(added) == 0 && len(removed) == 0 {
+			fmt.Fprintln(stdout, "no changes — every listening port matches the baseline")
+		}
+		for _, e := range added {
+			fmt.Fprintln(stdout, styleDiffAdded.Render(fmt.Sprintf("+ :%d %s (%s) — new, not in baseline", e.Port, e.Protocol, orDash(e.Process))))
+		}
+		for _, e := range removed {
+			fmt.Fprintln(stdout, styleDiffRemoved.Render(fmt.Sprintf("- :%d %s (%s) — in baseline, not listening anymore", e.Port, e.Protocol, orDash(e.Process))))
+		}
+	}
+
+	if len(added) > 0 || len(removed) > 0 {
+		return 3
+	}
+	return 0
+}
+
+func orDash(s string) string {
+	if s == "" {
+		return "-"
+	}
+	return s
+}
+
+func orEmpty(e []baseline.Entry) []baseline.Entry {
+	if e == nil {
+		return []baseline.Entry{}
+	}
+	return e
 }
 
 func matchesFilter(r app.Row, filter string) bool {
