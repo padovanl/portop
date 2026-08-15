@@ -1,4 +1,4 @@
-module github.com/padovan93/portop
+module github.com/padovanl/portop
 
 go 1.24.2
 

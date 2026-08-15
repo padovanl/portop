@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/padovan93/portop/internal/app"
-	"github.com/padovan93/portop/internal/baseline"
-	"github.com/padovan93/portop/internal/scanner"
+	"github.com/padovanl/portop/internal/app"
+	"github.com/padovanl/portop/internal/baseline"
+	"github.com/padovanl/portop/internal/scanner"
 )
 
 func TestRunVersion(t *testing.T) {

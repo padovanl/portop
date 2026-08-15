@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/padovan93/portop/internal/app"
-	"github.com/padovan93/portop/internal/scanner"
-	"github.com/padovan93/portop/internal/services"
+	"github.com/padovanl/portop/internal/app"
+	"github.com/padovanl/portop/internal/scanner"
+	"github.com/padovanl/portop/internal/services"
 )
 
 func sortRows(rows []app.Row, mode sortMode) {

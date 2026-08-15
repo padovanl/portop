@@ -11,10 +11,10 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/padovan93/portop/internal/app"
-	"github.com/padovan93/portop/internal/notify"
-	"github.com/padovan93/portop/internal/procctl"
-	"github.com/padovan93/portop/internal/procinfo"
+	"github.com/padovanl/portop/internal/app"
+	"github.com/padovanl/portop/internal/notify"
+	"github.com/padovanl/portop/internal/procctl"
+	"github.com/padovanl/portop/internal/procinfo"
 )
 
 type mode int

@@ -20,7 +20,7 @@ builds:
       - arm64
     ldflags:
       - -s -w
-      - -X github.com/padovan93/portop/internal/cli.Version={{.Version}}
+      - -X github.com/padovanl/portop/internal/cli.Version={{.Version}}
 
 archives:
   - id: tarball
@@ -37,7 +37,7 @@ nfpms:
     ids: [portop]
     package_name: portop
     vendor: portop
-    homepage: https://github.com/padovan93/portop
+    homepage: https://github.com/padovanl/portop
     maintainer: Luca Padovan <padovan.93@gmail.com>
     description: >-
       TUI in stile htop per vedere quali processi stanno davvero usando
@@ -70,7 +70,7 @@ changelog:
 
 release:
   github:
-    owner: padovan93
+    owner: padovanl
     name: portop
   draft: false
   prerelease: auto

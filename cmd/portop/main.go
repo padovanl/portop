@@ -5,7 +5,7 @@ package main
 import (
 	"os"
 
-	"github.com/padovan93/portop/internal/cli"
+	"github.com/padovanl/portop/internal/cli"
 )
 
 func main() {

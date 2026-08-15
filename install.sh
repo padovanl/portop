@@ -1,7 +1,7 @@
 #!/bin/sh
 # Installs the latest (or a pinned) portop release for your OS/arch.
 #
-#   curl -fsSL https://raw.githubusercontent.com/padovan93/portop/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh | sh
 #
 # Env overrides:
 #   PORTOP_VERSION=v0.3.0   install a specific tag instead of latest
@@ -10,7 +10,7 @@
 
 set -eu
 
-REPO="padovan93/portop"
+REPO="padovanl/portop"
 
 info()  { printf '\033[1;34m==>\033[0m %s\n' "$1"; }
 warn()  { printf '\033[1;33m!!\033[0m %s\n' "$1" >&2; }
