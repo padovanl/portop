@@ -41,6 +41,7 @@ inspect or kill it — refreshed live, in a keyboard-driven UI.
 - Copy a row to the clipboard
 - Non-interactive `--json` snapshot mode for scripting and monitoring
 - Adapts its columns to your terminal width — useful even at 80 columns
+- Configurable: pick a color theme and remap any key via `config.yml`
 
 ## Why not just `ss -tlnp`?
 
@@ -117,6 +118,10 @@ Run `portop --help` for the full flag list.
 
 ### Keybindings
 
+These are the defaults — every one of them can be remapped, see
+[Configuration](#configuration) below. The in-app `?` help always reflects
+whatever's actually bound, including your overrides.
+
 | Key       | Action                                          |
 |-----------|--------------------------------------------------|
 | `↑` `↓`   | move the cursor                                  |
@@ -133,6 +138,31 @@ Run `portop --help` for the full flag list.
 | `r`       | refresh now                                      |
 | `?`       | help                                             |
 | `q`       | quit                                             |
+
+## Configuration
+
+Everything below is optional — portop works with no config file at all.
+
+```sh
+portop --init-config   # writes a fully-commented template and exits
+```
+
+That writes to your OS's per-user config directory (`~/.config/portop/config.yml`
+on Linux); pass `--config /path/to/file.yml` to use a different one. Example:
+
+```yaml
+theme: dracula            # default | dracula | nord | mono
+show_established: false   # same as always passing --listen
+refresh_interval: 1s
+
+keybindings:
+  kill: ["x"]
+  quit: ["q", "ctrl+c"]
+```
+
+Command-line flags always win over `config.yml` when both set the same
+thing. An unknown theme name or keybinding action fails fast with a
+message telling you what's valid, rather than silently ignoring it.
 
 ## How it works
 
