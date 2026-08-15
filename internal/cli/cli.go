@@ -154,6 +154,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		*interval = d
 	}
 
+	themeName := "default"
 	if fileCfg.Theme != "" {
 		palette, ok := ui.Themes[fileCfg.Theme]
 		if !ok {
@@ -161,6 +162,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 			return 1
 		}
 		ui.ApplyPalette(palette)
+		themeName = fileCfg.Theme
 	}
 	if len(fileCfg.Keybindings) > 0 {
 		known := make(map[string]bool, len(ui.KeyActions))
@@ -209,6 +211,9 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		ResolveSystemd:  opts.ResolveSystemd,
 		ResolveDocker:   opts.ResolveDocker,
 		NotifyOnNewPort: *watchNew,
+		ConfigPath:      cfgPath,
+		Theme:           themeName,
+		KeyOverrides:    fileCfg.Keybindings,
 	}
 
 	p := tea.NewProgram(ui.New(uiCfg), tea.WithAltScreen())

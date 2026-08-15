@@ -20,15 +20,16 @@ type keyMap struct {
 	Help        key.Binding
 	Quit        key.Binding
 	Escape      key.Binding
+	Settings    key.Binding
 }
 
 // KeyActions lists every remappable action, in the config.yml order
-// `--init-config` writes them in. The map key is what a config.yml
-// `keybindings:` entry names.
+// `--init-config` writes them in and the settings screen lists them in.
+// The map key is what a config.yml `keybindings:` entry names.
 var KeyActions = []string{
 	"up", "down", "top", "bottom", "enter", "kill", "open", "filter",
 	"sort", "protocol", "established", "new_mark", "copy", "refresh",
-	"help", "quit", "escape",
+	"help", "quit", "escape", "settings",
 }
 
 var defaultKeyBindings = map[string][]string{
@@ -49,6 +50,7 @@ var defaultKeyBindings = map[string][]string{
 	"help":        {"?"},
 	"quit":        {"q", "ctrl+c"},
 	"escape":      {"esc"},
+	"settings":    {","},
 }
 
 var actionDesc = map[string]string{
@@ -57,10 +59,15 @@ var actionDesc = map[string]string{
 	"filter": "filter/search", "sort": "sort", "protocol": "IPv4/IPv6",
 	"established": "established", "new_mark": "clear new-port marks",
 	"copy": "copy", "refresh": "refresh", "help": "help", "quit": "quit",
-	"escape": "close",
+	"escape": "close", "settings": "settings",
 }
 
 var keys keyMap
+
+// currentBindings is the merged (defaults + overrides) map ApplyKeyBindings
+// last built keys from, kept around so the settings screen can display
+// what's actually bound without having to recompute the merge itself.
+var currentBindings map[string][]string
 
 func init() {
 	ApplyKeyBindings(nil)
@@ -80,6 +87,7 @@ func ApplyKeyBindings(overrides map[string][]string) {
 			merged[action] = ks
 		}
 	}
+	currentBindings = merged
 
 	bind := func(action string) key.Binding {
 		ks := merged[action]
@@ -108,5 +116,16 @@ func ApplyKeyBindings(overrides map[string][]string) {
 		Help:        bind("help"),
 		Quit:        bind("quit"),
 		Escape:      bind("escape"),
+		Settings:    bind("settings"),
 	}
+}
+
+// CurrentKeyBindings returns a copy of the action -> key(s) map the live
+// keymap was last built from, for the settings screen to display.
+func CurrentKeyBindings() map[string][]string {
+	out := make(map[string][]string, len(currentBindings))
+	for action, ks := range currentBindings {
+		out[action] = append([]string(nil), ks...)
+	}
+	return out
 }
