@@ -158,7 +158,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	if fileCfg.Theme != "" {
 		palette, ok := ui.Themes[fileCfg.Theme]
 		if !ok {
-			fmt.Fprintf(stderr, "portop: unknown theme %q in config (available: default, dracula, nord, mono)\n", fileCfg.Theme)
+			fmt.Fprintf(stderr, "portop: unknown theme %q in config (available: %s)\n", fileCfg.Theme, strings.Join(ui.ThemeNames, ", "))
 			return 1
 		}
 		ui.ApplyPalette(palette)

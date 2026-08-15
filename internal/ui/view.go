@@ -199,7 +199,7 @@ func (m Model) renderSettings() string {
 	var b strings.Builder
 	b.WriteString(styleTitle.Render("Settings") + "\n\n")
 
-	themeLine := fmt.Sprintf("Theme: %-10s %d/%d", ThemeNames[m.settingsThemeIdx], m.settingsThemeIdx+1, len(ThemeNames))
+	themeLine := fmt.Sprintf("Theme: %-12s %d/%d", ThemeNames[m.settingsThemeIdx], m.settingsThemeIdx+1, len(ThemeNames))
 	if m.settingsCursor == settingsThemeRow {
 		b.WriteString(styleRowSelected.Render(themeLine) + "\n\n")
 	} else {
