@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/padovan93/portop/internal/netutil"
+	"github.com/padovanl/portop/internal/netutil"
 )
 
 // Protocol identifies the transport protocol of a Connection.

@@ -12,15 +12,17 @@ builds:
     binary: portop
     env:
       - CGO_ENABLED=0
+    # Linux only: portop reads /proc/net/{tcp,udp,...} directly, which
+    # doesn't exist on macOS/Windows. A darwin build would compile fine
+    # and then fail at runtime on every single scan, so it's not offered.
     goos:
       - linux
-      - darwin
     goarch:
       - amd64
       - arm64
     ldflags:
       - -s -w
-      - -X github.com/padovan93/portop/internal/cli.Version={{.Version}}
+      - -X github.com/padovanl/portop/internal/cli.Version={{.Version}}
 
 archives:
   - id: tarball
@@ -37,7 +39,7 @@ nfpms:
     ids: [portop]
     package_name: portop
     vendor: portop
-    homepage: https://github.com/padovan93/portop
+    homepage: https://github.com/padovanl/portop
     maintainer: Luca Padovan <padovan.93@gmail.com>
     description: >-
       TUI in stile htop per vedere quali processi stanno davvero usando
@@ -70,7 +72,7 @@ changelog:
 
 release:
   github:
-    owner: padovan93
+    owner: padovanl
     name: portop
   draft: false
   prerelease: auto

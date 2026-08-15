@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -17,14 +18,20 @@ func (m Model) View() string {
 	b.WriteString(m.renderTitle())
 	b.WriteByte('\n')
 	if m.mode == modeFilter {
-		b.WriteString("search: " + m.filterInput.View())
+		b.WriteString(styleTag.Render("❯ ") + m.filterInput.View())
 		b.WriteByte('\n')
 	}
 	b.WriteString(m.renderTable())
 	b.WriteByte('\n')
+	b.WriteString(styleDivider.Render(strings.Repeat("─", innerWidth(m.width))))
+	b.WriteByte('\n')
 	b.WriteString(m.renderStatusBar())
 
-	base := b.String()
+	// lipgloss's Width() sizes the padded content box, with the border
+	// added outside that — so the box needs the padding (2 cols) added
+	// back on top of innerWidth (which is what the divider/table lines
+	// inside are actually sized to).
+	base := styleAppBorder.Width(innerWidth(m.width) + 2).Render(b.String())
 
 	switch m.mode {
 	case modeDetail:
@@ -37,35 +44,64 @@ func (m Model) View() string {
 	return base
 }
 
+// innerWidth is the content width available inside the app's outer
+// border + 1-column padding on each side.
+func innerWidth(termWidth int) int {
+	return max(termWidth-4, 40)
+}
+
 func (m Model) renderTitle() string {
-	title := styleTitle.Render("portop") + styleMuted.Render(" — what's really using your ports?")
-	filters := fmt.Sprintf("[%s] [sort: %s]", m.ipFilter, m.sort)
+	badge := styleBadge.Render("portop")
+	tagline := styleMuted.Render(" what's really using your ports?")
+
+	scope := "LISTEN"
 	if m.showEstablished {
-		filters = "[LISTEN+ESTABLISHED] " + filters
-	} else {
-		filters = "[LISTEN] " + filters
+		scope = "LISTEN+ESTABLISHED"
 	}
-	return title + "   " + styleMuted.Render(filters)
+	tags := styleTag.Render("["+scope+"]") + " " +
+		styleTag.Render(fmt.Sprintf("[%s]", m.ipFilter)) + " " +
+		styleTag.Render(fmt.Sprintf("[sort: %s]", m.sort))
+
+	return badge + tagline + "   " + tags
 }
 
 func (m Model) renderStatusBar() string {
 	count := fmt.Sprintf("%d/%d sockets", len(m.filtered), len(m.rows))
-	help := "enter details · k kill · o open · f search · v ipv4/6 · e established · s sort · c copy · n clear new · ? help · q quit"
 
 	var msg string
-	if m.statusMsg != "" {
-		if m.statusIsErr {
-			msg = styleDanger.Render(m.statusMsg)
-		} else {
-			msg = styleMuted.Render(m.statusMsg)
-		}
-	} else if m.lastErr != nil {
+	switch {
+	case m.statusMsg != "" && m.statusIsErr:
+		msg = styleDanger.Render(m.statusMsg)
+	case m.statusMsg != "":
+		msg = styleOk.Render(m.statusMsg)
+	case m.lastErr != nil:
 		msg = styleDanger.Render("scan error: " + m.lastErr.Error())
+	default:
+		if hint := unresolvedStatusHint(m.rows); hint != "" {
+			msg = styleFaint.Render(hint)
+		}
 	}
 
 	line1 := styleMuted.Render(count) + "   " + msg
-	line2 := styleMuted.Render(help)
-	return styleStatusBar.Width(maxInt(20, m.width)).Render(line1 + "\n" + line2)
+	line2 := renderKeyHints()
+	return line1 + "\n" + line2
+}
+
+func renderKeyHints() string {
+	hints := []struct {
+		binding key.Binding
+		desc    string
+	}{
+		{keys.Enter, "details"}, {keys.Kill, "kill"}, {keys.Open, "open"}, {keys.Filter, "search"},
+		{keys.Protocol, "ipv4/6"}, {keys.Established, "established"}, {keys.Sort, "sort"}, {keys.Copy, "copy"},
+		{keys.NewMark, "clear new"}, {keys.Help, "help"}, {keys.Quit, "quit"},
+	}
+	parts := make([]string, len(hints))
+	for i, h := range hints {
+		label := h.binding.Keys()[0]
+		parts[i] = styleKey.Render(label) + styleFaint.Render(" "+h.desc)
+	}
+	return strings.Join(parts, styleFaint.Render("  ·  "))
 }
 
 func (m Model) renderDetail() string {
@@ -76,7 +112,8 @@ func (m Model) renderDetail() string {
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s\n", styleTitle.Render("Process details"))
-	fmt.Fprintf(&b, "%s :%d (%s)\n\n", row.ProcessName, row.LocalPort, row.Protocol)
+	fmt.Fprintf(&b, "%s %s :%d (%s)\n\n",
+		stateStyle(string(row.State)).Render("●"), row.ProcessName, row.LocalPort, row.Protocol)
 
 	if m.detailErr != nil {
 		b.WriteString(styleDanger.Render("could not read /proc: " + m.detailErr.Error()))
@@ -84,64 +121,80 @@ func (m Model) renderDetail() string {
 		b.WriteString(styleMuted.Render("loading..."))
 	} else {
 		info := m.detailInfo
-		fmt.Fprintf(&b, "PID:        %d\n", info.PID)
-		fmt.Fprintf(&b, "User:       %s\n", orDash(info.User))
-		fmt.Fprintf(&b, "Cmdline:    %s\n", orDash(info.Cmdline))
-		fmt.Fprintf(&b, "Executable: %s\n", orDash(info.Exe))
-		fmt.Fprintf(&b, "Cwd:        %s\n", orDash(info.Cwd))
-		fmt.Fprintf(&b, "Threads:    %d\n", info.NumThreads)
-		fmt.Fprintf(&b, "Open files: %d\n", info.OpenFiles)
-		fmt.Fprintf(&b, "RSS:        %.1f MiB\n", float64(info.RSSBytes)/1024/1024)
+		field := func(label, val string) {
+			fmt.Fprintf(&b, "%s %s\n", styleTag.Render(padTrunc(label, 11)), val)
+		}
+		field("PID:", strconv.Itoa(info.PID))
+		field("User:", orDash(info.User))
+		field("Cmdline:", orDash(info.Cmdline))
+		field("Executable:", orDash(info.Exe))
+		field("Cwd:", orDash(info.Cwd))
+		field("Threads:", strconv.Itoa(info.NumThreads))
+		field("Open files:", strconv.Itoa(info.OpenFiles))
+		field("RSS:", fmt.Sprintf("%.1f MiB", float64(info.RSSBytes)/1024/1024))
 		if !info.StartTime.IsZero() {
-			fmt.Fprintf(&b, "Started:    %s\n", info.StartTime.Format("2006-01-02 15:04:05"))
+			field("Started:", info.StartTime.Format("2006-01-02 15:04:05"))
 		}
 		if row.SystemdUnit != "" {
-			fmt.Fprintf(&b, "Systemd:    %s\n", row.SystemdUnit)
+			field("Systemd:", row.SystemdUnit)
 		}
 		if row.ContainerName != "" {
-			fmt.Fprintf(&b, "Container:  %s\n", row.ContainerName)
+			field("Container:", row.ContainerName)
 		}
 	}
 
 	b.WriteString("\n" + styleMuted.Render("esc/enter to close"))
-	return styleModal.Render(b.String())
+	return styleModal.Width(m.modalWidth()).Render(b.String())
 }
 
 func (m Model) renderConfirmKill() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s\n\n", styleTitle.Render("Kill this process?"))
+	fmt.Fprintf(&b, "%s\n\n", styleDanger.Render("Kill this process?"))
 	fmt.Fprintf(&b, "%s (PID %s) listening on :%d\n\n",
 		m.killTarget.ProcessName, strconv.Itoa(m.killTarget.PID), m.killTarget.LocalPort)
-	b.WriteString(styleKey.Render("y") + " terminate (SIGTERM)   ")
-	b.WriteString(styleKey.Render("f") + " force (SIGKILL)   ")
-	b.WriteString(styleKey.Render("esc") + " cancel")
-	return styleModal.Render(b.String())
+	b.WriteString(styleKey.Render("y") + styleFaint.Render(" terminate (SIGTERM)   "))
+	b.WriteString(styleKey.Render("f") + styleFaint.Render(" force (SIGKILL)   "))
+	b.WriteString(styleKey.Render("esc") + styleFaint.Render(" cancel"))
+	return styleModal.Width(m.modalWidth()).Render(b.String())
 }
 
 func (m Model) renderHelp() string {
 	var b strings.Builder
 	b.WriteString(styleTitle.Render("Keybindings") + "\n\n")
-	rows := [][2]string{
-		{"↑ / ↓", "move the cursor"},
-		{"g / G", "jump to top / bottom"},
-		{"enter", "process details"},
-		{"k", "kill process (then y=SIGTERM, f=SIGKILL)"},
-		{"o", "open http(s)://localhost:PORT in the browser"},
-		{"f  /", "filter/search by port, process or PID"},
-		{"v", "toggle IPv4 / IPv6 / both"},
-		{"e", "show/hide ESTABLISHED connections"},
-		{"s", "cycle sort column"},
-		{"c", "copy selected row to clipboard"},
-		{"n", "clear the new-port highlight"},
-		{"r", "refresh now"},
-		{"?", "this help"},
-		{"q", "quit"},
+	rows := []struct {
+		binding key.Binding
+		desc    string
+	}{
+		{keys.Up, "move up"},
+		{keys.Down, "move down"},
+		{keys.Top, "jump to top"},
+		{keys.Bottom, "jump to bottom"},
+		{keys.Enter, "process details"},
+		{keys.Kill, "kill process (then y=SIGTERM, f=SIGKILL)"},
+		{keys.Open, "open http(s)://localhost:PORT in the browser"},
+		{keys.Filter, "filter/search by port, process or PID"},
+		{keys.Protocol, "toggle IPv4 / IPv6 / both"},
+		{keys.Established, "show/hide ESTABLISHED connections"},
+		{keys.Sort, "cycle sort column"},
+		{keys.Copy, "copy selected row to clipboard"},
+		{keys.NewMark, "clear the new-port highlight"},
+		{keys.Refresh, "refresh now"},
+		{keys.Help, "this help"},
+		{keys.Quit, "quit"},
 	}
 	for _, r := range rows {
-		fmt.Fprintf(&b, "%s  %s\n", styleKey.Render(padTrunc(r[0], 8)), r[1])
+		label := strings.Join(r.binding.Keys(), "/")
+		fmt.Fprintf(&b, "%s  %s\n", styleKey.Render(padTrunc(label, 10)), r.desc)
 	}
 	b.WriteString("\n" + styleMuted.Render("press any key to close"))
-	return styleModal.Render(b.String())
+	return styleModal.Width(m.modalWidth()).Render(b.String())
+}
+
+// modalWidth keeps popups a comfortable, mostly-fixed size instead of
+// stretching to the width of their widest line (e.g. a long cmdline in
+// the detail view) or the full terminal width.
+func (m Model) modalWidth() int {
+	return min(max(m.width-12, 40), 88)
 }
 
 func orDash(s string) string {
@@ -151,10 +204,35 @@ func orDash(s string) string {
 	return s
 }
 
-// overlay centers `top` over `base`. Bubble Tea has no built-in
-// popup/layer primitive, so we render the modal as its own block below
-// the base view; this keeps behavior identical across terminal widths
-// without needing manual ANSI cursor positioning.
-func overlay(base, top string, width, height int) string {
-	return base + "\n\n" + lipgloss.PlaceHorizontal(maxInt(20, width), lipgloss.Center, top)
+// overlay composites `modal` on top of `base`, centered, by replacing
+// whichever base lines it covers outright. Bubble Tea has no built-in
+// popup/layer primitive; the earlier approach of appending the modal
+// below the base view made the total frame taller than the base view
+// (and often taller than the terminal itself, since the base view is
+// already sized to fill it), which is a plausible cause of the render
+// glitches some terminals show when a frame exceeds their height. This
+// version never produces more lines than `base` already has.
+func overlay(base, modal string, width, height int) string {
+	baseLines := strings.Split(base, "\n")
+	modalLines := strings.Split(modal, "\n")
+
+	top := (len(baseLines) - len(modalLines)) / 2
+	if top < 0 {
+		top = 0
+	}
+
+	left := (max(20, width) - lipgloss.Width(modal)) / 2
+	if left < 0 {
+		left = 0
+	}
+	pad := strings.Repeat(" ", left)
+
+	for i, line := range modalLines {
+		row := top + i
+		if row < 0 || row >= len(baseLines) {
+			continue
+		}
+		baseLines[row] = pad + line
+	}
+	return strings.Join(baseLines, "\n")
 }
