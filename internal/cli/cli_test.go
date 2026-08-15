@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"net"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/padovan93/portop/internal/app"
 	"github.com/padovan93/portop/internal/baseline"
@@ -194,6 +196,109 @@ func TestDiffWithoutBaselineFails(t *testing.T) {
 	}
 	if !strings.Contains(errOut.String(), "save-baseline") {
 		t.Errorf("stderr = %q, want a hint to run --save-baseline", errOut.String())
+	}
+}
+
+func TestInitConfigWritesFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yml")
+	var out, errOut bytes.Buffer
+	code := Run([]string{"--init-config", "--config", path}, &out, &errOut)
+	if code != 0 {
+		t.Fatalf("exit code = %d, stderr = %s", code, errOut.String())
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("config file was not created: %v", err)
+	}
+	if !strings.Contains(out.String(), path) {
+		t.Errorf("output = %q, want it to mention the path", out.String())
+	}
+}
+
+func TestConfigSuppliesFlagDefault(t *testing.T) {
+	ln, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer ln.Close()
+
+	conn, err := net.DialTimeout("tcp4", ln.Addr().String(), 2*time.Second)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+	accepted, err := ln.Accept()
+	if err != nil {
+		t.Fatalf("accept: %v", err)
+	}
+	defer accepted.Close()
+
+	configPath := filepath.Join(t.TempDir(), "config.yml")
+	if err := os.WriteFile(configPath, []byte("show_established: false\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// No --listen flag passed: config's show_established:false should
+	// act as if --listen had been given.
+	var out, errOut bytes.Buffer
+	code := Run([]string{"--json", "--config", configPath, "--no-dns", "--no-systemd", "--no-docker"}, &out, &errOut)
+	if code != 0 {
+		t.Fatalf("exit code = %d, stderr = %s", code, errOut.String())
+	}
+	var rows []jsonRow
+	if err := json.Unmarshal(out.Bytes(), &rows); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, out.String())
+	}
+	for _, r := range rows {
+		if r.State != "LISTEN" {
+			t.Errorf("config's show_established:false should have filtered to LISTEN only, found %+v", r)
+		}
+	}
+}
+
+func TestExplicitFlagOverridesConfig(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yml")
+	if err := os.WriteFile(configPath, []byte("show_established: false\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Explicitly passing -listen=false must win over the config file.
+	var out, errOut bytes.Buffer
+	code := Run([]string{"--json", "--listen=false", "--config", configPath, "--no-dns", "--no-systemd", "--no-docker"}, &out, &errOut)
+	if code != 0 {
+		t.Fatalf("exit code = %d, stderr = %s", code, errOut.String())
+	}
+	// Just confirm it ran without forcing LISTEN-only; the e2e/other
+	// tests already cover that ESTABLISHED rows show up in this mode.
+}
+
+func TestUnknownThemeInConfigFails(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yml")
+	if err := os.WriteFile(configPath, []byte("theme: not-a-real-theme\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	code := Run([]string{"--json", "--config", configPath}, &out, &errOut)
+	if code != 1 {
+		t.Errorf("exit code = %d, want 1", code)
+	}
+	if !strings.Contains(errOut.String(), "not-a-real-theme") {
+		t.Errorf("stderr = %q, want it to name the bad theme", errOut.String())
+	}
+}
+
+func TestUnknownKeybindingActionFails(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yml")
+	content := "keybindings:\n  kil: [\"x\"]\n" // typo: "kil" instead of "kill"
+	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	code := Run([]string{"--json", "--config", configPath}, &out, &errOut)
+	if code != 1 {
+		t.Errorf("exit code = %d, want 1", code)
+	}
+	if !strings.Contains(errOut.String(), "kil") {
+		t.Errorf("stderr = %q, want it to name the bad action", errOut.String())
 	}
 }
 

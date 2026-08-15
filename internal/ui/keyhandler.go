@@ -28,6 +28,12 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// A transient status/error message (e.g. from a previous o/c/k)
+	// sticks around until the next keypress, rather than forever — if
+	// this key's own handler wants to show a new one, it does so below.
+	m.statusMsg = ""
+	m.statusIsErr = false
+
 	switch {
 	case key.Matches(msg, keys.Quit):
 		m.quitting = true

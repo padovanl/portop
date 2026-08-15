@@ -19,6 +19,7 @@ import (
 
 	"github.com/padovan93/portop/internal/app"
 	"github.com/padovan93/portop/internal/baseline"
+	"github.com/padovan93/portop/internal/config"
 	"github.com/padovan93/portop/internal/scanner"
 	"github.com/padovan93/portop/internal/ui"
 )
@@ -37,6 +38,11 @@ Usage:
   portop --diff           compare live ports against the saved baseline
                            (exit code 3 if something changed — handy in
                            a cron job or systemd timer)
+  portop --init-config     write a default config.yml and exit
+
+config.yml (optional, see --init-config) sets default flag values, the
+color theme, and keybinding overrides. See CONTRIBUTING or the README
+for its format.
 
 Options:
 `
@@ -63,6 +69,8 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	saveBaseline := fs.Bool("save-baseline", false, "record which ports are currently listening")
 	diffBaseline := fs.Bool("diff", false, "compare live listening ports against the saved baseline")
 	baselinePath := fs.String("baseline-path", "", "baseline file path (default: OS config dir)/portop/baseline.json")
+	configPath := fs.String("config", "", "config file path (default: OS config dir)/portop/config.yml")
+	initConfig := fs.Bool("init-config", false, "write a default config.yml and exit")
 
 	// The stdlib flag package stops parsing at the first non-flag
 	// argument, which would break "portop 8080 --json" (flag package
@@ -91,6 +99,84 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		return 0
 	}
 
+	cfgPath := *configPath
+	if cfgPath == "" {
+		if p, err := config.DefaultPath(); err == nil {
+			cfgPath = p
+		}
+	}
+
+	if *initConfig {
+		if cfgPath == "" {
+			fmt.Fprintln(stderr, "portop: could not determine a config path (try --config)")
+			return 1
+		}
+		if err := config.WriteDefault(cfgPath); err != nil {
+			fmt.Fprintln(stderr, "portop: writing config: "+err.Error())
+			return 1
+		}
+		fmt.Fprintln(stdout, "wrote default config to "+cfgPath)
+		return 0
+	}
+
+	fileCfg, err := config.Load(cfgPath)
+	if err != nil {
+		fmt.Fprintln(stderr, "portop: "+err.Error())
+		return 1
+	}
+
+	// config.yml only supplies a *default* for a flag that wasn't
+	// explicitly passed on the command line — flags always win.
+	explicit := map[string]bool{}
+	fs.Visit(func(f *flag.Flag) { explicit[f.Name] = true })
+
+	if !explicit["listen"] && fileCfg.ShowEstablished != nil {
+		*listenOnly = !*fileCfg.ShowEstablished
+	}
+	if !explicit["no-dns"] && fileCfg.ResolveDNS != nil && !*fileCfg.ResolveDNS {
+		*noDNS = true
+	}
+	if !explicit["no-systemd"] && fileCfg.ResolveSystemd != nil && !*fileCfg.ResolveSystemd {
+		*noSystemd = true
+	}
+	if !explicit["no-docker"] && fileCfg.ResolveDocker != nil && !*fileCfg.ResolveDocker {
+		*noDocker = true
+	}
+	if !explicit["watch-new"] && fileCfg.WatchNew != nil {
+		*watchNew = *fileCfg.WatchNew
+	}
+	if !explicit["interval"] && fileCfg.RefreshInterval != "" {
+		d, err := time.ParseDuration(fileCfg.RefreshInterval)
+		if err != nil {
+			fmt.Fprintln(stderr, "portop: config refresh_interval: "+err.Error())
+			return 1
+		}
+		*interval = d
+	}
+
+	if fileCfg.Theme != "" {
+		palette, ok := ui.Themes[fileCfg.Theme]
+		if !ok {
+			fmt.Fprintf(stderr, "portop: unknown theme %q in config (available: default, dracula, nord, mono)\n", fileCfg.Theme)
+			return 1
+		}
+		ui.ApplyPalette(palette)
+	}
+	if len(fileCfg.Keybindings) > 0 {
+		known := make(map[string]bool, len(ui.KeyActions))
+		for _, a := range ui.KeyActions {
+			known[a] = true
+		}
+		for action := range fileCfg.Keybindings {
+			if !known[action] {
+				fmt.Fprintf(stderr, "portop: unknown keybindings action %q in config (valid: %s)\n",
+					action, strings.Join(ui.KeyActions, ", "))
+				return 1
+			}
+		}
+	}
+	ui.ApplyKeyBindings(fileCfg.Keybindings)
+
 	filter := strings.Join(positional, " ")
 
 	opts := app.Options{
@@ -99,23 +185,23 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		ResolveDNS:     !*noDNS,
 	}
 
-	path := *baselinePath
-	if path == "" {
+	blPath := *baselinePath
+	if blPath == "" {
 		if p, err := baseline.DefaultPath(); err == nil {
-			path = p
+			blPath = p
 		}
 	}
 
 	switch {
 	case *saveBaseline:
-		return runSaveBaseline(stdout, stderr, path, opts)
+		return runSaveBaseline(stdout, stderr, blPath, opts)
 	case *diffBaseline:
-		return runDiffBaseline(stdout, stderr, path, *jsonMode, opts)
+		return runDiffBaseline(stdout, stderr, blPath, *jsonMode, opts)
 	case *jsonMode:
 		return runJSON(stdout, stderr, filter, *listenOnly, opts)
 	}
 
-	cfg := ui.Config{
+	uiCfg := ui.Config{
 		InitialFilter:   filter,
 		ShowEstablished: !*listenOnly,
 		RefreshInterval: *interval,
@@ -125,7 +211,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		NotifyOnNewPort: *watchNew,
 	}
 
-	p := tea.NewProgram(ui.New(cfg), tea.WithAltScreen())
+	p := tea.NewProgram(ui.New(uiCfg), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintln(stderr, "portop: "+err.Error())
 		return 1

@@ -47,9 +47,11 @@ const markerWidth = 2
 
 // columnsFor picks which columns to display for the given terminal
 // width: the core columns (port through CPU%) always fit even in a
-// narrow 80-column terminal, and REMOTE/SYSTEMD/CONTAINER are added
-// back in, widest-value-first, only as space allows — rather than
-// letting rows overflow the box and wrap mid-line.
+// narrow 80-column terminal, and REMOTE/CONTAINER/SYSTEMD are added
+// back in, most-useful-first, only as space allows — rather than
+// letting rows overflow the box and wrap mid-line. CONTAINER comes
+// before SYSTEMD since Docker's a lot more common in day-to-day port
+// debugging than needing the systemd unit name.
 func columnsFor(showEstablished bool, width int) []column {
 	core := []column{
 		{"PORT", 11},
@@ -59,7 +61,7 @@ func columnsFor(showEstablished bool, width int) []column {
 		{"PID", 7},
 		{"CPU", 6},
 	}
-	optional := []column{{"SYSTEMD", 16}, {"CONTAINER", 16}}
+	optional := []column{{"CONTAINER", 16}, {"SYSTEMD", 16}}
 	if showEstablished {
 		optional = append([]column{{"REMOTE", 30}}, optional...)
 	}

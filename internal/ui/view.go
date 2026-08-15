@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -87,14 +88,18 @@ func (m Model) renderStatusBar() string {
 }
 
 func renderKeyHints() string {
-	hints := [][2]string{
-		{"enter", "details"}, {"k", "kill"}, {"o", "open"}, {"f", "search"},
-		{"v", "ipv4/6"}, {"e", "established"}, {"s", "sort"}, {"c", "copy"},
-		{"n", "clear new"}, {"?", "help"}, {"q", "quit"},
+	hints := []struct {
+		binding key.Binding
+		desc    string
+	}{
+		{keys.Enter, "details"}, {keys.Kill, "kill"}, {keys.Open, "open"}, {keys.Filter, "search"},
+		{keys.Protocol, "ipv4/6"}, {keys.Established, "established"}, {keys.Sort, "sort"}, {keys.Copy, "copy"},
+		{keys.NewMark, "clear new"}, {keys.Help, "help"}, {keys.Quit, "quit"},
 	}
 	parts := make([]string, len(hints))
 	for i, h := range hints {
-		parts[i] = styleKey.Render(h[0]) + styleFaint.Render(" "+h[1])
+		label := h.binding.Keys()[0]
+		parts[i] = styleKey.Render(label) + styleFaint.Render(" "+h.desc)
 	}
 	return strings.Join(parts, styleFaint.Render("  ·  "))
 }
@@ -156,24 +161,30 @@ func (m Model) renderConfirmKill() string {
 func (m Model) renderHelp() string {
 	var b strings.Builder
 	b.WriteString(styleTitle.Render("Keybindings") + "\n\n")
-	rows := [][2]string{
-		{"↑ / ↓", "move the cursor"},
-		{"g / G", "jump to top / bottom"},
-		{"enter", "process details"},
-		{"k", "kill process (then y=SIGTERM, f=SIGKILL)"},
-		{"o", "open http(s)://localhost:PORT in the browser"},
-		{"f  /", "filter/search by port, process or PID"},
-		{"v", "toggle IPv4 / IPv6 / both"},
-		{"e", "show/hide ESTABLISHED connections"},
-		{"s", "cycle sort column"},
-		{"c", "copy selected row to clipboard"},
-		{"n", "clear the new-port highlight"},
-		{"r", "refresh now"},
-		{"?", "this help"},
-		{"q", "quit"},
+	rows := []struct {
+		binding key.Binding
+		desc    string
+	}{
+		{keys.Up, "move up"},
+		{keys.Down, "move down"},
+		{keys.Top, "jump to top"},
+		{keys.Bottom, "jump to bottom"},
+		{keys.Enter, "process details"},
+		{keys.Kill, "kill process (then y=SIGTERM, f=SIGKILL)"},
+		{keys.Open, "open http(s)://localhost:PORT in the browser"},
+		{keys.Filter, "filter/search by port, process or PID"},
+		{keys.Protocol, "toggle IPv4 / IPv6 / both"},
+		{keys.Established, "show/hide ESTABLISHED connections"},
+		{keys.Sort, "cycle sort column"},
+		{keys.Copy, "copy selected row to clipboard"},
+		{keys.NewMark, "clear the new-port highlight"},
+		{keys.Refresh, "refresh now"},
+		{keys.Help, "this help"},
+		{keys.Quit, "quit"},
 	}
 	for _, r := range rows {
-		fmt.Fprintf(&b, "%s  %s\n", styleKey.Render(padTrunc(r[0], 8)), r[1])
+		label := strings.Join(r.binding.Keys(), "/")
+		fmt.Fprintf(&b, "%s  %s\n", styleKey.Render(padTrunc(label, 10)), r.desc)
 	}
 	b.WriteString("\n" + styleMuted.Render("press any key to close"))
 	return styleModal.Width(m.modalWidth()).Render(b.String())
@@ -193,10 +204,35 @@ func orDash(s string) string {
 	return s
 }
 
-// overlay centers `top` over `base`. Bubble Tea has no built-in
-// popup/layer primitive, so we render the modal as its own block below
-// the base view; this keeps behavior identical across terminal widths
-// without needing manual ANSI cursor positioning.
-func overlay(base, top string, width, height int) string {
-	return base + "\n\n" + lipgloss.PlaceHorizontal(max(20, width), lipgloss.Center, top)
+// overlay composites `modal` on top of `base`, centered, by replacing
+// whichever base lines it covers outright. Bubble Tea has no built-in
+// popup/layer primitive; the earlier approach of appending the modal
+// below the base view made the total frame taller than the base view
+// (and often taller than the terminal itself, since the base view is
+// already sized to fill it), which is a plausible cause of the render
+// glitches some terminals show when a frame exceeds their height. This
+// version never produces more lines than `base` already has.
+func overlay(base, modal string, width, height int) string {
+	baseLines := strings.Split(base, "\n")
+	modalLines := strings.Split(modal, "\n")
+
+	top := (len(baseLines) - len(modalLines)) / 2
+	if top < 0 {
+		top = 0
+	}
+
+	left := (max(20, width) - lipgloss.Width(modal)) / 2
+	if left < 0 {
+		left = 0
+	}
+	pad := strings.Repeat(" ", left)
+
+	for i, line := range modalLines {
+		row := top + i
+		if row < 0 || row >= len(baseLines) {
+			continue
+		}
+		baseLines[row] = pad + line
+	}
+	return strings.Join(baseLines, "\n")
 }
