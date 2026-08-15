@@ -59,12 +59,11 @@ open, inspect or kill it, live.
 
 ### 🎨 Make it yours
 
-- **4 built-in themes**: default, Dracula, Nord, mono — `theme:` in
-  `config.yml`.
-- **Rebind any key**: 17 actions, remappable via `config.yml`; the in-app
-  `?` help and status-bar hints always reflect your actual bindings.
-- **`portop --init-config`** writes a fully-commented template — nothing is
-  required to get started.
+- **Live settings screen** (`,`): cycle through 4 built-in themes with
+  `←`/`→` — the whole UI re-skins as you move — and rebind any of 18
+  actions on the spot. Saved automatically; you never touch a file.
+- **`config.yml`** is there too if you'd rather hand-edit it —
+  `portop --init-config` writes a fully-commented template.
 
 ## 🆚 Why not just `ss -tlnp`?
 
@@ -162,12 +161,28 @@ reflects whatever's actually bound, including your overrides.
 | `c`       | copy selected row to clipboard                   |
 | `n`       | clear the new-port highlight                     |
 | `r`       | refresh now                                      |
+| `,`       | settings — live theme picker, remap any key      |
 | `?`       | help                                             |
 | `q`       | quit                                             |
 
 ## ⚙️ Configuration
 
 Everything below is optional — portop works with no config file at all.
+
+### Settings screen (recommended)
+
+Press <kbd>,</kbd> inside portop:
+
+- **Theme**: `←`/`→` cycles through it live — the whole UI re-skins as you
+  move, no restart, no confirmation needed.
+- **Keybindings**: pick any of the 18 actions, hit `enter`, then press
+  whatever you want it bound to. `esc` cancels instead of capturing.
+- **Reset keybindings to defaults** at the bottom of the list, one keypress.
+
+Every change is written to `config.yml` immediately — you never have to
+open the file yourself.
+
+### Or hand-edit `config.yml`
 
 ```bash
 portop --init-config   # writes a fully-commented template and exits
@@ -188,7 +203,9 @@ keybindings:
 
 Command-line flags always win over `config.yml` when both set the same
 thing. An unknown theme name or keybinding action fails fast with a message
-telling you what's valid, instead of silently doing nothing.
+telling you what's valid, instead of silently doing nothing. Fields the
+settings screen doesn't touch (like `refresh_interval` above) are left
+exactly as you wrote them.
 
 ## 🔧 How it works
 

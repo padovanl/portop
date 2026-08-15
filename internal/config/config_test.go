@@ -97,6 +97,62 @@ func TestWriteDefaultThenLoadRoundTrips(t *testing.T) {
 	}
 }
 
+func TestSaveThenLoadRoundTrips(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "nested", "config.yml")
+	yes := true
+	cfg := Config{
+		Theme:           "dracula",
+		ShowEstablished: &yes,
+		Keybindings:     map[string][]string{"kill": {"x"}},
+	}
+	if err := Save(path, cfg); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	loaded, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load after Save: %v", err)
+	}
+	if loaded.Theme != "dracula" {
+		t.Errorf("Theme = %q, want dracula", loaded.Theme)
+	}
+	if loaded.ShowEstablished == nil || *loaded.ShowEstablished != true {
+		t.Errorf("ShowEstablished = %v, want pointer to true", loaded.ShowEstablished)
+	}
+	if got := loaded.Keybindings["kill"]; len(got) != 1 || got[0] != "x" {
+		t.Errorf("Keybindings[kill] = %v, want [x]", got)
+	}
+}
+
+func TestSavePreservesUntouchedFields(t *testing.T) {
+	// Simulates the settings screen: load whatever's on disk (possibly
+	// hand-edited, with fields the settings screen doesn't know about),
+	// change only the theme, save back — refresh_interval must survive.
+	path := filepath.Join(t.TempDir(), "config.yml")
+	if err := os.WriteFile(path, []byte("refresh_interval: 5s\ntheme: nord\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	cfg.Theme = "dracula"
+	if err := Save(path, cfg); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	reloaded, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load after Save: %v", err)
+	}
+	if reloaded.Theme != "dracula" {
+		t.Errorf("Theme = %q, want dracula", reloaded.Theme)
+	}
+	if reloaded.RefreshInterval != "5s" {
+		t.Errorf("RefreshInterval = %q, want 5s to survive untouched", reloaded.RefreshInterval)
+	}
+}
+
 func TestDefaultPathIsUnderPortopDir(t *testing.T) {
 	path, err := DefaultPath()
 	if err != nil {

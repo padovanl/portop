@@ -90,6 +90,10 @@ var Themes = map[string]Palette{
 	},
 }
 
+// ThemeNames lists the built-in themes in a stable, deliberate order
+// (not map iteration order) for the settings screen's left/right cycling.
+var ThemeNames = []string{"default", "dracula", "nord", "mono"}
+
 var (
 	colorAccent   lipgloss.AdaptiveColor
 	colorAccent2  lipgloss.AdaptiveColor
