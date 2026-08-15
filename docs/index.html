@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>portop — what's really using your ports?</title>
+<meta name="description" content="portop is a terminal UI for TCP/UDP ports — like htop, but for ports. Kill, inspect, filter and audit what's listening, with systemd and Docker awareness built in.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%230d1117%22/><text x=%2216%22 y=%2222%22 font-family=%22monospace%22 font-size=%2217%22 font-weight=%22bold%22 fill=%22%237dd3fc%22 text-anchor=%22middle%22>&gt;_</text></svg>">
+<style>
+  :root{
+    --bg:#0d1117; --bg-raised:#131a24; --bg-card:#141b26;
+    --border:#22293a; --border-soft:#1b2230;
+    --text:#e6edf3; --text-dim:#8a93a6; --text-faint:#5b6478;
+    --accent:#7dd3fc; --accent2:#c4b5fd; --ok:#5ce0a0; --new:#ffb454; --danger:#ff6b6b;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{background:var(--bg)}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:var(--sans); line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+  code, .mono{font-family:var(--mono)}
+  .wrap{max-width:980px; margin:0 auto; padding:0 24px}
+
+  /* ---- nav ---- */
+  nav{border-bottom:1px solid var(--border-soft); padding:16px 0}
+  nav .wrap{display:flex; align-items:center; justify-content:space-between}
+  .brand{display:flex; align-items:center; gap:8px; font-weight:700; font-size:18px; color:var(--text)}
+  .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--ok); box-shadow:0 0 8px var(--ok)}
+  .navlinks{display:flex; gap:22px; font-size:14px}
+  .navlinks a{color:var(--text-dim)}
+  .navlinks a:hover{color:var(--text)}
+
+  /* ---- hero ---- */
+  .hero{padding:72px 0 40px; text-align:center}
+  .badge{
+    display:inline-block; font-family:var(--mono); font-size:13px; font-weight:700;
+    color:var(--bg); background:var(--accent); padding:3px 10px; border-radius:5px; margin-bottom:22px;
+  }
+  h1{font-size:44px; line-height:1.15; margin:0 0 16px; letter-spacing:-0.02em}
+  h1 .accent{color:var(--accent)}
+  .lede{font-size:19px; color:var(--text-dim); max-width:620px; margin:0 auto 34px}
+  .cta{display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-bottom:44px}
+  .btn{
+    display:inline-flex; align-items:center; gap:8px; padding:11px 20px; border-radius:8px;
+    font-size:15px; font-weight:600; border:1px solid var(--border);
+  }
+  .btn-primary{background:var(--accent); color:#0b0e14; border-color:var(--accent)}
+  .btn-primary:hover{background:#9fe1ff; text-decoration:none}
+  .btn-ghost{color:var(--text); background:var(--bg-raised)}
+  .btn-ghost:hover{background:var(--bg-card); text-decoration:none; border-color:var(--accent2)}
+
+  .install{
+    max-width:820px; margin:0 auto 56px; background:var(--bg-raised); border:1px solid var(--border);
+    border-radius:10px; padding:14px 18px; text-align:left; font-family:var(--mono); font-size:14px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+  }
+  .install .cmd{overflow-x:auto; min-width:0}
+  .install .prompt{color:var(--text-faint)}
+  .install code{color:var(--ok); white-space:pre}
+  .copy-btn{
+    background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim);
+    border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer; font-family:var(--sans); flex-shrink:0;
+  }
+  .copy-btn:hover{color:var(--text); border-color:var(--accent2)}
+
+  .badges{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:48px}
+  .badges img{height:20px; display:block}
+
+  .demo{
+    border:1px solid var(--border); border-radius:12px; overflow:hidden;
+    box-shadow:0 30px 80px -30px rgba(0,0,0,.6); margin:0 auto 8px;
+  }
+  .demo img{display:block; width:100%; height:auto}
+  .demo-caption{text-align:center; color:var(--text-faint); font-size:13px; margin-bottom:96px}
+
+  /* ---- sections ---- */
+  section{padding:64px 0}
+  .section-title{font-size:28px; margin:0 0 8px; letter-spacing:-0.01em}
+  .section-sub{color:var(--text-dim); margin:0 0 40px; font-size:16px; max-width:600px}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(230px,1fr)); gap:16px}
+  .card{
+    background:var(--bg-card); border:1px solid var(--border-soft); border-radius:10px; padding:20px;
+  }
+  .card .icon{
+    font-family:var(--mono); font-size:17px; font-weight:700; margin-bottom:14px;
+    width:34px; height:34px; display:flex; align-items:center; justify-content:center;
+    border-radius:8px; background:var(--bg-raised); border:1px solid var(--border-soft);
+  }
+  .icon.i-ok{color:var(--ok)}
+  .icon.i-danger{color:var(--danger)}
+  .icon.i-accent{color:var(--accent)}
+  .icon.i-accent2{color:var(--accent2)}
+  .icon.i-new{color:var(--new)}
+  .card h3{margin:0 0 8px; font-size:16px}
+  .card p{margin:0; color:var(--text-dim); font-size:14px; line-height:1.55}
+  .card code{color:var(--accent2); font-size:13px}
+
+  .table-scroll{overflow-x:auto}
+  table{width:100%; border-collapse:collapse; font-size:14px}
+  .cmp th, .cmp td{padding:10px 14px; border-bottom:1px solid var(--border-soft); text-align:center}
+  .cmp th{color:var(--text-dim); font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:.03em}
+  .cmp td:first-child, .cmp th:first-child{text-align:left; color:var(--text)}
+  .cmp tr td:first-child{font-weight:600}
+  .yes{color:var(--ok)}
+  .no{color:var(--text-faint)}
+  .cmp .highlight{background:rgba(125,211,252,.06)}
+
+  .keys{width:100%; border-collapse:collapse; font-size:14px}
+  .keys td{padding:9px 14px; border-bottom:1px solid var(--border-soft)}
+  .keys td:first-child{width:110px}
+  kbd{
+    font-family:var(--mono); background:var(--bg-raised); border:1px solid var(--border);
+    border-bottom-width:2px; border-radius:5px; padding:2px 7px; font-size:13px; color:var(--accent2);
+  }
+  .keys td:last-child{color:var(--text-dim)}
+
+  pre.block{
+    background:var(--bg-raised); border:1px solid var(--border); border-radius:10px;
+    padding:16px 18px; overflow-x:auto; font-size:13.5px; line-height:1.7; margin:0 0 14px;
+  }
+  pre.block .c{color:var(--text-faint)}
+  pre.block .s{color:var(--ok)}
+
+  .install-grid{display:grid; grid-template-columns:1fr 1fr; gap:20px}
+  .install-grid > div{min-width:0}
+  @media(max-width:700px){.install-grid{grid-template-columns:1fr}}
+  .install-grid h4{margin:0 0 10px; font-size:14px; color:var(--text-dim); font-weight:600; text-transform:uppercase; letter-spacing:.03em}
+
+  footer{border-top:1px solid var(--border-soft); padding:36px 0; color:var(--text-faint); font-size:13px}
+  footer .wrap{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px}
+  footer a{color:var(--text-dim)}
+
+  @media(max-width:640px){
+    h1{font-size:32px}
+    .lede{font-size:17px}
+    .hero{padding:48px 0 32px}
+    .install{flex-direction:column; align-items:stretch}
+    .navlinks a:not(:last-child){display:none}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="brand"><span class="dot"></span> portop</div>
+    <div class="navlinks">
+      <a href="#features">Features</a>
+      <a href="#compare">Why portop</a>
+      <a href="#install">Install</a>
+      <a href="#keys">Keys</a>
+      <a href="https://github.com/padovan93/portop">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="hero wrap">
+  <span class="badge">$ portop</span>
+  <h1>What's really <span class="accent">using</span> your ports?</h1>
+  <p class="lede">A terminal UI for TCP/UDP ports — like <code>htop</code>, but for ports. See the process, the systemd unit, the Docker container, and kill it, right from your keyboard.</p>
+
+  <div class="cta">
+    <a class="btn btn-primary" href="#install">Install portop</a>
+    <a class="btn btn-ghost" href="https://github.com/padovan93/portop">View on GitHub</a>
+  </div>
+
+  <div class="install">
+    <span class="cmd"><span class="prompt">$ </span><code>curl -fsSL https://raw.githubusercontent.com/padovan93/portop/main/install.sh | sh</code></span>
+    <button class="copy-btn" onclick="copyInstall(this)">copy</button>
+  </div>
+
+  <div class="badges">
+    <a href="https://github.com/padovan93/portop/actions/workflows/ci.yml"><img src="https://github.com/padovan93/portop/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+    <a href="https://github.com/padovan93/portop/releases/latest"><img src="https://img.shields.io/github/v/release/padovan93/portop" alt="Latest release"></a>
+    <a href="https://github.com/padovan93/portop/releases"><img src="https://img.shields.io/github/downloads/padovan93/portop/total" alt="Downloads"></a>
+    <a href="https://github.com/padovan93/portop/blob/main/go.mod"><img src="https://img.shields.io/github/go-mod/go-version/padovan93/portop" alt="Go version"></a>
+    <a href="https://goreportcard.com/report/github.com/padovan93/portop"><img src="https://goreportcard.com/badge/github.com/padovan93/portop" alt="Go Report Card"></a>
+    <a href="https://github.com/padovan93/portop/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="demo"><img src="assets/demo.gif" alt="portop terminal UI demo: filtering to a port, viewing process details, the kill confirmation, and the help overlay" loading="lazy"></div>
+  <p class="demo-caption">Live demo — filter, inspect, confirm-before-kill, help. Recorded on a real terminal, not staged.</p>
+</div>
+
+<section id="features">
+  <div class="wrap">
+    <h2 class="section-title">Everything <code>ss</code> and <code>lsof</code> leave out</h2>
+    <p class="section-sub">They tell you what's bound to a port. portop tells you who, why, and lets you act on it.</p>
+    <div class="grid">
+      <div class="card"><span class="icon i-ok">▣</span><h3>Live, color-coded table</h3><p>LISTEN, ESTABLISHED and transient states are colored at a glance, with per-process CPU% sampled like <code>top</code>.</p></div>
+      <div class="card"><span class="icon i-danger">✕</span><h3>Kill, safely</h3><p><kbd>k</kbd> then confirm — graceful SIGTERM or forced SIGKILL. Never a stray keypress away.</p></div>
+      <div class="card"><span class="icon i-accent2">/</span><h3>Instant filter/search</h3><p><kbd>f</kbd> and start typing — matches port, process name or PID as you type.</p></div>
+      <div class="card"><span class="icon i-accent">↗</span><h3>Open in browser</h3><p><kbd>o</kbd> launches <code>http(s)://localhost:PORT</code> for the selected row — no more typing it by hand.</p></div>
+      <div class="card"><span class="icon i-accent2">{}</span><h3>systemd &amp; Docker aware</h3><p>Every row shows the owning <code>.service</code> unit and Docker container, resolved from cgroups — no extra daemons.</p></div>
+      <div class="card"><span class="icon i-new">●</span><h3>New-port alerts</h3><p>Freshly opened listening ports are highlighted live, with an optional desktop notification (<code>--watch-new</code>).</p></div>
+      <div class="card"><span class="icon i-accent">±</span><h3>Baseline drift detection</h3><p><code>--save-baseline</code> then <code>--diff</code> from a cron job — get a non-zero exit code the moment an unexpected port starts listening.</p></div>
+      <div class="card"><span class="icon i-ok">&gt;_</span><h3>Scriptable</h3><p><code>--json</code> prints a clean snapshot for piping into <code>jq</code>, dashboards, or your own tooling.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="compare">
+  <div class="wrap">
+    <h2 class="section-title">Why not just <code>ss -tlnp</code>?</h2>
+    <p class="section-sub">You can. But you'll be doing this by hand, every time.</p>
+    <div class="table-scroll">
+    <table class="cmp">
+      <tr><th></th><th>ss / netstat</th><th>lsof</th><th>bandwhich</th><th class="highlight">portop</th></tr>
+      <tr><td>Live, refreshing view</td><td class="no">–</td><td class="no">–</td><td class="yes">✓</td><td class="highlight yes">✓</td></tr>
+      <tr><td>Kill from the UI</td><td class="no">–</td><td class="no">–</td><td class="no">–</td><td class="highlight yes">✓</td></tr>
+      <tr><td>Open port in browser</td><td class="no">–</td><td class="no">–</td><td class="no">–</td><td class="highlight yes">✓</td></tr>
+      <tr><td>systemd unit shown</td><td class="no">–</td><td class="no">–</td><td class="no">–</td><td class="highlight yes">✓</td></tr>
+      <tr><td>Docker container shown</td><td class="no">–</td><td class="no">–</td><td class="no">–</td><td class="highlight yes">✓</td></tr>
+      <tr><td>New-port alerts</td><td class="no">–</td><td class="no">–</td><td class="no">–</td><td class="highlight yes">✓</td></tr>
+      <tr><td>Baseline drift / audit mode</td><td class="no">–</td><td class="no">–</td><td class="no">–</td><td class="highlight yes">✓</td></tr>
+      <tr><td>Fuzzy filter/search</td><td class="no">–</td><td class="no">–</td><td class="no">–</td><td class="highlight yes">✓</td></tr>
+    </table>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap">
+    <h2 class="section-title">Install</h2>
+    <p class="section-sub">Pick whichever fits your workflow. Linux and macOS, amd64 and arm64.</p>
+    <div class="install-grid">
+      <div>
+        <h4>curl installer</h4>
+        <pre class="block"><span class="c"># detects OS/arch, verifies checksum</span>
+curl -fsSL https://raw.githubusercontent.com/padovan93/portop/main/install.sh | sh</pre>
+      </div>
+      <div>
+        <h4>Debian / Ubuntu (.deb)</h4>
+        <pre class="block"><span class="c"># grab the .deb from the latest release, then</span>
+sudo dpkg -i portop_*_amd64.deb</pre>
+      </div>
+      <div>
+        <h4>Tarball (any Linux/macOS)</h4>
+        <pre class="block">tar -xzf portop_*_linux_amd64.tar.gz
+sudo install -m 755 portop /usr/local/bin/portop</pre>
+      </div>
+      <div>
+        <h4>From source</h4>
+        <pre class="block">go install github.com/padovan93/portop/cmd/portop@latest</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="keys">
+  <div class="wrap">
+    <h2 class="section-title">Keybindings</h2>
+    <p class="section-sub">Everything's reachable in one keystroke. Full list is also in-app via <kbd>?</kbd>.</p>
+    <table class="keys">
+      <tr><td><kbd>enter</kbd></td><td>process details — cmdline, exe, cwd, user, RSS, start time</td></tr>
+      <tr><td><kbd>k</kbd></td><td>kill process — then <kbd>y</kbd> SIGTERM or <kbd>f</kbd> SIGKILL</td></tr>
+      <tr><td><kbd>o</kbd></td><td>open <code>http(s)://localhost:PORT</code> in the browser</td></tr>
+      <tr><td><kbd>f</kbd> / <kbd>/</kbd></td><td>filter/search by port, process or PID</td></tr>
+      <tr><td><kbd>v</kbd></td><td>toggle IPv4 / IPv6 / both</td></tr>
+      <tr><td><kbd>e</kbd></td><td>show/hide ESTABLISHED connections</td></tr>
+      <tr><td><kbd>s</kbd></td><td>cycle sort column</td></tr>
+      <tr><td><kbd>c</kbd></td><td>copy selected row to clipboard</td></tr>
+      <tr><td><kbd>n</kbd></td><td>clear the new-port highlight</td></tr>
+      <tr><td><kbd>q</kbd></td><td>quit</td></tr>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>MIT licensed. Built with Go and <a href="https://github.com/charmbracelet/bubbletea">Bubble Tea</a>.</span>
+    <span>
+      <a href="https://github.com/padovan93/portop">GitHub</a> ·
+      <a href="https://github.com/padovan93/portop/releases">Releases</a> ·
+      <a href="https://github.com/padovan93/portop/blob/main/CONTRIBUTING.md">Contributing</a>
+    </span>
+  </div>
+</footer>
+
+<script>
+function copyInstall(btn){
+  var text = "curl -fsSL https://raw.githubusercontent.com/padovan93/portop/main/install.sh | sh";
+  navigator.clipboard.writeText(text).then(function(){
+    var old = btn.textContent;
+    btn.textContent = "copied!";
+    setTimeout(function(){ btn.textContent = old; }, 1500);
+  });
+}
+</script>
+
+</body>
+</html>
