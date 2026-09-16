@@ -110,9 +110,9 @@ const defaultConfigTemplate = `# portop config.yml
 # The first key listed for an action is what's shown in the help/status
 # bar, so put your preferred one first.
 #
-# Valid actions: up, down, top, bottom, enter, kill, open, filter, sort,
-# protocol, established, new_mark, copy, refresh, help, quit, escape,
-# settings
+# Valid actions: up, down, page_up, page_down, top, bottom, enter, kill,
+# open, filter, sort, protocol, established, new_mark, copy, refresh, help,
+# quit, escape, settings
 #
 # keybindings:
 #   up: ["up", "k"]

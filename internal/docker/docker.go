@@ -130,3 +130,85 @@ func (c *Client) ContainerName(ctx context.Context, containerID string) string {
 	c.mu.Unlock()
 	return name
 }
+
+// PublishedPort describes a host port Docker has associated with a
+// container. Compose labels are included when present so callers can tie
+// a host listener back to the expected service instead of only seeing
+// docker-proxy.
+type PublishedPort struct {
+	ContainerID   string
+	ContainerName string
+	Service       string
+	Project       string
+	HostIP        string
+	PublicPort    uint16
+	PrivatePort   uint16
+	Type          string
+	State         string
+}
+
+type containerListItem struct {
+	ID     string            `json:"Id"`
+	Names  []string          `json:"Names"`
+	Labels map[string]string `json:"Labels"`
+	Ports  []struct {
+		IP          string `json:"IP"`
+		PrivatePort int    `json:"PrivatePort"`
+		PublicPort  int    `json:"PublicPort"`
+		Type        string `json:"Type"`
+	} `json:"Ports"`
+	State string `json:"State"`
+}
+
+// PublishedPorts returns Docker's view of published host ports. It is
+// read-only and returns an empty result when Docker is unavailable, the
+// request fails, or the daemon returns data in an unexpected shape.
+func (c *Client) PublishedPorts(ctx context.Context) []PublishedPort {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://unix/containers/json?all=1", nil)
+	if err != nil {
+		return nil
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil
+	}
+
+	var containers []containerListItem
+	if err := json.NewDecoder(resp.Body).Decode(&containers); err != nil {
+		return nil
+	}
+
+	var out []PublishedPort
+	for _, ctr := range containers {
+		name := ""
+		if len(ctr.Names) > 0 {
+			name = strings.TrimPrefix(ctr.Names[0], "/")
+		}
+		service := ctr.Labels["com.docker.compose.service"]
+		project := ctr.Labels["com.docker.compose.project"]
+		for _, p := range ctr.Ports {
+			if p.PublicPort <= 0 || p.PublicPort > 65535 {
+				continue
+			}
+			if p.PrivatePort < 0 || p.PrivatePort > 65535 {
+				continue
+			}
+			out = append(out, PublishedPort{
+				ContainerID:   ctr.ID,
+				ContainerName: name,
+				Service:       service,
+				Project:       project,
+				HostIP:        p.IP,
+				PublicPort:    uint16(p.PublicPort),
+				PrivatePort:   uint16(p.PrivatePort),
+				Type:          strings.ToUpper(p.Type),
+				State:         ctr.State,
+			})
+		}
+	}
+	return out
+}

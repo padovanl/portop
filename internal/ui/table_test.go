@@ -2,11 +2,25 @@ package ui
 
 import (
 	"net"
+	"strings"
 	"testing"
 
 	"github.com/padovanl/portop/internal/app"
 	"github.com/padovanl/portop/internal/scanner"
 )
+
+func TestTitleTaglineOnlyWhenItFits(t *testing.T) {
+	m := New(Config{ShowEstablished: true})
+	m.width = 120
+	if title := m.renderTitle(); !strings.Contains(title, "what's really using your ports?") {
+		t.Fatal("wide title should include tagline")
+	}
+
+	m.width = 80
+	if title := m.renderTitle(); strings.Contains(title, "what's really using your ports?") {
+		t.Fatal("80-column title should omit tagline when it does not fit")
+	}
+}
 
 func sampleRows() []app.Row {
 	return []app.Row{
@@ -88,6 +102,16 @@ func TestSortRowsByPort(t *testing.T) {
 	for i := 1; i < len(rows); i++ {
 		if rows[i-1].LocalPort > rows[i].LocalPort {
 			t.Errorf("rows not sorted by port ascending")
+		}
+	}
+}
+
+func TestSortRowsDirectionDescending(t *testing.T) {
+	rows := sampleRows()[:3]
+	sortRowsDirection(rows, sortByPort, true)
+	for i := 1; i < len(rows); i++ {
+		if rows[i-1].LocalPort < rows[i].LocalPort {
+			t.Errorf("rows not sorted by port descending")
 		}
 	}
 }

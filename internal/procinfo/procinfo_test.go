@@ -54,7 +54,7 @@ func TestLoad(t *testing.T) {
 
 	mustWrite(t, filepath.Join(root, "stat"), "cpu  0 0 0 0 0 0 0 0 0 0\nbtime 1000000000\n")
 
-	info, err := Load(4242)
+	info, err := loadProc(4242)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
@@ -92,7 +92,7 @@ func TestLoad(t *testing.T) {
 func TestLoadMissingPID(t *testing.T) {
 	ProcRoot = t.TempDir()
 	defer func() { ProcRoot = "/proc" }()
-	if _, err := Load(999999); err == nil {
+	if _, err := loadProc(999999); err == nil {
 		t.Error("expected error for missing pid, got nil")
 	}
 }

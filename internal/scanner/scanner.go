@@ -1,6 +1,5 @@
-// Package scanner enumerates TCP/UDP sockets on Linux by reading the
-// /proc/net/{tcp,tcp6,udp,udp6} pseudo-files and resolves each socket to
-// the owning process by walking /proc/<pid>/fd.
+// Package scanner enumerates TCP/UDP sockets and their owning processes.
+// Linux uses /proc; macOS uses lsof.
 package scanner
 
 import (
@@ -93,9 +92,9 @@ var sourceFiles = []struct {
 	{"net/udp6", UDP, true},
 }
 
-// Scan reads all four /proc/net tables and returns the sockets found,
+// scanProc reads all four /proc/net tables and returns the sockets found,
 // without process information (see ResolveProcesses).
-func Scan() ([]Connection, error) {
+func scanProc() ([]Connection, error) {
 	var out []Connection
 	for _, src := range sourceFiles {
 		conns, err := scanFile(ProcRoot+"/"+src.path, src.protocol, src.ipv6)

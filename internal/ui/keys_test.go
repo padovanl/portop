@@ -37,6 +37,25 @@ func TestApplyKeyBindingsNilResetsToDefault(t *testing.T) {
 	}
 }
 
+func TestPageBindingsDefaultAndOverride(t *testing.T) {
+	defer ApplyKeyBindings(nil)
+	ApplyKeyBindings(nil)
+	if got := keys.PageUp.Keys(); len(got) != 1 || got[0] != "pgup" {
+		t.Fatalf("PageUp.Keys() = %v, want [pgup]", got)
+	}
+	if got := keys.PageDown.Keys(); len(got) != 1 || got[0] != "pgdown" {
+		t.Fatalf("PageDown.Keys() = %v, want [pgdown]", got)
+	}
+
+	ApplyKeyBindings(map[string][]string{"page_up": {"u"}, "page_down": {"d"}})
+	if got := keys.PageUp.Keys(); len(got) != 1 || got[0] != "u" {
+		t.Fatalf("overridden PageUp.Keys() = %v, want [u]", got)
+	}
+	if got := keys.PageDown.Keys(); len(got) != 1 || got[0] != "d" {
+		t.Fatalf("overridden PageDown.Keys() = %v, want [d]", got)
+	}
+}
+
 func TestApplyPaletteChangesColors(t *testing.T) {
 	defer ApplyPalette(Themes["default"])
 

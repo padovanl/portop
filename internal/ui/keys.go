@@ -5,6 +5,8 @@ import "github.com/charmbracelet/bubbles/key"
 type keyMap struct {
 	Up          key.Binding
 	Down        key.Binding
+	PageUp      key.Binding
+	PageDown    key.Binding
 	Top         key.Binding
 	Bottom      key.Binding
 	Enter       key.Binding
@@ -27,7 +29,7 @@ type keyMap struct {
 // `--init-config` writes them in and the settings screen lists them in.
 // The map key is what a config.yml `keybindings:` entry names.
 var KeyActions = []string{
-	"up", "down", "top", "bottom", "enter", "kill", "open", "filter",
+	"up", "down", "page_up", "page_down", "top", "bottom", "enter", "kill", "open", "filter",
 	"sort", "protocol", "established", "new_mark", "copy", "refresh",
 	"help", "quit", "escape", "settings",
 }
@@ -35,6 +37,8 @@ var KeyActions = []string{
 var defaultKeyBindings = map[string][]string{
 	"up":          {"up"},
 	"down":        {"down"},
+	"page_up":     {"pgup"},
+	"page_down":   {"pgdown"},
 	"top":         {"g", "home"},
 	"bottom":      {"G", "end"},
 	"enter":       {"enter"},
@@ -54,7 +58,8 @@ var defaultKeyBindings = map[string][]string{
 }
 
 var actionDesc = map[string]string{
-	"up": "up", "down": "down", "top": "top", "bottom": "bottom",
+	"up": "up", "down": "down", "page_up": "page up", "page_down": "page down",
+	"top": "top", "bottom": "bottom",
 	"enter": "process details", "kill": "kill", "open": "open URL",
 	"filter": "filter/search", "sort": "sort", "protocol": "IPv4/IPv6",
 	"established": "established", "new_mark": "clear new-port marks",
@@ -101,6 +106,8 @@ func ApplyKeyBindings(overrides map[string][]string) {
 	keys = keyMap{
 		Up:          bind("up"),
 		Down:        bind("down"),
+		PageUp:      bind("page_up"),
+		PageDown:    bind("page_down"),
 		Top:         bind("top"),
 		Bottom:      bind("bottom"),
 		Enter:       bind("enter"),

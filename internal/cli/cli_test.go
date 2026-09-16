@@ -104,6 +104,44 @@ func TestRunJSONFilterByPort(t *testing.T) {
 	}
 }
 
+func TestRunComposeAuditJSON(t *testing.T) {
+	ln, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer ln.Close()
+	port := ln.Addr().(*net.TCPAddr).Port
+
+	dir := t.TempDir()
+	content := "services:\n  web:\n    ports:\n      - \"127.0.0.1:" + strconv.Itoa(port) + ":80\"\n"
+	if err := os.WriteFile(filepath.Join(dir, "compose.yml"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var out, errOut bytes.Buffer
+	code := Run([]string{"--compose", dir, "--json", "--no-dns", "--no-systemd", "--no-docker"}, &out, &errOut)
+	if code != 3 {
+		t.Fatalf("exit code = %d, want 3 for conflict without Docker metadata; stderr = %s", code, errOut.String())
+	}
+
+	var report struct {
+		Results []struct {
+			Service   string `json:"service"`
+			Published uint16 `json:"published"`
+			Status    string `json:"status"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, out.String())
+	}
+	if len(report.Results) != 1 || report.Results[0].Service != "web" || int(report.Results[0].Published) != port {
+		t.Fatalf("unexpected compose report: %+v", report.Results)
+	}
+	if report.Results[0].Status != "conflict" {
+		t.Errorf("status = %q, want conflict", report.Results[0].Status)
+	}
+}
+
 func TestBaselineSaveThenDiff(t *testing.T) {
 	baselinePath := filepath.Join(t.TempDir(), "baseline.json")
 	commonFlags := []string{"--baseline-path", baselinePath, "--no-dns", "--no-systemd", "--no-docker"}

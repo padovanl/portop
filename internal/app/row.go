@@ -100,6 +100,7 @@ func (c *Collector) Collect(ctx context.Context, opts Options) ([]Row, error) {
 
 	rows := make([]Row, 0, len(conns))
 	currentKeys := make(map[Key]bool, len(conns))
+	cpuByPID := make(map[int]float64)
 
 	for _, conn := range conns {
 		k := keyFor(conn)
@@ -119,9 +120,12 @@ func (c *Collector) Collect(ctx context.Context, opts Options) ([]Row, error) {
 		}
 
 		if conn.PID != 0 {
-			if pct, ok := c.cpu.Sample(conn.PID); ok {
-				row.CPUPercent = pct
+			pct, sampled := cpuByPID[conn.PID]
+			if !sampled {
+				pct, _ = c.cpu.Sample(conn.PID)
+				cpuByPID[conn.PID] = pct
 			}
+			row.CPUPercent = pct
 			if opts.ResolveSystemd {
 				row.SystemdUnit = systemdinfo.UnitForPID(conn.PID)
 			}

@@ -89,6 +89,61 @@ func TestClientContainerName(t *testing.T) {
 	}
 }
 
+func TestClientPublishedPorts(t *testing.T) {
+	dir := t.TempDir()
+	sockPath := filepath.Join(dir, "docker.sock")
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/containers/json", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("all") != "1" {
+			t.Errorf("all query = %q, want 1", r.URL.Query().Get("all"))
+		}
+		_ = json.NewEncoder(w).Encode([]map[string]any{
+			{
+				"Id":    "abc123",
+				"Names": []string{"/web_1"},
+				"Labels": map[string]string{
+					"com.docker.compose.project": "demo",
+					"com.docker.compose.service": "web",
+				},
+				"State": "running",
+				"Ports": []map[string]any{
+					{"IP": "0.0.0.0", "PrivatePort": 80, "PublicPort": 8080, "Type": "tcp"},
+					{"IP": "127.0.0.1", "PrivatePort": 53, "PublicPort": 5353, "Type": "udp"},
+					{"PrivatePort": 443, "Type": "tcp"},
+				},
+			},
+		})
+	})
+
+	ln, err := net.Listen("unix", sockPath)
+	if err != nil {
+		t.Fatalf("listen unix: %v", err)
+	}
+	srv := &http.Server{Handler: mux}
+	go srv.Serve(ln)
+	defer srv.Close()
+
+	old := SocketPath
+	SocketPath = sockPath
+	defer func() { SocketPath = old }()
+
+	c := NewClient()
+	ports := c.PublishedPorts(context.Background())
+	if len(ports) != 2 {
+		t.Fatalf("PublishedPorts returned %d entries, want 2: %+v", len(ports), ports)
+	}
+	if ports[0].ContainerName != "web_1" || ports[0].Service != "web" || ports[0].Project != "demo" {
+		t.Errorf("first port metadata = %+v", ports[0])
+	}
+	if ports[0].PublicPort != 8080 || ports[0].PrivatePort != 80 || ports[0].Type != "TCP" {
+		t.Errorf("first port = %+v, want 8080:80/TCP", ports[0])
+	}
+	if ports[1].HostIP != "127.0.0.1" || ports[1].Type != "UDP" {
+		t.Errorf("second port = %+v, want localhost UDP mapping", ports[1])
+	}
+}
+
 func TestClientAvailableFalseWhenNoSocket(t *testing.T) {
 	origSock := SocketPath
 	SocketPath = filepath.Join(t.TempDir(), "no-such.sock")

@@ -42,17 +42,19 @@ func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 
 	case key.Matches(msg, keys.Up):
-		if m.cursor > 0 {
-			m.cursor--
-		}
+		m.moveCursor(-1)
 	case key.Matches(msg, keys.Down):
-		if m.cursor < len(m.filtered)-1 {
-			m.cursor++
-		}
+		m.moveCursor(1)
+	case key.Matches(msg, keys.PageUp):
+		m.moveCursor(-m.pageSize())
+	case key.Matches(msg, keys.PageDown):
+		m.moveCursor(m.pageSize())
 	case key.Matches(msg, keys.Top):
 		m.cursor = 0
+		m.viewportStart = 0
 	case key.Matches(msg, keys.Bottom):
 		m.cursor = max(0, len(m.filtered)-1)
+		m.normalizeViewport()
 
 	case key.Matches(msg, keys.Enter):
 		if row, ok := m.selected(); ok && row.PID != 0 {
@@ -105,6 +107,7 @@ func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, keys.Sort):
 		m.sort = (m.sort + 1) % sortModeCount
+		m.sortDescending = defaultSortDescending(m.sort)
 		m.refilter()
 
 	case key.Matches(msg, keys.NewMark):
@@ -250,12 +253,29 @@ func (m *Model) refilter() {
 		out = append(out, r)
 	}
 
-	sortRows(out, m.sort)
+	sortRowsDirection(out, m.sort, m.sortDescending)
 
 	m.filtered = out
 	if m.cursor >= len(m.filtered) {
 		m.cursor = max(0, len(m.filtered)-1)
 	}
+	if m.hoverCursor >= len(m.filtered) {
+		m.hoverCursor = -1
+	}
+	m.normalizeViewport()
+}
+
+func (m *Model) moveCursor(delta int) {
+	if len(m.filtered) == 0 {
+		m.cursor = 0
+		return
+	}
+	m.normalizeViewport()
+	if delta >= m.pageSize() || delta <= -m.pageSize() {
+		m.viewportStart += delta
+	}
+	m.cursor = min(max(m.cursor+delta, 0), len(m.filtered)-1)
+	m.normalizeViewport()
 }
 
 func rowMatches(r app.Row, query string) bool {

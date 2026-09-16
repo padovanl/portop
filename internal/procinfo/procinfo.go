@@ -34,11 +34,11 @@ type Info struct {
 	OpenFiles  int // number of entries in /proc/<pid>/fd, -1 if unreadable
 }
 
-// Load gathers everything available for pid. Fields that cannot be read
+// loadProc gathers everything available for pid. Fields that cannot be read
 // (permission denied, process gone, exotic /proc layout) are left at
 // their zero value rather than making the whole call fail: partial
 // information is still useful to show.
-func Load(pid int) (Info, error) {
+func loadProc(pid int) (Info, error) {
 	base := ProcRoot + "/" + strconv.Itoa(pid)
 	if _, err := os.Stat(base); err != nil {
 		return Info{}, fmt.Errorf("procinfo: pid %d not found: %w", pid, err)

@@ -64,7 +64,12 @@ func (m Model) renderTitle() string {
 		styleTag.Render(fmt.Sprintf("[%s]", m.ipFilter)) + " " +
 		styleTag.Render(fmt.Sprintf("[sort: %s]", m.sort))
 
-	return badge + tagline + "   " + tags
+	compact := badge + "   " + tags
+	full := badge + tagline + "   " + tags
+	if lipgloss.Width(full) <= innerWidth(m.width) {
+		return full
+	}
+	return compact
 }
 
 func (m Model) renderStatusBar() string {
@@ -131,7 +136,11 @@ func (m Model) renderDetail() string {
 		field("Cmdline:", orDash(info.Cmdline))
 		field("Executable:", orDash(info.Exe))
 		field("Cwd:", orDash(info.Cwd))
-		field("Threads:", strconv.Itoa(info.NumThreads))
+		threads := "-"
+		if info.NumThreads > 0 {
+			threads = strconv.Itoa(info.NumThreads)
+		}
+		field("Threads:", threads)
 		field("Open files:", strconv.Itoa(info.OpenFiles))
 		field("RSS:", fmt.Sprintf("%.1f MiB", float64(info.RSSBytes)/1024/1024))
 		if !info.StartTime.IsZero() {
@@ -169,6 +178,8 @@ func (m Model) renderHelp() string {
 	}{
 		{keys.Up, "move up"},
 		{keys.Down, "move down"},
+		{keys.PageUp, "move one page up"},
+		{keys.PageDown, "move one page down"},
 		{keys.Top, "jump to top"},
 		{keys.Bottom, "jump to bottom"},
 		{keys.Enter, "process details"},

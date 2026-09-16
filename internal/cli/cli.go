@@ -19,6 +19,7 @@ import (
 
 	"github.com/padovanl/portop/internal/app"
 	"github.com/padovanl/portop/internal/baseline"
+	"github.com/padovanl/portop/internal/compose"
 	"github.com/padovanl/portop/internal/config"
 	"github.com/padovanl/portop/internal/scanner"
 	"github.com/padovanl/portop/internal/ui"
@@ -38,6 +39,7 @@ Usage:
   portop --diff           compare live ports against the saved baseline
                            (exit code 3 if something changed — handy in
                            a cron job or systemd timer)
+  portop --compose DIR     audit published ports from a Docker Compose folder
   portop --init-config     write a default config.yml and exit
 
 config.yml (optional, see --init-config) sets default flag values, the
@@ -69,6 +71,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	saveBaseline := fs.Bool("save-baseline", false, "record which ports are currently listening")
 	diffBaseline := fs.Bool("diff", false, "compare live listening ports against the saved baseline")
 	baselinePath := fs.String("baseline-path", "", "baseline file path (default: OS config dir)/portop/baseline.json")
+	composeDir := fs.String("compose", "", "audit published ports from a Docker Compose project directory")
 	configPath := fs.String("config", "", "config file path (default: OS config dir)/portop/config.yml")
 	initConfig := fs.Bool("init-config", false, "write a default config.yml and exit")
 
@@ -195,6 +198,8 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	}
 
 	switch {
+	case *composeDir != "":
+		return runComposeAudit(stdout, stderr, *composeDir, *jsonMode, opts)
 	case *saveBaseline:
 		return runSaveBaseline(stdout, stderr, blPath, opts)
 	case *diffBaseline:
@@ -216,7 +221,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		KeyOverrides:    fileCfg.Keybindings,
 	}
 
-	p := tea.NewProgram(ui.New(uiCfg), tea.WithAltScreen())
+	p := tea.NewProgram(ui.New(uiCfg), tea.WithAltScreen(), tea.WithMouseAllMotion())
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintln(stderr, "portop: "+err.Error())
 		return 1
@@ -336,6 +341,76 @@ func runDiffBaseline(stdout, stderr io.Writer, path string, jsonOut bool, opts a
 		return 3
 	}
 	return 0
+}
+
+func runComposeAudit(stdout, stderr io.Writer, dir string, jsonOut bool, opts app.Options) int {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	summary, err := compose.AuditDir(ctx, dir, compose.AuditOptions{ResolveDocker: opts.ResolveDocker})
+	if err != nil {
+		fmt.Fprintln(stderr, "portop: compose audit: "+err.Error())
+		return 1
+	}
+
+	if jsonOut {
+		enc := json.NewEncoder(stdout)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(summary); err != nil {
+			fmt.Fprintln(stderr, "portop: "+err.Error())
+			return 1
+		}
+	} else {
+		printComposeSummary(stdout, summary)
+	}
+
+	for _, r := range summary.Results {
+		if r.Status == compose.StatusUnused || r.Status == compose.StatusConflict {
+			return 3
+		}
+	}
+	return 0
+}
+
+func printComposeSummary(w io.Writer, summary compose.Summary) {
+	fmt.Fprintf(w, "Compose folder: %s\n", summary.Directory)
+	fmt.Fprintf(w, "Files: %s\n\n", strings.Join(summary.Files, ", "))
+	fmt.Fprintf(w, "%-10s %-18s %-12s %-22s %s\n", "STATUS", "SERVICE", "PORT", "OWNER", "NOTE")
+	for _, r := range summary.Results {
+		port := "dynamic"
+		if !r.Dynamic {
+			target := ""
+			if r.Target != 0 {
+				target = fmt.Sprintf("->%d", r.Target)
+			}
+			host := ""
+			if r.HostIP != "" {
+				host = r.HostIP + ":"
+			}
+			port = fmt.Sprintf("%s%s/%s%s", host, strconv.Itoa(int(r.Published)), strings.ToLower(r.Protocol), target)
+		}
+		owner := composeOwner(r)
+		fmt.Fprintf(w, "%-10s %-18s %-12s %-22s %s\n", r.Status, r.Service, port, owner, r.Note)
+	}
+}
+
+func composeOwner(r compose.Result) string {
+	if r.OwnerService != "" {
+		if r.OwnerContainer != "" {
+			return r.OwnerService + " (" + r.OwnerContainer + ")"
+		}
+		return r.OwnerService
+	}
+	if r.OwnerContainer != "" {
+		return r.OwnerContainer
+	}
+	if r.OwnerProcess != "" {
+		if r.OwnerPID != 0 {
+			return fmt.Sprintf("%s pid=%d", r.OwnerProcess, r.OwnerPID)
+		}
+		return r.OwnerProcess
+	}
+	return "-"
 }
 
 func orDash(s string) string {

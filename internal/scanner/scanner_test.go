@@ -44,7 +44,7 @@ func TestScanAndResolveProcesses(t *testing.T) {
 	ProcRoot = writeProcFixture(t)
 	defer func() { ProcRoot = origRoot }()
 
-	conns, err := Scan()
+	conns, err := scanProc()
 	if err != nil {
 		t.Fatalf("Scan: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestScanMissingIPv6TablesIsNotAnError(t *testing.T) {
 	ProcRoot = root
 	defer func() { ProcRoot = origRoot }()
 
-	if _, err := Scan(); err != nil {
+	if _, err := scanProc(); err != nil {
 		t.Fatalf("Scan should tolerate missing tcp6/udp6, got: %v", err)
 	}
 }

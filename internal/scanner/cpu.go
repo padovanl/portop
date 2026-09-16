@@ -35,7 +35,7 @@ func NewCPUTracker() *CPUTracker {
 // Sample for that same pid. The first observation of a pid returns
 // (0, false) since there is no prior sample to diff against.
 func (t *CPUTracker) Sample(pid int) (percent float64, ok bool) {
-	ticks, err := readProcTicks(pid)
+	ticks, err := readProcessTicks(pid)
 	if err != nil {
 		return 0, false
 	}

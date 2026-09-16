@@ -52,20 +52,35 @@ type sortMode int
 
 const (
 	sortByPort sortMode = iota
+	sortByProtocol
+	sortByState
 	sortByProcess
 	sortByPID
 	sortByCPU
+	sortByRemote
+	sortByContainer
+	sortBySystemd
 	sortModeCount
 )
 
 func (s sortMode) String() string {
 	switch s {
+	case sortByProtocol:
+		return "protocol"
+	case sortByState:
+		return "state"
 	case sortByProcess:
 		return "process"
 	case sortByPID:
 		return "PID"
 	case sortByCPU:
 		return "CPU"
+	case sortByRemote:
+		return "remote"
+	case sortByContainer:
+		return "container"
+	case sortBySystemd:
+		return "systemd"
 	default:
 		return "port"
 	}
@@ -100,9 +115,10 @@ type Model struct {
 	cfg       Config
 	collector *app.Collector
 
-	rows     []app.Row
-	filtered []app.Row
-	cursor   int
+	rows          []app.Row
+	filtered      []app.Row
+	cursor        int
+	viewportStart int
 
 	width, height int
 
@@ -113,6 +129,9 @@ type Model struct {
 	showEstablished bool
 	ipFilter        ipFilterMode
 	sort            sortMode
+	sortDescending  bool
+	hoverCursor     int
+	lastClick       mouseClick
 
 	newSeen map[app.Key]bool // ports flagged "new" since last acknowledgment (n)
 
@@ -170,6 +189,7 @@ func New(cfg Config) Model {
 		filterInput:      fi,
 		showEstablished:  cfg.ShowEstablished,
 		ipFilter:         ipAll,
+		hoverCursor:      -1,
 		newSeen:          make(map[app.Key]bool),
 		configPath:       cfg.ConfigPath,
 		keyOverrides:     overrides,
@@ -244,6 +264,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+		m.normalizeViewport()
 		return m, nil
 
 	case tickMsg:
@@ -271,6 +292,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.setStatus("signal sent to "+msg.name+" ("+strconv.Itoa(msg.pid)+")", false)
 		}
 		return m, m.collectCmd()
+
+	case tea.MouseMsg:
+		return m.handleMouse(msg)
 
 	case tea.KeyMsg:
 		return m.handleKey(msg)

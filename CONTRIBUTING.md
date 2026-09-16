@@ -24,7 +24,7 @@ feat/my-thing ──PR──▶ develop ──PR──▶ main ──tag──�
   - **e2e tests** (`go test -tags=e2e ./e2e/...`, exercises the real
     compiled binary against live sockets)
   - **release dry-run** (`goreleaser release --snapshot --clean`, proves the
-    `.deb`/`.tar.gz` artifacts still build)
+    `.deb`/`.rpm`/`.tar.gz` artifacts still build)
   - **lint** (`go vet` + `gofmt`)
 - These are enforced by GitHub branch protection on `main` (and required for
   `develop` too) — see `scripts/setup-branch-protection.sh`.
@@ -36,12 +36,12 @@ make build   # go build ./cmd/portop
 make test    # unit tests
 make e2e     # black-box tests against the compiled binary
 make lint    # go vet + gofmt check
-make release # local snapshot release build (deb + tar.gz, not published)
+make release # local snapshot release build (deb + rpm + Linux/macOS tar.gz, not published)
 ```
 
 `make e2e` opens real listening sockets and shells out to the compiled
-binary; like portop itself, it only runs on Linux (the scanner reads
-`/proc/net` directly).
+binary on Linux and macOS. CI runs native macOS unit and end-to-end tests
+on Apple Silicon and Intel runners.
 
 ## Releasing (maintainers)
 
@@ -66,7 +66,7 @@ already exist locally or on the remote — then it tags and pushes after a
 confirmation prompt. That push triggers the [release
 workflow](.github/workflows/release.yml), which independently re-checks
 the tag is reachable from `main` (so there's no way to accidentally ship
-a tag that skipped the PR) before building the `.deb`/`.tar.gz` artifacts
+a tag that skipped the PR) before building the `.deb`/`.rpm`/`.tar.gz` artifacts
 with GoReleaser and publishing them to a new GitHub Release.
 
 ## Code style

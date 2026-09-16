@@ -12,27 +12,65 @@ import (
 )
 
 func sortRows(rows []app.Row, mode sortMode) {
+	sortRowsDirection(rows, mode, defaultSortDescending(mode))
+}
+
+func defaultSortDescending(mode sortMode) bool { return mode == sortByCPU }
+
+func sortRowsDirection(rows []app.Row, mode sortMode, descending bool) {
 	sort.SliceStable(rows, func(i, j int) bool {
+		cmp := 0
 		switch mode {
+		case sortByProtocol:
+			cmp = strings.Compare(string(rows[i].Protocol), string(rows[j].Protocol))
+		case sortByState:
+			cmp = strings.Compare(string(rows[i].State), string(rows[j].State))
 		case sortByProcess:
-			if rows[i].ProcessName != rows[j].ProcessName {
-				return rows[i].ProcessName < rows[j].ProcessName
-			}
+			cmp = strings.Compare(strings.ToLower(rows[i].ProcessName), strings.ToLower(rows[j].ProcessName))
 		case sortByPID:
-			if rows[i].PID != rows[j].PID {
-				return rows[i].PID < rows[j].PID
-			}
+			cmp = compareInt(rows[i].PID, rows[j].PID)
 		case sortByCPU:
-			if rows[i].CPUPercent != rows[j].CPUPercent {
-				return rows[i].CPUPercent > rows[j].CPUPercent
-			}
+			cmp = compareFloat(rows[i].CPUPercent, rows[j].CPUPercent)
+		case sortByRemote:
+			cmp = strings.Compare(strings.ToLower(remoteDisplay(rows[i])), strings.ToLower(remoteDisplay(rows[j])))
+		case sortByContainer:
+			cmp = strings.Compare(strings.ToLower(rows[i].ContainerName), strings.ToLower(rows[j].ContainerName))
+		case sortBySystemd:
+			cmp = strings.Compare(strings.ToLower(rows[i].SystemdUnit), strings.ToLower(rows[j].SystemdUnit))
 		default: // sortByPort
-			if rows[i].LocalPort != rows[j].LocalPort {
-				return rows[i].LocalPort < rows[j].LocalPort
-			}
+			cmp = compareInt(int(rows[i].LocalPort), int(rows[j].LocalPort))
 		}
-		return rows[i].Protocol < rows[j].Protocol
+		if cmp == 0 {
+			cmp = compareInt(int(rows[i].LocalPort), int(rows[j].LocalPort))
+		}
+		if cmp == 0 {
+			cmp = strings.Compare(string(rows[i].Protocol), string(rows[j].Protocol))
+		}
+		if descending {
+			return cmp > 0
+		}
+		return cmp < 0
 	})
+}
+
+func compareInt(a, b int) int {
+	if a < b {
+		return -1
+	}
+	if a > b {
+		return 1
+	}
+	return 0
+}
+
+func compareFloat(a, b float64) int {
+	if a < b {
+		return -1
+	}
+	if a > b {
+		return 1
+	}
+	return 0
 }
 
 type column struct {
@@ -55,7 +93,7 @@ const markerWidth = 2
 func columnsFor(showEstablished bool, width int) []column {
 	core := []column{
 		{"PORT", 11},
-		{"PROTO", 5},
+		{"PROTO", 8},
 		{"STATE", 12},
 		{"PROCESS", 18},
 		{"PID", 7},
@@ -93,7 +131,15 @@ func (m Model) renderTable() string {
 	var b strings.Builder
 	b.WriteString(strings.Repeat(" ", markerWidth))
 	for _, c := range cols {
-		fmt.Fprint(&b, styleHeader.Render(padTrunc(c.title, c.width)))
+		title := c.title
+		if mode, ok := sortModeForColumn(c.title); ok && mode == m.sort {
+			if m.sortDescending {
+				title += " ↓"
+			} else {
+				title += " ↑"
+			}
+		}
+		fmt.Fprint(&b, styleHeader.Render(padTrunc(title, c.width)))
 	}
 	b.WriteByte('\n')
 	b.WriteString(styleDivider.Render(strings.Repeat("─", innerWidth(m.width))))
@@ -108,6 +154,7 @@ func (m Model) renderTable() string {
 	for i, r := range visible.rows {
 		idx := visible.offset + i
 		isSelected := idx == m.cursor
+		isHovered := idx == m.hoverCursor
 		isNew := m.newSeen[keyForRow(r)]
 		isZebra := i%2 == 1
 
@@ -115,6 +162,9 @@ func (m Model) renderTable() string {
 		case isSelected:
 			line := cursorMarker() + plainRow(r, cols)
 			b.WriteString(styleRowSelected.Render(line))
+		case isHovered:
+			line := strings.Repeat(" ", markerWidth) + plainRow(r, cols)
+			b.WriteString(styleRowHovered.Render(line))
 		case isNew:
 			line := newMarker() + plainRow(r, cols)
 			b.WriteString(styleRowNew.Render(line))
@@ -137,24 +187,68 @@ type rowWindow struct {
 	offset int
 }
 
-// visibleRows returns the slice of m.filtered that fits the current
-// terminal height, scrolled to keep the cursor visible.
+// visibleRows returns the slice of m.filtered that fits the current terminal
+// height. viewportStart is persistent so clicking a row does not recenter the
+// table and make the data appear to have been reordered.
 func (m Model) visibleRows() rowWindow {
-	maxVisible := m.height - 9 // app border, title/filter, column header+divider, status bar+divider
-	if maxVisible < 3 {
-		maxVisible = 3
-	}
+	m.normalizeViewport()
+	maxVisible := m.pageSize()
 	if len(m.filtered) <= maxVisible {
 		return rowWindow{rows: m.filtered, offset: 0}
 	}
-	start := m.cursor - maxVisible/2
-	if start < 0 {
-		start = 0
-	}
-	if start+maxVisible > len(m.filtered) {
-		start = len(m.filtered) - maxVisible
-	}
+	start := m.viewportStart
 	return rowWindow{rows: m.filtered[start : start+maxVisible], offset: start}
+}
+
+func (m *Model) normalizeViewport() {
+	pageSize := m.pageSize()
+	maxStart := max(0, len(m.filtered)-pageSize)
+	m.viewportStart = min(max(m.viewportStart, 0), maxStart)
+	if len(m.filtered) == 0 {
+		m.viewportStart = 0
+		return
+	}
+	if m.cursor < m.viewportStart {
+		m.viewportStart = m.cursor
+	}
+	if m.cursor >= m.viewportStart+pageSize {
+		m.viewportStart = m.cursor - pageSize + 1
+	}
+}
+
+// pageSize is both the number of visible rows and the distance moved by
+// Page Up/Page Down, so keyboard paging always matches the current viewport.
+func (m Model) pageSize() int {
+	maxVisible := m.height - 9 // app border, title/filter, column header+divider, status bar+divider
+	if m.mode == modeFilter {
+		maxVisible--
+	}
+	return max(3, maxVisible)
+}
+
+func sortModeForColumn(title string) (sortMode, bool) {
+	switch title {
+	case "PORT":
+		return sortByPort, true
+	case "PROTO":
+		return sortByProtocol, true
+	case "STATE":
+		return sortByState, true
+	case "PROCESS":
+		return sortByProcess, true
+	case "PID":
+		return sortByPID, true
+	case "CPU":
+		return sortByCPU, true
+	case "REMOTE":
+		return sortByRemote, true
+	case "CONTAINER":
+		return sortByContainer, true
+	case "SYSTEMD":
+		return sortBySystemd, true
+	default:
+		return 0, false
+	}
 }
 
 // cellValue returns the raw (unpadded, unstyled) text for a column.

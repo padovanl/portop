@@ -250,6 +250,7 @@ var (
 	styleDivider     lipgloss.Style
 	styleRowZebra    lipgloss.Style
 	styleRowSelected lipgloss.Style
+	styleRowHovered  lipgloss.Style
 	styleRowNew      lipgloss.Style
 	styleMuted       lipgloss.Style
 	styleFaint       lipgloss.Style
@@ -313,6 +314,7 @@ func ApplyPalette(p Palette) {
 	styleDivider = lipgloss.NewStyle().Foreground(colorBorder)
 	styleRowZebra = lipgloss.NewStyle().Background(colorZebra)
 	styleRowSelected = lipgloss.NewStyle().Background(colorSelected).Bold(true)
+	styleRowHovered = lipgloss.NewStyle().Foreground(colorAccent2).Underline(true)
 	styleRowNew = lipgloss.NewStyle().Foreground(colorNew).Bold(true)
 	styleMuted = lipgloss.NewStyle().Foreground(colorMuted)
 	styleFaint = lipgloss.NewStyle().Foreground(colorFaint)
