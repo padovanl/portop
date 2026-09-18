@@ -200,6 +200,28 @@ var Themes = map[string]Palette{
 		Border: "#77216F", BorderDark: "#77216F",
 		BadgeText: "#300A24",
 	},
+	// Rosé Pine (Moon accents on the main palette's darker base, matching
+	// the upstream terminal themes). It has no green, so the usual
+	// green-for-LISTEN convention doesn't apply; instead each of the six
+	// hues gets its own column — foam TCP, rose UDP, gold LISTEN, pine
+	// ESTABLISHED, iris chrome, love danger — so the theme reads as Rosé
+	// Pine rather than as one accent color repeated everywhere.
+	"rose-pine": {
+		Accent: "#3E8FB0", AccentDark: "#3E8FB0",
+		Accent2: "#C4A7E7", Accent2Dark: "#C4A7E7",
+		Muted: "#908CAA", MutedDark: "#908CAA",
+		Faint: "#6E6A86", FaintDark: "#6E6A86",
+		New: "#F6C177", NewDark: "#F6C177",
+		Danger: "#EB6F92", DangerDark: "#EB6F92",
+		Warn: "#EA9A97", WarnDark: "#EA9A97",
+		OK: "#F6C177", OKDark: "#F6C177",
+		TCP: "#9CCFD8", TCPDark: "#9CCFD8",
+		UDP: "#EA9A97", UDPDark: "#EA9A97",
+		Selected: "#403D52", SelectedDark: "#403D52",
+		Zebra: "#21202E", ZebraDark: "#21202E",
+		Border: "#524F67", BorderDark: "#524F67",
+		BadgeText: "#191724",
+	},
 	"mono": {
 		Accent: "#000000", AccentDark: "#FFFFFF",
 		Accent2: "#333333", Accent2Dark: "#CCCCCC",
@@ -221,10 +243,10 @@ var Themes = map[string]Palette{
 // ThemeNames lists the built-in themes in a stable, deliberate order
 // (not map iteration order) for the settings screen's left/right cycling.
 // Same lineup and names as padovanl/pkgtui's own theme picker (solarized
-// through ubuntu), plus this project's own default/mono.
+// through ubuntu), then rose-pine, plus this project's own default/mono.
 var ThemeNames = []string{
 	"default", "dracula", "nord", "solarized", "gruvbox", "catppuccin",
-	"tokyo-night", "monokai", "darcula", "vscode", "ubuntu", "mono",
+	"tokyo-night", "monokai", "darcula", "vscode", "ubuntu", "rose-pine", "mono",
 }
 
 var (
