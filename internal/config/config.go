@@ -101,7 +101,7 @@ const defaultConfigTemplate = `# portop config.yml
 # watch_new: false          # desktop notification on a new LISTEN port
 
 # Color theme: default | dracula | nord | solarized | gruvbox | catppuccin
-# | tokyo-night | monokai | darcula | vscode | ubuntu | mono
+# | tokyo-night | monokai | darcula | vscode | ubuntu | rose-pine | mono
 # theme: default
 
 # Keybinding overrides: action -> list of keys. Anything left out keeps

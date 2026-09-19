@@ -62,11 +62,11 @@ open, inspect or kill it, live.
 
 ### 🎨 Make it yours
 
-- **Live settings screen** (`,`): cycle through **12 built-in themes**
+- **Live settings screen** (`,`): cycle through **13 built-in themes**
   (default, Dracula, Nord, Solarized, Gruvbox, Catppuccin, Tokyo Night,
-  Monokai, Darcula, VS Code Dark+, Ubuntu, mono) with `←`/`→` — the whole
-  UI re-skins as you move — and rebind any of 20 actions on the spot.
-  Saved automatically; you never touch a file.
+  Monokai, Darcula, VS Code Dark+, Ubuntu, Rosé Pine, mono) with
+  `←`/`→` — the whole UI re-skins as you move — and rebind any of 20
+  actions on the spot. Saved automatically; you never touch a file.
 - **`config.yml`** is there too if you'd rather hand-edit it —
   `portop --init-config` writes a fully-commented template.
 
@@ -355,7 +355,7 @@ different one). Example:
 ```yaml
 theme: tokyo-night        # default | dracula | nord | solarized | gruvbox
                           # | catppuccin | tokyo-night | monokai | darcula
-                          # | vscode | ubuntu | mono
+                          # | vscode | ubuntu | rose-pine | mono
 show_established: false   # same as always passing --listen
 refresh_interval: 1s
 
