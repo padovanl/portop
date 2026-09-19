@@ -1,6 +1,10 @@
 package ui
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"net"
+
+	"github.com/charmbracelet/lipgloss"
+)
 
 // Palette is the full set of colors a theme controls. Every field is an
 // AdaptiveColor pair (light/dark terminal background) except where noted.
@@ -396,4 +400,22 @@ func protoStyle(proto string) lipgloss.Style {
 		return styleProtoUDP
 	}
 	return styleProtoTCP
+}
+
+// ifaceStyle color-codes the IFACE column by how exposed the bind
+// address is, so an externally-reachable listener jumps out without
+// having to parse the address: loopback (127.0.0.1/::1) never accepts
+// a connection from outside the box; a wildcard (0.0.0.0/::) accepts
+// one on every interface, including external ones; anything else is
+// bound to one specific interface, which may or may not be external
+// but is worth a second look either way.
+func ifaceStyle(ip net.IP) lipgloss.Style {
+	switch {
+	case ip == nil || ip.IsLoopback():
+		return styleOk
+	case ip.IsUnspecified():
+		return styleDanger
+	default:
+		return styleWarn
+	}
 }

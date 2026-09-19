@@ -85,8 +85,8 @@ const markerWidth = 2
 
 // columnsFor picks which columns to display for the given terminal
 // width: the core columns (port through CPU%) always fit even in a
-// narrow 80-column terminal, and REMOTE/CONTAINER/SYSTEMD are added
-// back in, most-useful-first, only as space allows — rather than
+// narrow 80-column terminal, and REMOTE/IFACE/USER/CONTAINER/SYSTEMD are
+// added back in, most-useful-first, only as space allows — rather than
 // letting rows overflow the box and wrap mid-line. CONTAINER comes
 // before SYSTEMD since Docker's a lot more common in day-to-day port
 // debugging than needing the systemd unit name.
@@ -99,7 +99,7 @@ func columnsFor(showEstablished bool, width int) []column {
 		{"PID", 7},
 		{"CPU", 6},
 	}
-	optional := []column{{"CONTAINER", 16}, {"SYSTEMD", 16}}
+	optional := []column{{"IFACE", 16}, {"USER", 12}, {"CONTAINER", 16}, {"SYSTEMD", 16}}
 	if showEstablished {
 		optional = append([]column{{"REMOTE", 30}}, optional...)
 	}
@@ -284,6 +284,13 @@ func cellValue(r app.Row, colTitle string) string {
 		return fmt.Sprintf("%.1f%%", r.CPUPercent)
 	case "REMOTE":
 		return remoteDisplay(r)
+	case "IFACE":
+		return r.LocalAddr.String()
+	case "USER":
+		if r.Username == "" {
+			return "-"
+		}
+		return r.Username
 	case "SYSTEMD":
 		if r.SystemdUnit == "" {
 			return "-"
@@ -309,8 +316,8 @@ func plainRow(r app.Row, cols []column) string {
 }
 
 // coloredRow renders a row with semantic per-cell coloring: state,
-// protocol and CPU load each get their own color so the table reads at
-// a glance without following the cursor.
+// protocol, CPU load and interface exposure each get their own color so
+// the table reads at a glance without following the cursor.
 func coloredRow(r app.Row, cols []column) string {
 	var b strings.Builder
 	for _, c := range cols {
@@ -322,6 +329,8 @@ func coloredRow(r app.Row, cols []column) string {
 			fmt.Fprint(&b, protoStyle(string(r.Protocol)).Render(padded))
 		case "CPU":
 			fmt.Fprint(&b, cpuStyle(r.CPUPercent).Render(padded))
+		case "IFACE":
+			fmt.Fprint(&b, ifaceStyle(r.LocalAddr).Render(padded))
 		default:
 			fmt.Fprint(&b, padded)
 		}
