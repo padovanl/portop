@@ -117,6 +117,14 @@ Detects Linux or macOS and your architecture, verifies the release checksum,
 and installs to
 `/usr/local/bin` (or `~/.local/bin` if that's not writable).
 
+### Snap Store
+
+Version **0.1.0** is available from the Snap Store on the `stable` channel:
+
+```bash
+sudo snap install portop
+```
+
 ### All supported architectures
 
 Every archive is named `portop_<version>_<target>.tar.gz`. These are the complete
