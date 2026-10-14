@@ -1,0 +1,40 @@
+Source: portop
+Section: net
+Priority: optional
+Maintainer: Luca Padovan <padovan.93@gmail.com>
+Build-Depends:
+ debhelper-compat (= 13),
+ dh-golang (>= 1.67),
+ dh-sequence-golang,
+ golang-any (>= 2:1.24~),
+ golang-github-atotto-clipboard-dev (>= 0.1.4),
+ golang-github-charmbracelet-bubbles-dev (>= 0.21.0),
+ golang-github-charmbracelet-bubbletea-dev (>= 1.3.10),
+ golang-github-charmbracelet-lipgloss-dev (>= 1.1.0),
+ golang-gopkg-yaml.v3-dev (>= 3.0.1),
+Standards-Version: 4.7.4
+Rules-Requires-Root: no
+Homepage: https://github.com/padovanl/portop
+Vcs-Browser: https://github.com/padovanl/portop/tree/develop
+Vcs-Git: https://github.com/padovanl/portop.git -b develop
+XS-Go-Import-Path: github.com/padovanl/portop
+
+Package: portop
+Architecture: linux-any
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends},
+Static-Built-Using: ${misc:Static-Built-Using}
+Suggests:
+ libnotify-bin,
+ xclip | xsel,
+ xdg-utils,
+Description: interactive TCP and UDP port and process monitor
+ portop displays local TCP and UDP sockets with their owning processes
+ in a live terminal interface. It can associate sockets with systemd
+ services and Docker containers, inspect processes and send signals
+ after confirmation.
+ .
+ It also provides JSON snapshots, listening-port baseline comparisons,
+ Docker Compose port audits and an optional browser dashboard. Process
+ information and actions are subject to the current user's permissions.

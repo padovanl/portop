@@ -1,0 +1,20 @@
+#!/usr/bin/make -f
+
+include /usr/share/dpkg/pkg-info.mk
+
+export DH_GOLANG_INSTALL_EXTRA := internal/cli/web
+export GOPROXY := off
+export GOTOOLCHAIN := local
+
+%:
+	dh $@ --builddirectory=_build --buildsystem=golang
+
+override_dh_auto_build:
+	dh_auto_build -- -ldflags "-X github.com/padovanl/portop/internal/cli.Version=$(DEB_VERSION_UPSTREAM)"
+
+# The baseline tests observe system-wide listeners, so run packages serially.
+override_dh_auto_test:
+	dh_auto_test -- -p 1
+
+override_dh_auto_install:
+	dh_auto_install -- --no-source

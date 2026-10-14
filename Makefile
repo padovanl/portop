@@ -1,4 +1,4 @@
-.PHONY: build test e2e lint release clean
+.PHONY: build test e2e lint release debian clean
 
 build:
 	go build -o bin/portop ./cmd/portop
@@ -19,6 +19,9 @@ lint:
 
 release:
 	goreleaser release --snapshot --clean
+
+debian:
+	./scripts/build-debian.sh
 
 clean:
 	rm -rf bin dist

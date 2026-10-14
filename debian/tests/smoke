@@ -1,0 +1,75 @@
+#!/usr/bin/python3
+"""Exercise the installed package against real sockets and user configuration."""
+
+import json
+import os
+from pathlib import Path
+import socket
+import subprocess
+import tempfile
+import time
+import urllib.error
+import urllib.request
+
+
+def run(*args, env=None):
+    return subprocess.check_output(["portop", *args], text=True, timeout=30, env=env)
+
+
+assert run("--version").startswith("portop ")
+flags = ["--json", "--no-dns", "--no-systemd", "--no-docker"]
+with socket.socket() as tcp, socket.socket(type=socket.SOCK_DGRAM) as udp:
+    tcp.bind(("127.0.0.1", 0))
+    tcp.listen(1)
+    udp.bind(("127.0.0.1", 0))
+    rows = json.loads(run(*flags))
+    for protocol, port, state in [
+        ("TCP", tcp.getsockname()[1], "LISTEN"),
+        ("UDP", udp.getsockname()[1], "UNCONN"),
+    ]:
+        assert any(
+            row["protocol"] == protocol and row["local_port"] == port
+            and row["state"] == state and row.get("pid") == os.getpid()
+            for row in rows
+        ), (protocol, port, rows)
+    listeners = json.loads(run(*flags, "--listen"))
+    assert listeners and all(row["state"] == "LISTEN" for row in listeners)
+
+with tempfile.TemporaryDirectory() as temp:
+    env = dict(os.environ, XDG_CONFIG_HOME=temp)
+    run("--init-config", env=env)
+    assert (Path(temp) / "portop" / "config.yml").is_file()
+
+with socket.socket() as probe:
+    probe.bind(("127.0.0.1", 0))
+    port = probe.getsockname()[1]
+server = subprocess.Popen(
+    ["portop", "--web", "--web-port", str(port), "--no-dns", "--no-systemd", "--no-docker"],
+    stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+)
+try:
+    base = f"http://127.0.0.1:{port}"
+    deadline = time.monotonic() + 10
+    while True:
+        try:
+            with urllib.request.urlopen(base, timeout=1) as response:
+                assert b"portop" in response.read()
+            break
+        except urllib.error.URLError:
+            if server.poll() is not None or time.monotonic() > deadline:
+                raise
+            time.sleep(0.05)
+    with urllib.request.urlopen(base + "/api/ports", timeout=10) as response:
+        assert isinstance(json.load(response), list)
+    for asset in ("app.css", "app.js", "logo.png"):
+        with urllib.request.urlopen(base + "/" + asset, timeout=5) as response:
+            assert response.read(), asset
+finally:
+    server.terminate()
+    try:
+        server.communicate(timeout=5)
+    except subprocess.TimeoutExpired:
+        server.kill()
+        server.communicate()
+
+print("Installed portop: version, TCP/UDP ownership, filtering, config and web passed")

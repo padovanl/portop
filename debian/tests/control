@@ -1,0 +1,2 @@
+Tests: smoke
+Depends: @, python3
