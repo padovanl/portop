@@ -21,6 +21,7 @@ import (
 	"github.com/padovanl/portop/internal/config"
 	"github.com/padovanl/portop/internal/procinfo"
 	"github.com/padovanl/portop/internal/scanner"
+	"github.com/padovanl/portop/internal/terminaltext"
 	"github.com/padovanl/portop/internal/ui"
 )
 
@@ -378,10 +379,10 @@ func runDiffBaseline(stdout, stderr io.Writer, path string, jsonOut bool, opts a
 			fmt.Fprintln(stdout, "no changes — every listening port matches the baseline")
 		}
 		for _, e := range added {
-			fmt.Fprintln(stdout, styleDiffAdded.Render(fmt.Sprintf("+ :%d %s (%s) — new, not in baseline", e.Port, e.Protocol, orDash(e.Process))))
+			fmt.Fprintln(stdout, styleDiffAdded.Render(fmt.Sprintf("+ :%d %s (%s) — new, not in baseline", e.Port, e.Protocol, terminaltext.Sanitize(orDash(e.Process)))))
 		}
 		for _, e := range removed {
-			fmt.Fprintln(stdout, styleDiffRemoved.Render(fmt.Sprintf("- :%d %s (%s) — in baseline, not listening anymore", e.Port, e.Protocol, orDash(e.Process))))
+			fmt.Fprintln(stdout, styleDiffRemoved.Render(fmt.Sprintf("- :%d %s (%s) — in baseline, not listening anymore", e.Port, e.Protocol, terminaltext.Sanitize(orDash(e.Process)))))
 		}
 	}
 
@@ -397,7 +398,7 @@ func runComposeAudit(stdout, stderr io.Writer, dir string, jsonOut bool, opts ap
 
 	summary, err := compose.AuditDir(ctx, dir, compose.AuditOptions{ResolveDocker: opts.ResolveDocker})
 	if err != nil {
-		fmt.Fprintln(stderr, "portop: compose audit: "+err.Error())
+		fmt.Fprintln(stderr, terminaltext.Sanitize("portop: compose audit: "+err.Error()))
 		return 1
 	}
 
@@ -421,8 +422,8 @@ func runComposeAudit(stdout, stderr io.Writer, dir string, jsonOut bool, opts ap
 }
 
 func printComposeSummary(w io.Writer, summary compose.Summary) {
-	fmt.Fprintf(w, "Compose folder: %s\n", summary.Directory)
-	fmt.Fprintf(w, "Files: %s\n\n", strings.Join(summary.Files, ", "))
+	fmt.Fprintf(w, "Compose folder: %s\n", terminaltext.Sanitize(summary.Directory))
+	fmt.Fprintf(w, "Files: %s\n\n", terminaltext.Sanitize(strings.Join(summary.Files, ", ")))
 	fmt.Fprintf(w, "%-10s %-18s %-12s %-22s %s\n", "STATUS", "SERVICE", "PORT", "OWNER", "NOTE")
 	for _, r := range summary.Results {
 		port := "dynamic"
@@ -438,7 +439,9 @@ func printComposeSummary(w io.Writer, summary compose.Summary) {
 			port = fmt.Sprintf("%s%s/%s%s", host, strconv.Itoa(int(r.Published)), strings.ToLower(r.Protocol), target)
 		}
 		owner := composeOwner(r)
-		fmt.Fprintf(w, "%-10s %-18s %-12s %-22s %s\n", r.Status, r.Service, port, owner, r.Note)
+		fmt.Fprintf(w, "%-10s %-18s %-12s %-22s %s\n",
+			terminaltext.Sanitize(string(r.Status)), terminaltext.Sanitize(r.Service), terminaltext.Sanitize(port),
+			terminaltext.Sanitize(owner), terminaltext.Sanitize(r.Note))
 	}
 }
 
