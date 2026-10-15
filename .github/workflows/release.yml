@@ -70,3 +70,63 @@ jobs:
             dist/*.deb
             dist/*.rpm
             dist/checksums.txt
+
+  # Each store job below is skipped (not failed) while its credentials are
+  # missing, so a fresh fork still produces a GitHub release. Pre-release
+  # tags (vX.Y.Z-rc1) go to the Snap edge channel only.
+
+  snap:
+    name: Snap Store (${{ matrix.arch }})
+    needs: release
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    env:
+      # snapcraft export-login --snaps=portop --acls=package_access,package_push,package_update,package_release -
+      SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      # snapcraft.yaml takes the version from `git describe --tags`.
+      - run: git fetch --force --tags
+      - uses: snapcore/action-build@3bdaa03e1ba6bf59a65f84a751d943d549a54e79 # v1.3.0
+        id: build
+      - uses: snapcore/action-publish@214b86e5ca036ead1668c79afb81e550e6c54d40 # v1.2.0
+        if: env.SNAPCRAFT_STORE_CREDENTIALS != ''
+        with:
+          snap: ${{ steps.build.outputs.snap }}
+          release: ${{ contains(github.ref_name, '-') && 'edge' || 'stable' }}
+
+  homebrew:
+    name: Homebrew (homebrew-core)
+    needs: release
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    env:
+      # Classic PAT with public_repo and workflow scopes; the action forks
+      # Homebrew/homebrew-core under its owner and opens the bump PR.
+      COMMITTER_TOKEN: ${{ secrets.HOMEBREW_GITHUB_TOKEN }}
+    steps:
+      - uses: mislav/bump-homebrew-formula-action@56a283fa15557e9abaa4bdb63b8212abc68e655c # v3.6
+        if: env.COMMITTER_TOKEN != ''
+        with:
+          formula-name: portop
+          formula-path: Formula/p/portop.rb
+          tag-name: ${{ github.ref_name }}
+          download-url: https://github.com/padovanl/portop/archive/refs/tags/${{ github.ref_name }}.tar.gz
+
+  # The Microsoft Store package is uploaded to Partner Center by hand,
+  # from this job's portop-msix-<tag> artifact.
+  msix:
+    name: Microsoft Store package
+    needs: release
+    if: ${{ !contains(github.ref_name, '-') }}
+    uses: ./.github/workflows/msix.yml
+    with:
+      tag: ${{ github.ref_name }}
