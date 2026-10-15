@@ -51,3 +51,6 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Personal access token used to open the winget-pkgs pull request;
+          # when the secret is missing the winget upload is skipped.
+          WINGET_GITHUB_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}

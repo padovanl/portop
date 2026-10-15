@@ -4,6 +4,9 @@ import (
 	"context"
 	"net"
 	"testing"
+
+	"github.com/padovanl/portop/internal/docker"
+	"github.com/padovanl/portop/internal/scanner"
 )
 
 // TestCollectFindsRealListener opens a real TCP listener on the current
@@ -92,6 +95,28 @@ func TestRowMatches(t *testing.T) {
 	} {
 		if got := row.Matches(query); got != want {
 			t.Errorf("Matches(%q) = %v, want %v", query, got, want)
+		}
+	}
+}
+
+func TestLabelPublishedPorts(t *testing.T) {
+	rows := []Row{
+		{Protocol: scanner.TCP, LocalPort: 8080, State: scanner.StateListen, ProcessName: "com.docker.backend"},
+		{Protocol: scanner.TCP, LocalPort: 8080, State: scanner.StateEstablished},
+		{Protocol: scanner.UDP, LocalPort: 5353, State: scanner.StateUnconn},
+		{Protocol: scanner.TCP, LocalPort: 9000, State: scanner.StateListen, ContainerName: "already"},
+		{Protocol: scanner.TCP, LocalPort: 7000, State: scanner.StateListen},
+	}
+	labelPublishedPorts(rows, []docker.PublishedPort{
+		{ContainerName: "web", PublicPort: 8080, Type: "TCP", State: "running"},
+		{ContainerName: "mdns", PublicPort: 5353, Type: "UDP", State: "running"},
+		{ContainerName: "other", PublicPort: 9000, Type: "TCP", State: "running"},
+		{ContainerName: "stopped", PublicPort: 7000, Type: "TCP", State: "exited"},
+	})
+	want := []string{"web", "", "mdns", "already", ""}
+	for i, w := range want {
+		if rows[i].ContainerName != w {
+			t.Errorf("row %d container = %q, want %q", i, rows[i].ContainerName, w)
 		}
 	}
 }

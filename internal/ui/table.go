@@ -121,7 +121,7 @@ func (m Model) renderTable() string {
 	var b strings.Builder
 	b.WriteString(strings.Repeat(" ", markerWidth))
 	for _, c := range cols {
-		title := c.title
+		title := headerTitle(c.title)
 		if mode, ok := sortModeForColumn(c.title); ok && mode == m.sort {
 			if m.sortDescending {
 				title += " ↓"

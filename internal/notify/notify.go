@@ -1,11 +1,13 @@
 // Package notify sends best-effort desktop notifications (used by
 // portop's "alert on new listening port" feature). It shells out to
-// notify-send (Linux/freedesktop) or osascript (macOS) when available
+// notify-send (Linux/freedesktop), osascript (macOS) or a PowerShell
+// toast (Windows) when available
 // and silently does nothing otherwise, since a missing notifier must
 // never be fatal for a terminal tool.
 package notify
 
 import (
+	"os"
 	"os/exec"
 	"runtime"
 )
@@ -20,6 +22,15 @@ func Send(title, body string) {
 	case "darwin":
 		script := `display notification "` + escapeAppleScript(body) + `" with title "` + escapeAppleScript(title) + `"`
 		cmd = exec.Command("osascript", "-e", script)
+	case "windows":
+		// PowerShell is slow to start, so fire and forget instead of
+		// blocking the TUI; text travels in env vars to avoid quoting.
+		cmd = exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", windowsToastScript)
+		cmd.Env = append(os.Environ(), "PORTOP_TOAST_TITLE="+title, "PORTOP_TOAST_BODY="+body)
+		if cmd.Start() == nil {
+			go func() { _ = cmd.Wait() }()
+		}
+		return
 	default:
 		if _, err := exec.LookPath("notify-send"); err != nil {
 			return
@@ -39,3 +50,15 @@ func escapeAppleScript(s string) string {
 	}
 	return string(out)
 }
+
+// windowsToastScript shows a toast through the WinRT notification API,
+// attributed to Windows PowerShell's registered app ID so it needs no
+// installation step of its own.
+const windowsToastScript = `$ErrorActionPreference = 'SilentlyContinue'
+[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null
+$t = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)
+$n = $t.GetElementsByTagName('text')
+$n.Item(0).AppendChild($t.CreateTextNode($env:PORTOP_TOAST_TITLE)) > $null
+$n.Item(1).AppendChild($t.CreateTextNode($env:PORTOP_TOAST_BODY)) > $null
+$id = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe'
+[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($id).Show([Windows.UI.Notifications.ToastNotification]::new($t))`

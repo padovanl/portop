@@ -10,3 +10,5 @@ go.sum text eol=lf
 *.yml text eol=lf
 *.yaml text eol=lf
 *.json text eol=lf
+*.ps1 text eol=lf
+*.xml text eol=lf

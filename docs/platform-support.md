@@ -1,9 +1,11 @@
 # Platform support
 
-Linux builds are produced for amd64, arm64, ARMv6 and ARMv7. macOS builds
-are produced for amd64 and arm64. Linux retains its
-`/proc` backend; macOS uses the system `lsof` and `ps` tools without adding Go
-dependencies or requiring CGO. Linux releases include both DEB and RPM packages.
+Linux builds are produced for amd64, arm64, ARMv6 and ARMv7. macOS and Windows
+builds are produced for amd64 and arm64. Linux retains its
+`/proc` backend; macOS uses the system `lsof` and `ps` tools; Windows calls the
+IP Helper and Win32 process APIs through `golang.org/x/sys/windows`. None of
+them requires CGO. Linux releases include both DEB and RPM packages, Windows
+releases a zip per architecture, a winget manifest and a Store package.
 
 ## Complete release matrix
 
@@ -15,6 +17,8 @@ dependencies or requiring CGO. Linux releases include both DEB and RPM packages.
 | Linux | `linux_armv7` | tar.gz, deb, rpm | armhf | armv7hl |
 | macOS | `darwin_amd64` | tar.gz | — | — |
 | macOS | `darwin_arm64` | tar.gz | — | — |
+| Windows | `windows_amd64` | zip, winget, MSIX | — | — |
+| Windows | `windows_arm64` | zip, winget, MSIX | — | — |
 
 ARM32 builds use `GOARM=6` / `GOARM=7` with hardware floating point and
 `CGO_ENABLED=0`. ARMv5, soft-float ARM, big-endian ARM, 32-bit x86 and unlisted
@@ -53,6 +57,28 @@ Native macOS runtime checks remain pending, as before.
 - Thread count is unavailable and displayed as `-`. Other process details are
   best-effort when a process exits or access is restricted.
 - Scans and CPU sampling can be slower than Linux because they invoke system tools.
+
+## Windows behavior
+
+- TCP/UDP, IPv4/IPv6 and the owning PID of every socket come from
+  `GetExtendedTcpTable` / `GetExtendedUdpTable`; no elevation is needed to see
+  other users' sockets. PID 4 ("System") owns sockets of kernel drivers such
+  as http.sys and SMB.
+- Process names come from one Toolhelp snapshot per scan, shown without the
+  `.exe` suffix. CPU usage is derived from `GetProcessTimes`.
+- Process details use `PROCESS_QUERY_LIMITED_INFORMATION`: executable, command
+  line (Windows 8.1+), user, working set, thread count and start time. The
+  working directory and open file count are not shown. Elevated or protected
+  processes may refuse even limited access unless portop runs elevated.
+- The SYSTEMD column is shown as SERVICE and lists the Windows service(s)
+  hosted by the process, from the Service Control Manager (cached 5 s).
+- Docker Desktop runs containers in a VM, so they cannot be found from a PID.
+  Listening rows whose port is published by a running container get its name
+  from `docker ps` (cached 3 s). `--compose` uses the same data.
+- There is no SIGTERM: both kill choices call `TerminateProcess`.
+- New-port notifications are Windows toasts sent through PowerShell.
+- The Store package (`scripts/build-msix.ps1`, `packaging/msix`) registers a
+  `portop` execution alias so the command works from any terminal.
 
 ## Validation performed locally
 
