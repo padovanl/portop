@@ -66,8 +66,7 @@ func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, keys.Kill):
 		if row, ok := m.selected(); ok && row.PID != 0 {
-			m.killTarget = row
-			m.mode = modeConfirmKill
+			m.openKillConfirm(row)
 		} else {
 			m.setStatus(unresolvedHint(), true)
 		}
@@ -149,9 +148,9 @@ func (m Model) handleFilterKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m Model) handleConfirmKillKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "y", "Y":
-		return m, killCmd(m.killTarget, false)
+		return m, killCmd(m.killTarget, m.killStart, false)
 	case "f", "F":
-		return m, killCmd(m.killTarget, true)
+		return m, killCmd(m.killTarget, m.killStart, true)
 	default:
 		m.mode = modeNormal
 	}
