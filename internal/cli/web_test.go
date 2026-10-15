@@ -1,6 +1,3 @@
-// Match the main package's routing defaults when tests run in GOPATH mode.
-//go:debug httpmuxgo121=0
-
 package cli
 
 import (
