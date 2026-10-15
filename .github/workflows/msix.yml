@@ -34,7 +34,7 @@ jobs:
       # For a tag push, workflow_run reports the tag as head_branch.
       TAG: ${{ inputs.tag || github.event.workflow_run.head_branch }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ env.TAG }}
       - name: Download Windows archives from the release
@@ -49,7 +49,7 @@ jobs:
           -IdentityName "${{ vars.MSIX_IDENTITY_NAME }}"
           -Publisher "${{ vars.MSIX_PUBLISHER }}"
           -PublisherDisplayName "${{ vars.MSIX_PUBLISHER_DISPLAY_NAME }}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: portop-msix-${{ env.TAG }}
           path: dist/msix/*.msixbundle

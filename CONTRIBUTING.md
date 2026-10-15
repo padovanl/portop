@@ -80,6 +80,16 @@ the tag is reachable from `main` (so there's no way to accidentally ship
 a tag that skipped the PR) before building the `.deb`/`.rpm`/`.tar.gz` artifacts
 with GoReleaser and publishing them to a new GitHub Release.
 
+Every GitHub Action is pinned to a commit SHA and GoReleaser to an exact
+version, so a release never depends on a mutable upstream tag. The tag is
+signed when git has a `user.signingkey`, and the workflow records a GitHub
+artifact attestation for each published file. To check a download:
+
+```sh
+gh attestation verify portop_X.Y.Z_linux_amd64.tar.gz --repo padovanl/portop
+git fetch --tags origin && git verify-tag vX.Y.Z   # needs the maintainer's public key
+```
+
 ## Code style
 
 - Run `gofmt` before committing (CI checks it).
