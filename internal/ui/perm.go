@@ -24,6 +24,9 @@ func unresolvedHint() string {
 	if isRoot() {
 		return "no process associated with this row"
 	}
+	if runtime.GOOS == "windows" {
+		return "process unknown — try running portop from an Administrator terminal"
+	}
 	return "process unknown — likely owned by another user (try running portop with sudo)"
 }
 
@@ -46,6 +49,9 @@ func unresolvedStatusHint(rows []app.Row) string {
 	n := countUnresolved(rows)
 	if n == 0 {
 		return ""
+	}
+	if runtime.GOOS == "windows" {
+		return fmt.Sprintf("(%d hidden — try an Administrator terminal)", n)
 	}
 	return fmt.Sprintf("(%d hidden — try sudo)", n)
 }

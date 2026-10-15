@@ -1,13 +1,12 @@
 // Package systemdinfo associates a process with the systemd unit that
 // owns it, by inspecting the process's cgroup membership. This works
 // without talking to D-Bus or requiring any special privileges beyond
-// being able to read /proc/<pid>/cgroup.
+// being able to read /proc/<pid>/cgroup. On Windows the same slot holds
+// the Windows service(s) hosted by the process (see unit_windows.go).
 package systemdinfo
 
 import (
-	"os"
 	"regexp"
-	"strconv"
 	"strings"
 )
 
@@ -17,18 +16,6 @@ var ProcRoot = "/proc"
 // unitPattern matches the last "<name>.<type>" segment of a cgroup path
 // where type is one of the systemd unit suffixes.
 var unitPattern = regexp.MustCompile(`([^/]+\.(service|scope|socket|timer|mount))$`)
-
-// UnitForPID returns the systemd unit name (e.g. "nginx.service") owning
-// the given process, or "" if it could not be determined (process not
-// under a recognizable systemd cgroup, cgroup v1 without a systemd
-// controller, permission denied, container process, etc).
-func UnitForPID(pid int) string {
-	data, err := os.ReadFile(ProcRoot + "/" + strconv.Itoa(pid) + "/cgroup")
-	if err != nil {
-		return ""
-	}
-	return unitFromCgroupContent(string(data))
-}
 
 func unitFromCgroupContent(content string) string {
 	var best string

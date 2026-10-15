@@ -9,8 +9,9 @@
 
 An **htop-style** terminal UI (TUI) that answers the question `ss`, `netstat`
 and `lsof` only half-answer: not just *what's* bound to a port, but which
-process, which systemd unit, which Docker container — and a one-key way to
-open, inspect or kill it, live.
+process, which systemd unit or Windows service, which Docker container — and
+a one-key way to open, inspect or kill it, live. Runs on Linux, macOS and
+Windows.
 
 **[padovanl.github.io/portop →](https://padovanl.github.io/portop/)**
 
@@ -133,9 +134,43 @@ Version **0.1.0** is available from the Snap Store on the `stable` channel:
 sudo snap install portop
 ```
 
+### Windows
+
+Windows 10 1809+ and Windows 11, x64 and ARM64. Pick one of the three options.
+
+**winget** ([Windows Package Manager](https://learn.microsoft.com/windows/package-manager/winget/)):
+
+```powershell
+winget install padovanl.portop
+```
+
+**Microsoft Store**: search for **portop** in the Store app or on
+[apps.microsoft.com](https://apps.microsoft.com/search?query=portop). The Store
+keeps it updated and adds a `portop` command to every terminal.
+
+**Zip from the release**: download `portop_<version>_windows_amd64.zip` (or
+`windows_arm64`) from the
+[latest release](https://github.com/padovanl/portop/releases/latest), extract
+`portop.exe` and put it in a folder on your `PATH`. In PowerShell:
+
+```powershell
+# replace <version> with the latest release number, no leading "v"
+$zip = "portop_<version>_windows_amd64.zip"   # ARM64: windows_arm64
+Invoke-WebRequest "https://github.com/padovanl/portop/releases/latest/download/$zip" -OutFile $zip
+$dir = "$env:LOCALAPPDATA\Programs\portop"
+Expand-Archive $zip -DestinationPath $dir -Force
+# add it to your user PATH, then open a new terminal and run portop
+[Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$dir", "User")
+```
+
+Run it in Windows Terminal or any modern console. Socket owners are visible
+without elevation; process details of other users' or elevated processes
+need an Administrator terminal.
+
 ### All supported architectures
 
-Every archive is named `portop_<version>_<target>.tar.gz`. These are the complete
+Every Linux and macOS archive is named `portop_<version>_<target>.tar.gz`;
+Windows archives are `.zip`. These are the complete
 release targets; Linux also gets `.deb` and `.rpm` files with the same target suffix.
 
 | System | Architecture | Target | Packages | Requirements |
@@ -146,6 +181,8 @@ release targets; Linux also gets `.deb` and `.rpm` files with the same target su
 | Linux | ARMv6 (32-bit) | `linux_armv6` | `.tar.gz`, `.deb`, `.rpm` | 32-bit ARM Linux with hardware floating point (VFP); includes the CPU target used by original Pi 1 / Zero. |
 | macOS | Intel (64-bit) | `darwin_amd64` | `.tar.gz` | 64-bit Intel Mac; no 32-bit macOS build. |
 | macOS | Apple Silicon (64-bit) | `darwin_arm64` | `.tar.gz` | Native ARM64 Mac; no Rosetta required. |
+| Windows | Intel/AMD 64-bit | `windows_amd64` | `.zip`, winget, Microsoft Store | Windows 10 1809 or later. |
+| Windows | ARM64 | `windows_arm64` | `.zip`, winget, Microsoft Store | Windows 11 on ARM. |
 
 #### ARM selection and package limitations
 
@@ -163,7 +200,7 @@ release targets; Linux also gets `.deb` and `.rpm` files with the same target su
 
   Valid overrides: `amd64`, `arm64`, `armv6`, `armv7`; macOS accepts only the first two.
 - ARMv6 and ARMv7 releases require hardware floating point. ARMv5, ARM soft-float
-  (`armel`), big-endian ARM, 32-bit x86, Windows and other unlisted targets are
+  (`armel`), big-endian ARM, 32-bit x86 and other unlisted targets are
   **not supported by these releases**. ARM64 requires a 64-bit OS; a 32-bit
   compatibility layer on a 64-bit kernel is not guaranteed.
 - Both ARM32 DEBs have `armhf` metadata, but their filenames distinguish `armv6`
@@ -181,6 +218,11 @@ release targets; Linux also gets `.deb` and `.rpm` files with the same target su
 - macOS requires the system `lsof` and `ps`, can omit other users' sockets without
   `sudo`, and does not expose systemd, Docker Desktop VM process metadata or thread
   counts. Its scans may be slower; see the first-launch Gatekeeper instructions below.
+- Windows uses the IP Helper API, so every socket comes with its owning PID even
+  without elevation. The SYSTEMD column becomes SERVICE (the Windows service
+  hosted by the process) and Docker Desktop containers are recognised by the
+  host ports they publish, via the `docker` CLI. There is no SIGTERM on
+  Windows: both kill choices end the process.
 - Build and emulation checks do not replace testing on physical ARM hardware or a
   native Mac. See [validation status](docs/platform-support.md) for what has been run.
 
@@ -423,19 +465,31 @@ sockets and their owning processes. `ps` supplies cumulative CPU time and
 process details; CPU usage is calculated between successive samples, once
 per PID per scan. System commands run with a timeout and a fixed locale.
 
-On both platforms, well-known port names come from `/etc/services`, and
-baseline diffing snapshots the `LISTEN` set to a small JSON file under your
-OS's config directory.
+On Windows, portop calls `GetExtendedTcpTable` and `GetExtendedUdpTable`
+from the IP Helper API, which report the owning PID of every socket, and
+names processes from a Toolhelp snapshot. Process details come from the
+Win32 process APIs with limited query rights, the SERVICE column from the
+Service Control Manager, and Docker Desktop containers are matched by the
+host ports `docker ps` reports as published, because their processes run
+inside a VM.
+
+On every platform, well-known port names come from the system services
+database (`/etc/services`, or `%SystemRoot%\System32\drivers\etc\services`
+on Windows), and baseline diffing snapshots the `LISTEN` set to a small JSON
+file under your OS's config directory.
 
 ## ✅ Requirements
 
-- **Linux and macOS.** Linux uses `/proc/net`; macOS uses `lsof` and `ps`.
-  Windows is not supported. macOS scans and CPU sampling invoke system tools
-  and may be slower on machines with many processes.
+- **Linux, macOS and Windows.** Linux uses `/proc/net`; macOS uses `lsof`
+  and `ps`; Windows uses the IP Helper and Win32 process APIs. macOS scans
+  and CPU sampling invoke system tools and may be slower on machines with
+  many processes.
 - `sudo`/root only if you want to see sockets owned by other users (e.g.
   root's `docker-proxy`) — portop runs fine without it, it just can't
   resolve those specific rows on Linux. On macOS, sockets belonging to
-  other users can be omitted entirely without sufficient permissions.
+  other users can be omitted entirely without sufficient permissions. On
+  Windows, an Administrator terminal is only needed for the details of
+  elevated or other users' processes.
 - Go 1.24+ only if building from source.
 - A terminal that reports 256-color or truecolor support. A bare
   `TERM=xterm` (no `-256color` suffix) gets detected as a 16-color

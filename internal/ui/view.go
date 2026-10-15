@@ -141,13 +141,17 @@ func (m Model) renderDetail() string {
 			threads = strconv.Itoa(info.NumThreads)
 		}
 		field("Threads:", threads)
-		field("Open files:", strconv.Itoa(info.OpenFiles))
+		openFiles := "-"
+		if info.OpenFiles >= 0 {
+			openFiles = strconv.Itoa(info.OpenFiles)
+		}
+		field("Open files:", openFiles)
 		field("RSS:", fmt.Sprintf("%.1f MiB", float64(info.RSSBytes)/1024/1024))
 		if !info.StartTime.IsZero() {
 			field("Started:", info.StartTime.Format("2006-01-02 15:04:05"))
 		}
 		if row.SystemdUnit != "" {
-			field("Systemd:", row.SystemdUnit)
+			field(platformLabels.unitField, row.SystemdUnit)
 		}
 		if row.ContainerName != "" {
 			field("Container:", row.ContainerName)
@@ -163,8 +167,8 @@ func (m Model) renderConfirmKill() string {
 	fmt.Fprintf(&b, "%s\n\n", styleDanger.Render("Kill this process?"))
 	fmt.Fprintf(&b, "%s (PID %s) listening on :%d\n\n",
 		m.killTarget.ProcessName, strconv.Itoa(m.killTarget.PID), m.killTarget.LocalPort)
-	b.WriteString(styleKey.Render("y") + styleFaint.Render(" terminate (SIGTERM)   "))
-	b.WriteString(styleKey.Render("f") + styleFaint.Render(" force (SIGKILL)   "))
+	b.WriteString(styleKey.Render("y") + styleFaint.Render(" "+platformLabels.terminate+"   "))
+	b.WriteString(styleKey.Render("f") + styleFaint.Render(" "+platformLabels.force+"   "))
 	b.WriteString(styleKey.Render("esc") + styleFaint.Render(" cancel"))
 	return styleModal.Width(m.modalWidth()).Render(b.String())
 }
@@ -183,7 +187,7 @@ func (m Model) renderHelp() string {
 		{keys.Top, "jump to top"},
 		{keys.Bottom, "jump to bottom"},
 		{keys.Enter, "process details"},
-		{keys.Kill, "kill process (then y=SIGTERM, f=SIGKILL)"},
+		{keys.Kill, platformLabels.killHelp},
 		{keys.Open, "open http(s)://localhost:PORT in the browser"},
 		{keys.Filter, "filter/search by port, process or PID"},
 		{keys.Protocol, "toggle IPv4 / IPv6 / both"},

@@ -4,6 +4,7 @@ package app
 import (
 	"context"
 	"net"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -152,6 +153,10 @@ func (c *Collector) Collect(ctx context.Context, opts Options) ([]Row, error) {
 		rows = append(rows, row)
 	}
 
+	if opts.ResolveDocker && portBasedContainers && c.docker.Available() {
+		labelPublishedPorts(rows, c.docker.PublishedPorts(ctx))
+	}
+
 	c.seen = currentKeys
 	c.init = true
 
@@ -163,4 +168,38 @@ func (c *Collector) Collect(ctx context.Context, opts Options) ([]Row, error) {
 	})
 
 	return rows, nil
+}
+
+// portBasedContainers is true where container processes are not visible
+// to the host (Docker Desktop on Windows runs them inside a VM): there,
+// containers are recognised by the host ports they publish instead of by
+// the owning PID's cgroup. Linux and macOS keep the PID-based lookup.
+var portBasedContainers = runtime.GOOS == "windows"
+
+// labelPublishedPorts fills ContainerName on listening rows whose port is
+// published by a running container and that have no name yet.
+func labelPublishedPorts(rows []Row, published []docker.PublishedPort) {
+	type portKey struct {
+		proto scanner.Protocol
+		port  uint16
+	}
+	names := make(map[portKey]string, len(published))
+	for _, p := range published {
+		if p.State != "" && p.State != "running" {
+			continue
+		}
+		k := portKey{scanner.Protocol(strings.ToUpper(p.Type)), p.PublicPort}
+		if _, dup := names[k]; !dup {
+			names[k] = p.ContainerName
+		}
+	}
+	for i := range rows {
+		r := &rows[i]
+		if r.ContainerName != "" || (r.State != scanner.StateListen && r.State != scanner.StateUnconn) {
+			continue
+		}
+		if name, ok := names[portKey{r.Protocol, r.LocalPort}]; ok {
+			r.ContainerName = name
+		}
+	}
 }

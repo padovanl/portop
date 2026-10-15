@@ -1,5 +1,5 @@
 // Package scanner enumerates TCP/UDP sockets and their owning processes.
-// Linux uses /proc; macOS uses lsof.
+// Linux uses /proc; macOS uses lsof; Windows uses the IP Helper API.
 package scanner
 
 import (

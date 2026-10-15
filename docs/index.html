@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>portop</title>
-<meta name="description" content="portop is an htop-style terminal UI for TCP/UDP ports on Linux and macOS, with a web dashboard and a Cockpit add-on. Find the owning process, inspect it, or stop it.">
+<meta name="description" content="portop is an htop-style terminal UI for TCP/UDP ports on Linux, macOS and Windows, with a web dashboard and a Cockpit add-on. Find the owning process, inspect it, or stop it.">
 <meta property="og:title" content="portop">
 <meta property="og:image" content="https://padovanl.github.io/portop/assets/logo.png">
-<meta property="og:description" content="An htop-style terminal UI for TCP/UDP ports — process, systemd unit and Docker container in one dashboard, with baseline drift detection, themes and remappable keys.">
+<meta property="og:description" content="An htop-style terminal UI for TCP/UDP ports — process, systemd unit or Windows service and Docker container in one dashboard, with baseline drift detection, themes and remappable keys.">
 <link rel="icon" href="assets/logo.png">
 <style>
   /* Colours come from the portop logo: night blue, its azure and its mint. */
@@ -400,7 +400,7 @@
   <div class="hero-inner">
     <p class="eyebrow">htop, but for ports</p>
     <h1 class="wordmark"><img class="wordmark-logo" src="assets/logo.png" alt="" width="128" height="128"><span class="port">port</span><span class="op">op</span><span class="cursor" aria-hidden="true">&nbsp;</span></h1>
-    <p class="tagline">See which <strong>process</strong> is using a port on <strong>Linux or macOS</strong> — and stop it right from your keyboard. On Linux, see its <strong>systemd unit</strong>, <strong>Docker container</strong>, and Compose port conflicts too.</p>
+    <p class="tagline">See which <strong>process</strong> is using a port on <strong>Linux, macOS or Windows</strong> — and stop it right from your keyboard. See its <strong>systemd unit</strong> on Linux or <strong>Windows service</strong> on Windows, its <strong>Docker container</strong>, and Compose port conflicts too.</p>
     <div class="cta-row">
       <a class="btn primary" href="#install">Get portop</a>
       <a class="btn secondary" href="https://github.com/padovanl/portop">View source</a>
@@ -455,8 +455,8 @@
           <p><kbd>k</kbd> then confirm — graceful SIGTERM or forced SIGKILL. Never a stray keypress away.</p>
         </div>
         <div class="card">
-          <h3><span class="dot state-established">{}</span>systemd &amp; Docker aware</h3>
-          <p>Every row shows the owning .service unit and Docker container, resolved from cgroups — no extra daemons.</p>
+          <h3><span class="dot state-established">{}</span>Service &amp; Docker aware</h3>
+          <p>Every row shows the owning systemd .service unit (Linux) or Windows service, and the Docker container behind it — no extra daemons.</p>
         </div>
         <div class="card">
           <h3><span class="dot state-new">●</span>New-port alerts</h3>
@@ -574,7 +574,7 @@
 
     <section id="install" class="section install">
       <h2>Installation</h2>
-      <p class="section-lede">Linux: x86-64, ARM64, ARMv7 and ARMv6. macOS: Intel and Apple Silicon. All release targets and limitations are listed below.</p>
+      <p class="section-lede">Linux: x86-64, ARM64, ARMv7 and ARMv6. macOS: Intel and Apple Silicon. Windows: x64 and ARM64, via winget, the Microsoft Store or a zip. All release targets and limitations are listed below.</p>
       <div class="table-scroll">
         <table class="keys" aria-label="All supported architectures">
           <thead><tr><th>System</th><th>Architecture</th><th>Target</th><th>Formats</th><th>Requirements</th></tr></thead>
@@ -585,20 +585,23 @@
             <tr><td>Linux</td><td>ARMv6 (32-bit)</td><td><code>linux_armv6</code></td><td>.tar.gz, .deb, .rpm</td><td>32-bit ARM Linux with hardware floating point (VFP); includes the CPU target used by original Pi 1 / Zero.</td></tr>
             <tr><td>macOS</td><td>Intel (64-bit)</td><td><code>darwin_amd64</code></td><td>.tar.gz</td><td>64-bit Intel Mac; no 32-bit macOS build.</td></tr>
             <tr><td>macOS</td><td>Apple Silicon (64-bit)</td><td><code>darwin_arm64</code></td><td>.tar.gz</td><td>Native ARM64 Mac; no Rosetta required.</td></tr>
+            <tr><td>Windows</td><td>Intel/AMD 64-bit</td><td><code>windows_amd64</code></td><td>.zip, winget, Microsoft Store</td><td>Windows 10 1809 or later.</td></tr>
+            <tr><td>Windows</td><td>ARM64</td><td><code>windows_arm64</code></td><td>.zip, winget, Microsoft Store</td><td>Windows 11 on ARM.</td></tr>
           </tbody>
         </table>
       </div>
-      <p class="platform-note">Archive names: <code>portop_&lt;version&gt;_&lt;target&gt;.tar.gz</code>. Linux packages use the same target suffix with <code>.deb</code> or <code>.rpm</code>. Replace the example's <code>linux_amd64</code> with your target.</p>
+      <p class="platform-note">Archive names: <code>portop_&lt;version&gt;_&lt;target&gt;.tar.gz</code> (<code>.zip</code> on Windows). Linux packages use the same target suffix with <code>.deb</code> or <code>.rpm</code>. Replace the example's <code>linux_amd64</code> with your target.</p>
       <details class="first-run" open>
         <summary>Compatibility and limitations</summary>
         <ul>
           <li><strong>Choose for your OS:</strong> a 64-bit ARM board with a 32-bit OS needs <code>armv7</code>, or <code>armv6</code> for older CPUs. ARM64 requires a 64-bit OS.</li>
-          <li><strong>ARM32:</strong> hardware floating point is required (VFP for ARMv6, VFPv3 for ARMv7). ARMv5, soft-float <code>armel</code>, big-endian ARM, 32-bit x86, Windows and unlisted targets are not supported by these releases.</li>
+          <li><strong>ARM32:</strong> hardware floating point is required (VFP for ARMv6, VFPv3 for ARMv7). ARMv5, soft-float <code>armel</code>, big-endian ARM, 32-bit x86, 32-bit Windows and unlisted targets are not supported by these releases.</li>
           <li><strong>Packages:</strong> ARMv6 and ARMv7 DEBs both use <code>armhf</code> metadata; choose by filename and install only one variant. ARMv6 distribution support varies. RPM labels are <code>x86_64</code>, <code>aarch64</code>, <code>armv6hl</code> and <code>armv7hl</code>. If your RPM manager does not accept the architecture, use the matching archive rather than forcing installation.</li>
           <li><strong>OS versions:</strong> prebuilt binaries need no Go or C runtime installation. An old Linux image may still have a kernel too old for the runtime. Check <a href="https://go.dev/wiki/MinimumRequirements">Go's OS requirements</a>; CPU support is not a promise that every historical OS version works.</li>
           <li><strong>Linux:</strong> readable <code>/proc/net</code> is required. Containers show their own network namespace. Root may be needed to identify other users' processes. Systemd and Docker enrichment depend on accessible services and metadata.</li>
           <li><strong>Docker Compose audit:</strong> fixed <code>ports:</code> entries are checked against host listeners. Docker access lets portop confirm the Compose service behind published ports and <code>docker-proxy</code>; without it, a listening port can still be reported but the expected service may be unknown.</li>
           <li><strong>macOS:</strong> uses system <code>lsof</code> and <code>ps</code>; scans may be slower. Some sockets are omitted without <code>sudo</code>. Systemd, Docker Desktop VM process metadata and thread counts are unavailable. Non-notarized binaries may need first-launch approval: see the macOS tab.</li>
+          <li><strong>Windows:</strong> sockets and their owning PID come from the IP Helper API, with no elevation needed. The SYSTEMD column becomes SERVICE (the Windows services hosted by the process). Docker Desktop containers are matched by published port through the <code>docker</code> CLI. Details of other users' or elevated processes need an Administrator terminal; both kill choices end the process.</li>
           <li><strong>Validation:</strong> build/emulation checks do not replace physical ARM or native Mac testing. See the <a href="https://github.com/padovanl/portop/blob/develop/docs/platform-support.md">validation report</a> for the checks performed.</li>
         </ul>
       </details>
@@ -607,11 +610,12 @@
         <button class="install-tab" role="tab" aria-selected="false" data-target="tab-deb">.deb</button>
         <button class="install-tab" role="tab" aria-selected="false" data-target="tab-rpm">.rpm</button>
         <button class="install-tab" role="tab" aria-selected="false" data-target="tab-mac">macOS</button>
+        <button class="install-tab" role="tab" aria-selected="false" data-target="tab-win">Windows</button>
         <button class="install-tab" role="tab" aria-selected="false" data-target="tab-bin">binary</button>
         <button class="install-tab" role="tab" aria-selected="false" data-target="tab-src">from source</button>
       </div>
       <div id="tab-curl" class="install-panel active">
-        <p class="platform-note">Detects all six targets above. On Linux ARM64 kernels, <code>getconf LONG_BIT</code> distinguishes a 32-bit userland; if unavailable, detection uses the kernel architecture. For custom setups, download the script and override detection:</p>
+        <p class="platform-note">Detects all six Linux and macOS targets above. On Linux ARM64 kernels, <code>getconf LONG_BIT</code> distinguishes a 32-bit userland; if unavailable, detection uses the kernel architecture. For custom setups, download the script and override detection:</p>
         <pre>curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh -o install.sh
 PORTOP_ARCH=armv7 sh install.sh</pre>
         <p class="install-note">Overrides: amd64, arm64, armv6, armv7. macOS accepts amd64 and arm64 only.</p>
@@ -655,6 +659,25 @@ portop</pre>
         </details>
         <p class="platform-note">Uses the system's <code>lsof</code> and <code>ps</code>. Run <code>sudo portop</code> to include other users' processes; some sockets may otherwise be missing. Systemd, Docker Desktop VM process metadata and thread counts are unavailable on macOS.</p>
       </div>
+      <div id="tab-win" class="install-panel">
+        <p class="platform-note">x64 and ARM64. Pick one of the three options; each puts <code>portop</code> on your <code>PATH</code>.</p>
+        <pre><span class="comment"># winget (Windows Package Manager)</span>
+winget install padovanl.portop
+portop</pre>
+        <p class="platform-note">Or get it from the <a href="https://apps.microsoft.com/search?query=portop">Microsoft Store</a> (search for <strong>portop</strong>): updates arrive automatically and <code>portop</code> works from any terminal.</p>
+        <details class="first-run">
+          <summary>Prefer the zip from the release?</summary>
+          <p>Download <code>portop_&lt;version&gt;_windows_amd64.zip</code> (or <code>windows_arm64</code>) from the <a href="https://github.com/padovanl/portop/releases/latest">latest release</a>, extract <code>portop.exe</code> and put it in a folder on your <code>PATH</code>. In PowerShell:</p>
+          <pre><span class="comment"># replace &lt;version&gt; with the latest release number, no leading "v"</span>
+$zip = "portop_&lt;version&gt;_windows_amd64.zip"   <span class="comment"># ARM64: windows_arm64</span>
+Invoke-WebRequest "https://github.com/padovanl/portop/releases/latest/download/$zip" -OutFile $zip
+$dir = "$env:LOCALAPPDATA\Programs\portop"
+Expand-Archive $zip -DestinationPath $dir -Force
+<span class="comment"># add it to your user PATH, then open a new terminal and run portop</span>
+[Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$dir", "User")</pre>
+        </details>
+        <p class="platform-note">Run it in Windows Terminal or any modern console. Socket owners are visible without elevation; open an Administrator terminal to see details of elevated or other users' processes.</p>
+      </div>
       <div id="tab-bin" class="install-panel">
         <pre>curl -fLO https://github.com/padovanl/portop/releases/latest/download/portop_&lt;version&gt;_linux_amd64.tar.gz
 tar -xzf portop_&lt;version&gt;_linux_amd64.tar.gz
@@ -663,7 +686,7 @@ sudo install -m 755 portop /usr/local/bin/portop</pre>
       <div id="tab-src" class="install-panel">
         <pre>go install github.com/padovanl/portop/cmd/portop@latest</pre>
       </div>
-      <p class="install-note">All six architecture targets, Linux .deb/.rpm packages and checksums on the <a href="https://github.com/padovanl/portop/releases/latest">releases page</a>.</p>
+      <p class="install-note">All architecture targets, Linux .deb/.rpm packages, Windows zips and checksums on the <a href="https://github.com/padovanl/portop/releases/latest">releases page</a>.</p>
     </section>
 
     <section id="keys" class="section">
@@ -699,7 +722,7 @@ sudo install -m 755 portop /usr/local/bin/portop</pre>
 
 <footer>
   <div class="wrap">
-    <span class="tag">MIT licensed · Linux + macOS</span>
+    <span class="tag">MIT licensed · Linux + macOS + Windows</span>
     <nav>
       <a class="foot-chip" href="https://github.com/padovanl/portop">GitHub</a>
       <a class="foot-chip" href="https://github.com/padovanl/portop/releases">Releases</a>

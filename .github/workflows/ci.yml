@@ -74,6 +74,10 @@ jobs:
           for arch in amd64 arm64; do
             ls dist/*_darwin_${arch}.tar.gz
           done
+          for arch in amd64 arm64; do
+            ls dist/*_windows_${arch}.zip
+          done
+          ls dist/winget/manifests/p/padovanl/portop/*/padovanl.portop.installer.yaml
       - name: Install ARM emulators
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends qemu-user
       - name: Exercise ARM release binaries against real sockets
@@ -94,4 +98,16 @@ jobs:
           go-version-file: go.mod
       - run: go vet ./...
       - run: go test -race -p 1 -count=1 ./...
+      - run: go test -tags=e2e -count=1 ./e2e/...
+
+  windows:
+    name: Windows tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: go test -p 1 -count=1 ./...
       - run: go test -tags=e2e -count=1 ./e2e/...

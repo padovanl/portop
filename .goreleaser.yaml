@@ -15,6 +15,7 @@ builds:
     goos:
       - linux
       - darwin
+      - windows
     goarch:
       - amd64
       - arm64
@@ -24,6 +25,8 @@ builds:
       - "7"
     ignore:
       - goos: darwin
+        goarch: arm
+      - goos: windows
         goarch: arm
     ldflags:
       - -s -w
@@ -35,6 +38,10 @@ archives:
     formats: [tar.gz]
     name_template: >-
       {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if eq .Arch "arm" }}v{{ .Arm }}{{ end }}
+    # Windows users (and winget's portable installer) expect a zip.
+    format_overrides:
+      - goos: windows
+        formats: [zip]
     files:
       - README.md
       - LICENSE
@@ -66,6 +73,51 @@ nfpms:
 
 checksum:
   name_template: "checksums.txt"
+
+# Opens a pull request against microsoft/winget-pkgs on every release.
+# Needs a fork of winget-pkgs under padovanl and a WINGET_GITHUB_TOKEN
+# secret (classic PAT with public_repo); without the token the upload is
+# skipped and the manifests are only written to dist/.
+winget:
+  - name: portop
+    package_identifier: padovanl.portop
+    publisher: Luca Padovan
+    publisher_url: https://github.com/padovanl
+    author: Luca Padovan
+    short_description: htop-style TUI that shows what is really using your TCP/UDP ports.
+    description: >-
+      portop is a live terminal UI that lists listening and established
+      TCP/UDP sockets with the owning process, Windows service or Docker
+      container, CPU usage and a one-key way to open, inspect or end the
+      process.
+    homepage: https://padovanl.github.io/portop/
+    license: MIT
+    license_url: https://github.com/padovanl/portop/blob/main/LICENSE
+    copyright: Copyright (c) Luca Padovan
+    release_notes_url: https://github.com/padovanl/portop/releases/tag/{{ .Tag }}
+    tags:
+      - ports
+      - network
+      - tui
+      - netstat
+      - cli
+    ids: [tarball]
+    commit_author:
+      name: Luca Padovan
+      email: padovan.93@gmail.com
+    skip_upload: '{{ if not (isEnvSet "WINGET_GITHUB_TOKEN") }}true{{ end }}'
+    repository:
+      owner: padovanl
+      name: winget-pkgs
+      branch: "portop-{{ .Version }}"
+      token: "{{ .Env.WINGET_GITHUB_TOKEN }}"
+      pull_request:
+        enabled: true
+        draft: false
+        base:
+          owner: microsoft
+          name: winget-pkgs
+          branch: master
 
 snapshot:
   version_template: "{{ .Tag }}-next"

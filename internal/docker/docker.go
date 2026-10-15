@@ -71,12 +71,6 @@ func NewClient() *Client {
 	}
 }
 
-// Available reports whether the Docker socket is reachable at all.
-func (c *Client) Available() bool {
-	_, err := os.Stat(SocketPath)
-	return err == nil
-}
-
 type containerInspect struct {
 	Name string `json:"Name"`
 }
@@ -152,10 +146,11 @@ type containerListItem struct {
 	State string `json:"State"`
 }
 
-// PublishedPorts returns Docker's view of published host ports. It is
-// read-only and returns an empty result when Docker is unavailable, the
-// request fails, or the daemon returns data in an unexpected shape.
-func (c *Client) PublishedPorts(ctx context.Context) []PublishedPort {
+// publishedPortsAPI asks the Engine API over SocketPath for published
+// host ports. It is read-only and returns an empty result when Docker is
+// unavailable, the request fails, or the daemon returns data in an
+// unexpected shape.
+func (c *Client) publishedPortsAPI(ctx context.Context) []PublishedPort {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://unix/containers/json?all=1", nil)
 	if err != nil {
 		return nil

@@ -3,6 +3,7 @@ package scanner
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -40,6 +41,9 @@ func writeProcFixture(t *testing.T) string {
 }
 
 func TestScanAndResolveProcesses(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("procfs fixture needs symlinks, which require extra privileges on Windows")
+	}
 	origRoot := ProcRoot
 	ProcRoot = writeProcFixture(t)
 	defer func() { ProcRoot = origRoot }()

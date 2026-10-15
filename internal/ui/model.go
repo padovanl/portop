@@ -80,7 +80,7 @@ func (s sortMode) String() string {
 	case sortByContainer:
 		return "container"
 	case sortBySystemd:
-		return "systemd"
+		return platformLabels.unitSort
 	default:
 		return "port"
 	}
