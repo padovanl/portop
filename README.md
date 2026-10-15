@@ -9,8 +9,9 @@
 
 An **htop-style** terminal UI (TUI) that answers the question `ss`, `netstat`
 and `lsof` only half-answer: not just *what's* bound to a port, but which
-process, which systemd unit, which Docker container — and a one-key way to
-open, inspect or kill it, live.
+process, which systemd unit or Windows service, which Docker container — and
+a one-key way to open, inspect or kill it, live. Runs on Linux, macOS and
+Windows.
 
 **[padovanl.github.io/portop →](https://padovanl.github.io/portop/)**
 
@@ -135,18 +136,32 @@ sudo snap install portop
 
 ### Windows
 
-From a release that includes Windows builds, install with
-[winget](https://learn.microsoft.com/windows/package-manager/winget/):
+Windows 10 1809+ and Windows 11, x64 and ARM64. Pick one of the three options.
+
+**winget** ([Windows Package Manager](https://learn.microsoft.com/windows/package-manager/winget/)):
 
 ```powershell
 winget install padovanl.portop
 ```
 
-or from the Microsoft Store (search for **portop**), which also adds a
-`portop` command to every terminal. Alternatively, download
-`portop_<version>_windows_amd64.zip` (or `windows_arm64`) from the
+**Microsoft Store**: search for **portop** in the Store app or on
+[apps.microsoft.com](https://apps.microsoft.com/search?query=portop). The Store
+keeps it updated and adds a `portop` command to every terminal.
+
+**Zip from the release**: download `portop_<version>_windows_amd64.zip` (or
+`windows_arm64`) from the
 [latest release](https://github.com/padovanl/portop/releases/latest), extract
-`portop.exe` and put it in a folder on your `PATH`.
+`portop.exe` and put it in a folder on your `PATH`. In PowerShell:
+
+```powershell
+# replace <version> with the latest release number, no leading "v"
+$zip = "portop_<version>_windows_amd64.zip"   # ARM64: windows_arm64
+Invoke-WebRequest "https://github.com/padovanl/portop/releases/latest/download/$zip" -OutFile $zip
+$dir = "$env:LOCALAPPDATA\Programs\portop"
+Expand-Archive $zip -DestinationPath $dir -Force
+# add it to your user PATH, then open a new terminal and run portop
+[Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$dir", "User")
+```
 
 Run it in Windows Terminal or any modern console. Socket owners are visible
 without elevation; process details of other users' or elevated processes
