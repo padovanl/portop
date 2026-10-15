@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -42,6 +43,9 @@ func TestContainerIDForPIDMissingProc(t *testing.T) {
 // TestClientContainerName spins up a fake Docker daemon on a real unix
 // socket to exercise the HTTP-over-unix-socket client end to end.
 func TestClientContainerName(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows uses the docker CLI, not the unix-socket API client")
+	}
 	dir := t.TempDir()
 	sockPath := filepath.Join(dir, "docker.sock")
 
@@ -90,6 +94,9 @@ func TestClientContainerName(t *testing.T) {
 }
 
 func TestClientPublishedPorts(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows uses the docker CLI, not the unix-socket API client")
+	}
 	dir := t.TempDir()
 	sockPath := filepath.Join(dir, "docker.sock")
 

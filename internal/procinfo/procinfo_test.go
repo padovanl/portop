@@ -4,11 +4,15 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
 
 func TestLoad(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("procfs fixture needs symlinks, which require extra privileges on Windows")
+	}
 	root := t.TempDir()
 	ProcRoot = root
 	defer func() { ProcRoot = "/proc" }()
