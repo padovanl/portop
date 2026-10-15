@@ -51,7 +51,9 @@ name="${2##*/}"
 [ -f "$TEST_ASSETS/$name" ] || exit 22
 cp "$TEST_ASSETS/$name" "$4"
 ''')
-            path = f"{tools}:/usr/bin:/bin"
+            # Mocks first, then the host PATH: non-FHS systems such as NixOS do
+            # not keep tar and friends in /usr/bin or /bin.
+            path = f"{tools}:{os.environ.get('PATH', '/usr/bin:/bin')}"
             if not checksum_tools:
                 for name in ("tar", "mktemp", "rm", "grep", "awk", "cp"):
                     source = shutil.which(name)
