@@ -20,6 +20,15 @@ jobs:
           go-version-file: go.mod
       - run: python3 scripts/test-install.py
       - run: go vet ./...
+      # Same toolchain as the release builds (go.mod), for every target OS.
+      - name: govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+          for os in linux darwin windows; do
+            echo "::group::GOOS=$os"
+            GOOS=$os "$(go env GOPATH)/bin/govulncheck" ./...
+            echo "::endgroup::"
+          done
       - name: gofmt
         run: |
           fmt_out="$(gofmt -l .)"
