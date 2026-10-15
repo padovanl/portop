@@ -152,6 +152,9 @@ func TestClientPublishedPorts(t *testing.T) {
 }
 
 func TestClientAvailableFalseWhenNoSocket(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows checks for the docker CLI, not the unix socket")
+	}
 	origSock := SocketPath
 	SocketPath = filepath.Join(t.TempDir(), "no-such.sock")
 	defer func() { SocketPath = origSock }()
