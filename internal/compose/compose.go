@@ -315,8 +315,10 @@ func expandRange(s string) ([]uint16, error) {
 		return nil, fmt.Errorf("range %d-%d is descending", start, end)
 	}
 	out := make([]uint16, 0, int(end-start)+1)
-	for p := start; p <= end; p++ {
-		out = append(out, p)
+	// Iterate with int: a uint16 counter would wrap from 65535 to 0 and
+	// never terminate on ranges ending at the highest port.
+	for p := int(start); p <= int(end); p++ {
+		out = append(out, uint16(p))
 	}
 	return out, nil
 }

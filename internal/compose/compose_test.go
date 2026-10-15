@@ -90,3 +90,31 @@ func TestLoadDirMissingComposeFile(t *testing.T) {
 		t.Fatal("LoadDir unexpectedly succeeded without a Compose file")
 	}
 }
+
+func TestExpandRangeEndingAtMaxPort(t *testing.T) {
+	cases := []struct {
+		in   string
+		want []uint16
+	}{
+		{"65535-65535", []uint16{65535}},
+		{"65533-65535", []uint16{65533, 65534, 65535}},
+		{"8000-8002", []uint16{8000, 8001, 8002}},
+	}
+	for _, c := range cases {
+		got, err := expandRange(c.in)
+		if err != nil {
+			t.Fatalf("expandRange(%q): %v", c.in, err)
+		}
+		if len(got) != len(c.want) {
+			t.Fatalf("expandRange(%q) = %v, want %v", c.in, got, c.want)
+		}
+		for i := range got {
+			if got[i] != c.want[i] {
+				t.Fatalf("expandRange(%q) = %v, want %v", c.in, got, c.want)
+			}
+		}
+	}
+	if _, err := expandRange("9000-8000"); err == nil {
+		t.Fatal("descending range accepted")
+	}
+}
