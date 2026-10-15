@@ -105,7 +105,8 @@ winget:
     commit_author:
       name: Luca Padovan
       email: padovan.93@gmail.com
-    skip_upload: '{{ if not (isEnvSet "WINGET_GITHUB_TOKEN") }}true{{ end }}'
+    # Pre-releases (vX.Y.Z-rc1) never reach winget.
+    skip_upload: '{{ if or (not (isEnvSet "WINGET_GITHUB_TOKEN")) .Prerelease }}true{{ end }}'
     repository:
       owner: padovanl
       name: winget-pkgs

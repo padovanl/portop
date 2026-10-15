@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/padovanl/portop/internal/procctl"
-	"github.com/padovanl/portop/internal/procinfo"
 )
 
 // signalProcess checks the process start time before sending a signal. A PID
@@ -18,15 +17,5 @@ func signalProcess(pid int, expectedStart string, force bool) error {
 	if err != nil {
 		return fmt.Errorf("invalid process start time")
 	}
-	info, err := procinfo.Load(pid)
-	if err != nil {
-		return err
-	}
-	if info.StartTime.IsZero() || !info.StartTime.Equal(expected) {
-		return fmt.Errorf("process changed since it was inspected; refresh before trying again")
-	}
-	if force {
-		return procctl.Kill(pid)
-	}
-	return procctl.Terminate(pid)
+	return procctl.SignalIfUnchanged(pid, expected, force)
 }

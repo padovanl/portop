@@ -141,8 +141,7 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		if row.PID == 0 {
 			m.setStatus(unresolvedHint(), true)
 		} else {
-			m.killTarget = row
-			m.mode = modeConfirmKill
+			m.openKillConfirm(row)
 		}
 	case tea.MouseButtonMiddle:
 		url := openurl.URLForPort(row.LocalPort)

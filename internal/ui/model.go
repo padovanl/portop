@@ -139,6 +139,7 @@ type Model struct {
 	detailErr  error
 
 	killTarget app.Row
+	killStart  time.Time // killTarget's start time, captured when the dialog opened
 
 	statusMsg   string
 	statusIsErr bool
@@ -248,14 +249,12 @@ func loadDetailCmd(pid int) tea.Cmd {
 	}
 }
 
-func killCmd(row app.Row, force bool) tea.Cmd {
+// processStartTime identifies a process lifetime; overridable in tests.
+var processStartTime = procctl.StartTime
+
+func killCmd(row app.Row, start time.Time, force bool) tea.Cmd {
 	return func() tea.Msg {
-		var err error
-		if force {
-			err = procctl.Kill(row.PID)
-		} else {
-			err = procctl.Terminate(row.PID)
-		}
+		err := procctl.SignalIfUnchanged(row.PID, start, force)
 		return killResultMsg{pid: row.PID, name: row.ProcessName, err: err}
 	}
 }
@@ -321,6 +320,19 @@ func keyForRow(r app.Row) app.Key {
 		Local:    r.LocalAddr.String() + ":" + strconv.Itoa(int(r.LocalPort)),
 		Remote:   r.RemoteAddr.String() + ":" + strconv.Itoa(int(r.RemotePort)),
 	}
+}
+
+// openKillConfirm records the process identity and opens the kill dialog, so
+// the signal can later be refused if the PID was reused in the meantime.
+func (m *Model) openKillConfirm(row app.Row) {
+	start, err := processStartTime(row.PID)
+	if err != nil {
+		m.setStatus("cannot verify "+row.ProcessName+" ("+strconv.Itoa(row.PID)+"): "+err.Error(), true)
+		return
+	}
+	m.killTarget = row
+	m.killStart = start
+	m.mode = modeConfirmKill
 }
 
 func (m *Model) setStatus(msg string, isErr bool) {

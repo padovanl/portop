@@ -4,6 +4,7 @@
 import hashlib
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tarfile
 import tempfile
@@ -14,7 +15,8 @@ INSTALLER = Path(__file__).resolve().parents[1] / "install.sh"
 
 
 class InstallerTests(unittest.TestCase):
-    def run_installer(self, system, machine, bits="64", override=None, corrupt=False):
+    def run_installer(self, system, machine, bits="64", override=None, corrupt=False,
+                      missing_checksums=False, missing_entry=False, checksum_tools=True):
         with tempfile.TemporaryDirectory(prefix="portop-installer-") as temp:
             root = Path(temp)
             tools = root / "tools"
@@ -31,8 +33,10 @@ class InstallerTests(unittest.TestCase):
                 with tarfile.open(archive, "w:gz") as tar:
                     tar.add(binary, arcname="portop")
                 digest = "0" * 64 if corrupt else hashlib.sha256(archive.read_bytes()).hexdigest()
-                checksums.append(f"{digest}  {archive.name}\n")
-            (assets / "checksums.txt").write_text("".join(checksums))
+                if not (missing_entry and target == "linux_amd64"):
+                    checksums.append(f"{digest}  {archive.name}\n")
+            if not missing_checksums:
+                (assets / "checksums.txt").write_text("".join(checksums))
 
             def executable(name, source):
                 path = tools / name
@@ -47,10 +51,20 @@ name="${2##*/}"
 [ -f "$TEST_ASSETS/$name" ] || exit 22
 cp "$TEST_ASSETS/$name" "$4"
 ''')
+            # Mocks first, then the host PATH: non-FHS systems such as NixOS do
+            # not keep tar and friends in /usr/bin or /bin.
+            path = f"{tools}:{os.environ.get('PATH', '/usr/bin:/bin')}"
+            if not checksum_tools:
+                for name in ("tar", "mktemp", "rm", "grep", "awk", "cp"):
+                    source = shutil.which(name)
+                    if source is None:
+                        self.fail(f"required host tool not found: {name}")
+                    (tools / name).symlink_to(source)
+                path = str(tools)
             installer = root / "install.sh"
             installer.write_bytes(INSTALLER.read_bytes())
             env = {k: v for k, v in os.environ.items() if not k.startswith("PORTOP_")}
-            env.update(PATH=f"{tools}:/usr/bin:/bin", PORTOP_VERSION="v1.2.3",
+            env.update(PATH=path, PORTOP_VERSION="v1.2.3",
                        PORTOP_INSTALL_DIR=str(root / "installed"), TEST_OS=system,
                        TEST_MACHINE=machine, TEST_BITS=bits, TEST_ASSETS=str(assets),
                        TEST_REQUESTS=str(root / "requests"))
@@ -106,6 +120,24 @@ cp "$TEST_ASSETS/$name" "$4"
         result, _, installed = self.run_installer("Linux", "armv6l", "32", corrupt=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("checksum mismatch", result.stderr)
+        self.assertFalse(installed)
+
+    def test_missing_checksum_file_does_not_install(self):
+        result, _, installed = self.run_installer("Linux", "x86_64", missing_checksums=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("could not fetch checksums.txt", result.stderr)
+        self.assertFalse(installed)
+
+    def test_archive_missing_from_checksums_does_not_install(self):
+        result, _, installed = self.run_installer("Linux", "x86_64", missing_entry=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("not listed in checksums.txt", result.stderr)
+        self.assertFalse(installed)
+
+    def test_missing_checksum_tool_does_not_install(self):
+        result, _, installed = self.run_installer("Linux", "x86_64", checksum_tools=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("sha256sum or shasum is required", result.stderr)
         self.assertFalse(installed)
 
 

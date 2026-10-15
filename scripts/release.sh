@@ -114,8 +114,14 @@ if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
 fi
 
 # verbatim keeps Markdown headings, which git would otherwise strip as
-# comment lines.
-git tag -a "$version" --cleanup=verbatim -F "$message"
+# comment lines. The tag is signed whenever git has a signing key.
+tag_mode=-a
+if [ -n "$(git config user.signingkey || true)" ]; then
+	tag_mode=-s
+else
+	echo "warning: no user.signingkey configured; creating an unsigned tag" >&2
+fi
+git tag "$tag_mode" "$version" --cleanup=verbatim -F "$message"
 git push origin "$version"
 
 echo "Pushed ${version} — https://github.com/padovanl/portop/actions"

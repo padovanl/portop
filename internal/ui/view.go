@@ -7,6 +7,8 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/padovanl/portop/internal/terminaltext"
 )
 
 func (m Model) View() string {
@@ -78,11 +80,11 @@ func (m Model) renderStatusBar() string {
 	var msg string
 	switch {
 	case m.statusMsg != "" && m.statusIsErr:
-		msg = styleDanger.Render(m.statusMsg)
+		msg = styleDanger.Render(terminaltext.Sanitize(m.statusMsg))
 	case m.statusMsg != "":
-		msg = styleOk.Render(m.statusMsg)
+		msg = styleOk.Render(terminaltext.Sanitize(m.statusMsg))
 	case m.lastErr != nil:
-		msg = styleDanger.Render("scan error: " + m.lastErr.Error())
+		msg = styleDanger.Render(terminaltext.Sanitize("scan error: " + m.lastErr.Error()))
 	default:
 		if hint := unresolvedStatusHint(m.rows); hint != "" {
 			msg = styleFaint.Render(hint)
@@ -120,16 +122,16 @@ func (m Model) renderDetail() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s\n", styleTitle.Render("Process details"))
 	fmt.Fprintf(&b, "%s %s :%d (%s)\n\n",
-		stateStyle(string(row.State)).Render("●"), row.ProcessName, row.LocalPort, row.Protocol)
+		stateStyle(string(row.State)).Render("●"), terminaltext.Sanitize(row.ProcessName), row.LocalPort, row.Protocol)
 
 	if m.detailErr != nil {
-		b.WriteString(styleDanger.Render("could not read /proc: " + m.detailErr.Error()))
+		b.WriteString(styleDanger.Render(terminaltext.Sanitize("could not read /proc: " + m.detailErr.Error())))
 	} else if m.detailInfo == nil {
 		b.WriteString(styleMuted.Render("loading..."))
 	} else {
 		info := m.detailInfo
 		field := func(label, val string) {
-			fmt.Fprintf(&b, "%s %s\n", styleTag.Render(padTrunc(label, 11)), val)
+			fmt.Fprintf(&b, "%s %s\n", styleTag.Render(padTrunc(label, 11)), terminaltext.Sanitize(val))
 		}
 		field("PID:", strconv.Itoa(info.PID))
 		field("User:", orDash(info.User))
@@ -166,7 +168,7 @@ func (m Model) renderConfirmKill() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s\n\n", styleDanger.Render("Kill this process?"))
 	fmt.Fprintf(&b, "%s (PID %s) listening on :%d\n\n",
-		m.killTarget.ProcessName, strconv.Itoa(m.killTarget.PID), m.killTarget.LocalPort)
+		terminaltext.Sanitize(m.killTarget.ProcessName), strconv.Itoa(m.killTarget.PID), m.killTarget.LocalPort)
 	b.WriteString(styleKey.Render("y") + styleFaint.Render(" "+platformLabels.terminate+"   "))
 	b.WriteString(styleKey.Render("f") + styleFaint.Render(" "+platformLabels.force+"   "))
 	b.WriteString(styleKey.Render("esc") + styleFaint.Render(" cancel"))

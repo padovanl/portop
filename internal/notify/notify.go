@@ -10,6 +10,8 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+
+	"github.com/padovanl/portop/internal/terminaltext"
 )
 
 // Send fires a best-effort desktop notification with the given title and
@@ -17,6 +19,8 @@ import (
 // headless server (the most common place to run portop) simply won't
 // have a notifier installed.
 func Send(title, body string) {
+	title = terminaltext.Sanitize(title)
+	body = terminaltext.Sanitize(body)
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":

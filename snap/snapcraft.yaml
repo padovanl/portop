@@ -1,0 +1,54 @@
+name: portop
+base: core24
+# The version comes from the release tag (see override-pull), so it never
+# goes stale across releases.
+adopt-info: portop
+title: Portop
+summary: htop-style TUI for ports and processes
+description: |
+  Portop monitors network ports and their associated processes.
+  It provides a terminal UI and a web dashboard for inspecting
+  TCP/UDP sockets, processes, systemd units and Docker containers.
+contact: https://github.com/padovanl/portop/issues
+issues: https://github.com/padovanl/portop/issues
+source-code: https://github.com/padovanl/portop
+website: https://padovanl.github.io/portop/
+license: MIT
+
+grade: stable
+confinement: strict
+
+platforms:
+  amd64:
+  arm64:
+
+apps:
+  portop:
+    command: bin/portop
+    # The same interfaces as the published snap; the store auto-connects
+    # network-observe, system-observe and process-control.
+    plugs:
+      - network          # reverse DNS
+      - network-bind     # portop --web
+      - network-observe  # /proc/net socket tables
+      - system-observe   # other processes' /proc entries and cgroups
+      - process-control  # the kill action
+
+parts:
+  portop:
+    plugin: nil
+    source: .
+    build-snaps:
+      - go/1.26/stable
+    build-packages:
+      - git
+    override-pull: |
+      craftctl default
+      craftctl set version="$(git -C "$CRAFT_PART_SRC" describe --tags --always | sed 's/^v//')"
+    # Built by hand rather than with the go plugin so the version reaches
+    # `portop --version` through the same ldflags as the release binaries.
+    override-build: |
+      version="$(git -C "$CRAFT_PART_SRC" describe --tags --always | sed 's/^v//')"
+      CGO_ENABLED=0 GOTOOLCHAIN=local go build -trimpath \
+        -ldflags "-s -w -X github.com/padovanl/portop/internal/cli.Version=${version}" \
+        -o "$CRAFT_PART_INSTALL/bin/portop" ./cmd/portop

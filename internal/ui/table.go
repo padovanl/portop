@@ -9,6 +9,7 @@ import (
 	"github.com/padovanl/portop/internal/app"
 	"github.com/padovanl/portop/internal/scanner"
 	"github.com/padovanl/portop/internal/services"
+	"github.com/padovanl/portop/internal/terminaltext"
 )
 
 func defaultSortDescending(mode sortMode) bool { return mode == sortByCPU }
@@ -293,7 +294,7 @@ func cellValue(r app.Row, colTitle string) string {
 func plainRow(r app.Row, cols []column) string {
 	var b strings.Builder
 	for _, c := range cols {
-		fmt.Fprint(&b, padTrunc(cellValue(r, c.title), c.width))
+		fmt.Fprint(&b, padTrunc(terminaltext.Sanitize(cellValue(r, c.title)), c.width))
 	}
 	return b.String()
 }
@@ -304,7 +305,7 @@ func plainRow(r app.Row, cols []column) string {
 func coloredRow(r app.Row, cols []column) string {
 	var b strings.Builder
 	for _, c := range cols {
-		padded := padTrunc(cellValue(r, c.title), c.width)
+		padded := padTrunc(terminaltext.Sanitize(cellValue(r, c.title)), c.width)
 		switch c.title {
 		case "STATE":
 			fmt.Fprint(&b, stateStyle(string(r.State)).Render(padded))
