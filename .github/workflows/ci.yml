@@ -92,6 +92,23 @@ jobs:
       - name: Exercise ARM release binaries against real sockets
         run: python3 scripts/test-arm.py dist
 
+  snap:
+    name: snap build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - uses: snapcore/action-build@3bdaa03e1ba6bf59a65f84a751d943d549a54e79 # v1.3.0
+        id: build
+      - name: Run the packed binary
+        run: |
+          sudo snap install --dangerous "${{ steps.build.outputs.snap }}"
+          sudo snap connect portop:network-observe
+          sudo snap connect portop:system-observe
+          portop --version
+          portop --json --no-docker > /dev/null
+
   macos:
     name: macOS tests (${{ matrix.os }})
     strategy:

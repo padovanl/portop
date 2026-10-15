@@ -128,8 +128,6 @@ Available on macOS and Linux through Linuxbrew.
 
 ### Snap Store
 
-Version **0.1.0** is available from the Snap Store on the `stable` channel:
-
 ```bash
 sudo snap install portop
 ```
