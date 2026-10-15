@@ -73,18 +73,23 @@ info "downloading portop ${version} for ${os}/${arch}..."
 curl -fsSL "${base_url}/${archive}" -o "${workdir}/${archive}" \
   || die "download failed: ${base_url}/${archive} (does that release/asset exist?)"
 
-if curl -fsSL "${base_url}/checksums.txt" -o "${workdir}/checksums.txt" 2>/dev/null; then
-  info "verifying checksum..."
-  expected="$(grep " ${archive}\$" "${workdir}/checksums.txt" | awk '{print $1}')"
-  if [ -n "$expected" ]; then
-    actual="$(cd "$workdir" && (sha256sum "$archive" 2>/dev/null || shasum -a 256 "$archive") | awk '{print $1}')"
-    [ "$expected" = "$actual" ] || die "checksum mismatch for ${archive} (expected ${expected}, got ${actual})"
-  else
-    warn "archive not listed in checksums.txt, skipping verification"
-  fi
+curl -fsSL "${base_url}/checksums.txt" -o "${workdir}/checksums.txt" 2>/dev/null \
+  || die "could not fetch checksums.txt; refusing to install an unverified archive"
+
+info "verifying checksum..."
+expected="$(grep " ${archive}\$" "${workdir}/checksums.txt" | awk '{print $1}')"
+[ -n "$expected" ] \
+  || die "${archive} is not listed in checksums.txt; refusing to install an unverified archive"
+
+if command -v sha256sum >/dev/null 2>&1; then
+  actual="$(sha256sum "${workdir}/${archive}" | awk '{print $1}')"
+elif command -v shasum >/dev/null 2>&1; then
+  actual="$(shasum -a 256 "${workdir}/${archive}" | awk '{print $1}')"
 else
-  warn "could not fetch checksums.txt, skipping verification"
+  die "sha256sum or shasum is required to verify the release archive"
 fi
+[ "$expected" = "$actual" ] \
+  || die "checksum mismatch for ${archive} (expected ${expected}, got ${actual})"
 
 info "extracting..."
 tar -xzf "${workdir}/${archive}" -C "$workdir" portop
