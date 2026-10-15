@@ -249,6 +249,9 @@ func loadDetailCmd(pid int) tea.Cmd {
 	}
 }
 
+// processStartTime identifies a process lifetime; overridable in tests.
+var processStartTime = procctl.StartTime
+
 func killCmd(row app.Row, start time.Time, force bool) tea.Cmd {
 	return func() tea.Msg {
 		err := procctl.SignalIfUnchanged(row.PID, start, force)
@@ -322,7 +325,7 @@ func keyForRow(r app.Row) app.Key {
 // openKillConfirm records the process identity and opens the kill dialog, so
 // the signal can later be refused if the PID was reused in the meantime.
 func (m *Model) openKillConfirm(row app.Row) {
-	start, err := procctl.StartTime(row.PID)
+	start, err := processStartTime(row.PID)
 	if err != nil {
 		m.setStatus("cannot verify "+row.ProcessName+" ("+strconv.Itoa(row.PID)+"): "+err.Error(), true)
 		return
