@@ -107,19 +107,10 @@ jobs:
     name: Homebrew (homebrew-core)
     needs: release
     if: ${{ !contains(github.ref_name, '-') }}
-    runs-on: ubuntu-latest
-    env:
-      # Classic PAT with public_repo and workflow scopes; the action forks
-      # Homebrew/homebrew-core under its owner and opens the bump PR.
-      COMMITTER_TOKEN: ${{ secrets.HOMEBREW_GITHUB_TOKEN }}
-    steps:
-      - uses: mislav/bump-homebrew-formula-action@56a283fa15557e9abaa4bdb63b8212abc68e655c # v3.6
-        if: env.COMMITTER_TOKEN != ''
-        with:
-          formula-name: portop
-          formula-path: Formula/p/portop.rb
-          tag-name: ${{ github.ref_name }}
-          download-url: https://github.com/padovanl/portop/archive/refs/tags/${{ github.ref_name }}.tar.gz
+    uses: ./.github/workflows/homebrew.yml
+    with:
+      tag: ${{ github.ref_name }}
+    secrets: inherit
 
   # The Microsoft Store package is uploaded to Partner Center by hand,
   # from this job's portop-msix-<tag> artifact.
