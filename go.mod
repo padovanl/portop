@@ -10,8 +10,8 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/charmbracelet/x/ansi v0.11.6
+	go.yaml.in/yaml/v3 v3.0.5
 	golang.org/x/sys v0.38.0
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (

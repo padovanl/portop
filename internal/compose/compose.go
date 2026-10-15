@@ -16,7 +16,7 @@ import (
 	"github.com/padovanl/portop/internal/app"
 	"github.com/padovanl/portop/internal/docker"
 	"github.com/padovanl/portop/internal/scanner"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 var defaultFiles = []string{
