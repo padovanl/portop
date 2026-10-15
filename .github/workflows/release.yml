@@ -103,15 +103,6 @@ jobs:
           snap: ${{ steps.build.outputs.snap }}
           release: ${{ contains(github.ref_name, '-') && 'edge' || 'stable' }}
 
-  homebrew:
-    name: Homebrew (homebrew-core)
-    needs: release
-    if: ${{ !contains(github.ref_name, '-') }}
-    uses: ./.github/workflows/homebrew.yml
-    with:
-      tag: ${{ github.ref_name }}
-    secrets: inherit
-
   # The Microsoft Store package is uploaded to Partner Center by hand,
   # from this job's portop-msix-<tag> artifact.
   msix:
