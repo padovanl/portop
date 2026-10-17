@@ -1,11 +1,23 @@
-# <img src="docs/assets/logo.png" alt="" width="40" align="absmiddle"> portop
+<div align="center">
+
+<img src="docs/assets/logo.png" alt="" width="128">
+
+# portop
 
 [![CI](https://github.com/padovanl/portop/actions/workflows/ci.yml/badge.svg)](https://github.com/padovanl/portop/actions/workflows/ci.yml)
 [![Release](https://github.com/padovanl/portop/actions/workflows/release.yml/badge.svg)](https://github.com/padovanl/portop/actions/workflows/release.yml)
 [![Latest release](https://img.shields.io/github/v/release/padovanl/portop?sort=semver)](https://github.com/padovanl/portop/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/padovanl/portop/total)](https://github.com/padovanl/portop/releases)
+[![Go Reference](https://pkg.go.dev/badge/github.com/padovanl/portop.svg)](https://pkg.go.dev/github.com/padovanl/portop)
 [![Go version](https://img.shields.io/github/go-mod/go-version/padovanl/portop)](go.mod)
 [![License: MIT](https://img.shields.io/github/license/padovanl/portop)](LICENSE)
+
+[![Snap Store](https://img.shields.io/snapcraft/v/portop/latest/stable?logo=snapcraft&label=snap)](https://snapcraft.io/portop)
+[![Homebrew](https://img.shields.io/homebrew/v/portop?logo=homebrew)](https://formulae.brew.sh/formula/portop)
+[![APT](https://img.shields.io/endpoint?url=https%3A%2F%2Fapt.lucapadovan.dev%2Fbadges%2Fportop.json&logo=debian)](#apt-repository-debianubuntu-and-derivatives)
+[![Microsoft Store](https://img.shields.io/badge/microsoft_store-available-0078D4)](https://apps.microsoft.com/search?query=portop)
+
+</div>
 
 An **htop-style** terminal UI (TUI) that answers the question `ss`, `netstat`
 and `lsof` only half-answer: not just *what's* bound to a port, but which
