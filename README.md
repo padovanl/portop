@@ -15,7 +15,7 @@
 [![Snap Store](https://img.shields.io/snapcraft/v/portop/latest/stable?logo=snapcraft&label=snap)](https://snapcraft.io/portop)
 [![Homebrew](https://img.shields.io/homebrew/v/portop?logo=homebrew)](https://formulae.brew.sh/formula/portop)
 [![APT](https://img.shields.io/endpoint?url=https%3A%2F%2Fapt.lucapadovan.dev%2Fbadges%2Fportop.json&logo=debian)](#apt-repository-debianubuntu-and-derivatives)
-[![Microsoft Store](https://img.shields.io/badge/microsoft_store-available-0078D4)](https://apps.microsoft.com/search?query=portop)
+[![Microsoft Store](https://img.shields.io/badge/microsoft_store-available-0078D4)](https://apps.microsoft.com/detail/9MZ319F4LW70)
 
 </div>
 
@@ -167,9 +167,9 @@ Windows 10 1809+ and Windows 11, x64 and ARM64. Pick one of the three options.
 winget install padovanl.portop
 ```
 
-**Microsoft Store**: search for **portop** in the Store app or on
-[apps.microsoft.com](https://apps.microsoft.com/search?query=portop). The Store
-keeps it updated and adds a `portop` command to every terminal.
+**Microsoft Store**: [get portop from the Store](https://apps.microsoft.com/detail/9MZ319F4LW70),
+or search for **portop** in the Store app. The Store keeps it updated and adds
+a `portop` command to every terminal.
 
 **Zip from the release**: download `portop_<version>_windows_amd64.zip` (or
 `windows_arm64`) from the
