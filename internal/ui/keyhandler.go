@@ -113,7 +113,7 @@ func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.newSeen = make(map[app.Key]bool)
 
 	case key.Matches(msg, keys.Refresh):
-		return m, m.collectCmd()
+		return m, m.startCollect()
 
 	case key.Matches(msg, keys.Help):
 		m.mode = modeHelp

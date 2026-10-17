@@ -152,6 +152,11 @@ type Model struct {
 	settingsThemeIdx  int
 	settingsCapturing bool
 
+	// collecting is true while a scan is running. Ticks and refreshes do
+	// not start another one meanwhile: a scan slower than the interval
+	// would otherwise queue a new one on every tick, without bound.
+	collecting bool
+
 	quitting bool
 }
 
@@ -195,6 +200,7 @@ func New(cfg Config) Model {
 		configPath:       cfg.ConfigPath,
 		keyOverrides:     overrides,
 		settingsThemeIdx: themeIdx,
+		collecting:       true, // Init starts the first scan
 	}
 }
 
@@ -225,6 +231,15 @@ func tickCmd(interval time.Duration) tea.Cmd {
 		interval = 2 * time.Second
 	}
 	return tea.Tick(interval, func(t time.Time) tea.Msg { return tickMsg(t) })
+}
+
+// startCollect starts a scan unless one is already running.
+func (m *Model) startCollect() tea.Cmd {
+	if m.collecting {
+		return nil
+	}
+	m.collecting = true
+	return m.collectCmd()
 }
 
 func (m Model) collectCmd() tea.Cmd {
@@ -267,9 +282,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tickMsg:
-		return m, tea.Batch(m.collectCmd(), tickCmd(m.cfg.RefreshInterval))
+		return m, tea.Batch(m.startCollect(), tickCmd(m.cfg.RefreshInterval))
 
 	case collectResultMsg:
+		m.collecting = false
 		m.lastErr = msg.err
 		if msg.err == nil {
 			m.applyRows(msg.rows)
@@ -290,7 +306,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.setStatus("signal sent to "+msg.name+" ("+strconv.Itoa(msg.pid)+")", false)
 		}
-		return m, m.collectCmd()
+		return m, m.startCollect()
 
 	case tea.MouseMsg:
 		return m.handleMouse(msg)
