@@ -224,6 +224,19 @@ release targets; Linux also gets `.deb` and `.rpm` files with the same target su
 - Build and emulation checks do not replace testing on physical ARM hardware or a
   native Mac. See [validation status](docs/platform-support.md) for what has been run.
 
+### APT repository (Debian/Ubuntu and derivatives)
+
+```bash
+sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://apt.lucapadovan.dev/lucapadovan.gpg | sudo tee /etc/apt/keyrings/lucapadovan.gpg >/dev/null
+echo "deb [signed-by=/etc/apt/keyrings/lucapadovan.gpg] https://apt.lucapadovan.dev stable main" \
+  | sudo tee /etc/apt/sources.list.d/lucapadovan.list
+sudo apt update && sudo apt install portop
+```
+
+Updates then arrive with `apt upgrade`. The repository serves amd64, arm64
+and armhf; armhf is the ARMv6 build, which also runs on ARMv7.
+
 ### `.deb` package (Debian/Ubuntu and derivatives)
 
 Replace `linux_amd64` with the target from the table above for ARM systems.
