@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/padovanl/portop/internal/app"
-	"github.com/padovanl/portop/internal/scanner"
 	"github.com/padovanl/portop/internal/services"
 	"github.com/padovanl/portop/internal/terminaltext"
 )
@@ -249,7 +248,7 @@ func cellValue(r app.Row, colTitle string) string {
 	switch colTitle {
 	case "PORT":
 		v := ":" + strconv.Itoa(int(r.LocalPort))
-		if r.State == scanner.StateListen {
+		if r.Listening() {
 			if name, ok := services.Lookup(r.LocalPort, string(r.Protocol)); ok {
 				v += " " + name
 			}

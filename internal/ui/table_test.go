@@ -1,13 +1,15 @@
 package ui
 
 import (
-	"github.com/charmbracelet/x/ansi"
 	"net"
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/padovanl/portop/internal/app"
 	"github.com/padovanl/portop/internal/scanner"
+	"github.com/padovanl/portop/internal/services"
 )
 
 func TestTitleTaglineOnlyWhenItFits(t *testing.T) {
@@ -150,5 +152,17 @@ func TestPadTruncCountsTerminalCells(t *testing.T) {
 				t.Errorf("padTrunc(%q, %d) = %q, %d cells wide", s, width, got, w)
 			}
 		}
+	}
+}
+
+// A listening UDP socket is named like a TCP listener (":53 domain").
+func TestPortCellNamesListeningUDP(t *testing.T) {
+	name, ok := services.Lookup(53, "UDP")
+	if !ok {
+		t.Skip("no services database entry for 53/udp on this host")
+	}
+	row := app.Row{Protocol: scanner.UDP, LocalPort: 53, State: scanner.StateUnconn}
+	if got := cellValue(row, "PORT"); got != ":53 "+name {
+		t.Fatalf("PORT cell = %q, want %q", got, ":53 "+name)
 	}
 }
