@@ -9,7 +9,9 @@ func TestParseLsof(t *testing.T) {
 		"f5\x00tIPv6\x00PUDP\x00n*:5353\x00\n" +
 		"p99\x00cclient\x00u502\x00\n" +
 		"f7\x00tIPv4\x00PUDP\x00n127.0.0.1:5000->127.0.0.1:53\x00\n" +
-		"f8\x00tIPv4\x00PTCP\x00ninvalid\x00\n"
+		"f8\x00tIPv4\x00PTCP\x00ninvalid\x00\n" +
+		"f9\x00tIPv4\x00PTCP\x00n*:*\x00TST=CLOSED\x00\n" +
+		"f10\x00tIPv6\x00PUDP\x00n*:*\x00\n"
 	rows := parseLsof([]byte(data))
 	if len(rows) != 4 {
 		t.Fatalf("got %d rows: %+v", len(rows), rows)

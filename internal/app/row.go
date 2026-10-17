@@ -39,6 +39,9 @@ type Row struct {
 // in LISTEN, or a bound UDP socket that has not connected to a peer (UDP
 // has no LISTEN state; ss -l lists these as UNCONN).
 func (r Row) Listening() bool {
+	if r.LocalPort == 0 {
+		return false // a socket never bound to a port
+	}
 	return r.State == scanner.StateListen || (r.Protocol == scanner.UDP && r.State == scanner.StateUnconn)
 }
 

@@ -147,10 +147,11 @@ func TestRowListening(t *testing.T) {
 		row  Row
 		want bool
 	}{
-		{Row{Protocol: scanner.TCP, State: scanner.StateListen}, true},
-		{Row{Protocol: scanner.TCP, State: scanner.StateEstablished}, false},
-		{Row{Protocol: scanner.UDP, State: scanner.StateUnconn}, true},
-		{Row{Protocol: scanner.UDP, State: scanner.StateEstablished, RemotePort: 53}, false},
+		{Row{Protocol: scanner.TCP, LocalPort: 22, State: scanner.StateListen}, true},
+		{Row{Protocol: scanner.TCP, LocalPort: 51000, State: scanner.StateEstablished}, false},
+		{Row{Protocol: scanner.UDP, LocalPort: 53, State: scanner.StateUnconn}, true},
+		{Row{Protocol: scanner.UDP, LocalPort: 41000, State: scanner.StateEstablished, RemotePort: 53}, false},
+		{Row{Protocol: scanner.UDP, State: scanner.StateUnconn}, false}, // never bound
 	}
 	for _, c := range cases {
 		if got := c.row.Listening(); got != c.want {

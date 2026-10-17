@@ -22,7 +22,9 @@ func parseLsof(data []byte) []Connection {
 		ends := strings.SplitN(endpoint, "->", 2)
 		var ok bool
 		current.LocalAddr, current.LocalPort, ok = parseLsofAddr(ends[0], current.IPv6)
-		if !ok {
+		// lsof also lists sockets that were never bound ("*:*"); /proc and
+		// the Windows tables do not, and they are not ports anyone uses.
+		if !ok || current.LocalPort == 0 {
 			return
 		}
 		current.RemoteAddr = net.IPv4zero
