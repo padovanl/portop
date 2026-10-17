@@ -226,6 +226,27 @@ func (a *webAuth) handleLogin(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
+// basicAuth checks HTTP Basic credentials and answers the request itself
+// when they are missing, wrong or locked out.
+func (a *webAuth) basicAuth(w http.ResponseWriter, r *http.Request) bool {
+	ip := clientKey(r)
+	if wait := a.lockedFor(ip); wait > 0 {
+		w.Header().Set("Retry-After", strconv.Itoa(int(wait.Round(time.Second)/time.Second)+1))
+		http.Error(w, "too many failed attempts", http.StatusTooManyRequests)
+		return false
+	}
+	user, password, ok := r.BasicAuth()
+	if ok && a.credentialsMatch(user, password) {
+		return true
+	}
+	if ok {
+		a.recordFailure(ip)
+	}
+	w.Header().Set("WWW-Authenticate", `Basic realm="portop", charset="UTF-8"`)
+	http.Error(w, "sign in required", http.StatusUnauthorized)
+	return false
+}
+
 func randomHex(n int) (string, error) {
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {

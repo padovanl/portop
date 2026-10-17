@@ -96,6 +96,18 @@ func webHandler(collect func(context.Context, app.Options) ([]app.Row, error), c
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(out)
 	})
+	mux.HandleFunc("GET /metrics", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		defer cancel()
+		started := time.Now()
+		rows, err := collect(ctx, cfg.Options)
+		if err != nil {
+			http.Error(w, "port scan failed", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+		writeMetrics(w, rows, time.Since(started))
+	})
 	currentProcess := func(r *http.Request, pid int) (bool, error) {
 		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 		defer cancel()
@@ -224,6 +236,15 @@ func requireSession(auth *webAuth, next http.Handler) http.Handler {
 			return
 		case (r.URL.Path == "/app.css" || r.URL.Path == "/logo.png") && r.Method == http.MethodGet:
 			next.ServeHTTP(w, r)
+			return
+		}
+		// Prometheus cannot hold a browser session: /metrics also takes
+		// the dashboard credentials as HTTP Basic auth (basic_auth in a
+		// scrape config), under the same lockout as the sign-in form.
+		if r.URL.Path == "/metrics" {
+			if _, ok := auth.session(r); ok || auth.basicAuth(w, r) {
+				next.ServeHTTP(w, r)
+			}
 			return
 		}
 		if _, ok := auth.session(r); !ok {
