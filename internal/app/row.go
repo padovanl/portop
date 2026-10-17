@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/padovanl/portop/internal/dnscache"
@@ -69,6 +70,10 @@ func keyFor(c scanner.Connection) Key {
 // Collector produces enriched Rows and tracks CPU usage and first-seen
 // state across successive calls to Collect.
 type Collector struct {
+	// mu serializes Collect: the TUI starts a scan on every tick without
+	// waiting for the previous one, and seen/init are not safe to share.
+	mu sync.Mutex
+
 	cpu    *scanner.CPUTracker
 	dns    *dnscache.Resolver
 	docker *docker.Client
@@ -100,6 +105,9 @@ type Options struct {
 // each into a Row. Rows are sorted by protocol then local port for stable
 // display.
 func (c *Collector) Collect(ctx context.Context, opts Options) ([]Row, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	conns, err := scanner.Scan()
 	if err != nil {
 		return nil, err
@@ -159,6 +167,7 @@ func (c *Collector) Collect(ctx context.Context, opts Options) ([]Row, error) {
 
 	c.seen = currentKeys
 	c.init = true
+	c.cpu.Retain(cpuByPID)
 
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].Protocol != rows[j].Protocol {

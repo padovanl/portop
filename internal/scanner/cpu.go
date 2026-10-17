@@ -66,6 +66,20 @@ func (t *CPUTracker) Forget(pid int) {
 	delete(t.prev, pid)
 }
 
+// Retain discards the samples of every pid not in live. Callers pass the
+// pids of the current scan so the tracker does not grow with every
+// short-lived process that ever owned a socket, and a reused pid starts
+// from a fresh baseline.
+func (t *CPUTracker) Retain(live map[int]float64) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for pid := range t.prev {
+		if _, ok := live[pid]; !ok {
+			delete(t.prev, pid)
+		}
+	}
+}
+
 func readProcTicks(pid int) (uint64, error) {
 	data, err := os.ReadFile(ProcRoot + "/" + strconv.Itoa(pid) + "/stat")
 	if err != nil {
