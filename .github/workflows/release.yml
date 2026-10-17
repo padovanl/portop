@@ -103,6 +103,22 @@ jobs:
           snap: ${{ steps.build.outputs.snap }}
           release: ${{ contains(github.ref_name, '-') && 'edge' || 'stable' }}
 
+  # apt.lucapadovan.dev is rebuilt from the GitHub releases by
+  # padovanl/packages; this only starts that workflow.
+  apt:
+    name: APT repository
+    needs: release
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    env:
+      # Fine-grained token with Actions: read and write on padovanl/packages.
+      PACKAGES_DISPATCH_TOKEN: ${{ secrets.PACKAGES_DISPATCH_TOKEN }}
+    steps:
+      - if: env.PACKAGES_DISPATCH_TOKEN != ''
+        run: gh workflow run publish.yml --repo padovanl/packages
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGES_DISPATCH_TOKEN }}
+
   # The Microsoft Store package is uploaded to Partner Center by hand,
   # from this job's portop-msix-<tag> artifact.
   msix:
