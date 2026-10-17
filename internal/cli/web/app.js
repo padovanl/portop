@@ -39,10 +39,14 @@
     let pendingForce = false;
     let refreshing = false;
 
+    // Bidirectional controls reorder the text around them, so a process
+    // named "\u202Edhss" would read as "sshd"; show them as \uFFFD instead.
+    const clean = value => String(value).replace(/[\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, "\uFFFD");
+
     function cell(tr, value, className) {
         const td = document.createElement("td");
         if (className) td.className = className;
-        td.textContent = value;
+        td.textContent = clean(value);
         tr.append(td);
         return td;
     }
@@ -50,7 +54,7 @@
     function subline(parent, value) {
         const span = document.createElement("span");
         span.className = "secondary";
-        span.textContent = value;
+        span.textContent = clean(value);
         parent.append(span);
     }
 
@@ -58,7 +62,7 @@
         const dt = document.createElement("dt");
         const dd = document.createElement("dd");
         dt.textContent = label;
-        dd.textContent = value === "" || value == null ? "—" : String(value);
+        dd.textContent = value === "" || value == null ? "—" : clean(value);
         list.append(dt, dd);
     }
 
@@ -173,7 +177,7 @@
     function askToSignal(force) {
         if (!selected?.info) return;
         pendingForce = force;
-        byId("confirm-text").textContent = `${force ? "Force kill (SIGKILL)" : "Terminate (SIGTERM)"} ${selected.info.name || selected.row.process || "process"} (PID ${selected.row.pid})? All of its connections may close.`;
+        byId("confirm-text").textContent = `${force ? "Force kill (SIGKILL)" : "Terminate (SIGTERM)"} ${clean(selected.info.name || selected.row.process || "process")} (PID ${selected.row.pid})? All of its connections may close.`;
         byId("confirm-button").textContent = force ? "Force kill" : "Terminate";
         byId("confirm-action").hidden = false;
     }
