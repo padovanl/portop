@@ -129,7 +129,7 @@ func columnsFor(showEstablished bool, width int) []column {
 	}
 	optional := []column{{"IFACE", 16}, {"FIREWALL", 11}, {"USER", 12}, {"CONTAINER", 16}, {"SYSTEMD", 16}}
 	if showEstablished {
-		optional = append([]column{{"REMOTE", 30}, {"TRAFFIC", 15}}, optional...)
+		optional = append([]column{{"REMOTE", 30}, {"IFACE", 16}, {"FIREWALL", 11}, {"TRAFFIC", 15}}, optional[2:]...)
 	}
 
 	budget := innerWidth(width) - markerWidth
@@ -383,6 +383,14 @@ func coloredRow(r app.Row, cols []column) string {
 			fmt.Fprint(&b, cpuStyle(r.CPUPercent).Render(padded))
 		case "IFACE":
 			fmt.Fprint(&b, ifaceStyle(r).Render(padded))
+		case "PORT":
+			// Exposure shows on the port itself, so it is visible however
+			// narrow the terminal and IFACE is dropped.
+			if r.Listening() {
+				fmt.Fprint(&b, ifaceStyle(r).Render(padded))
+			} else {
+				fmt.Fprint(&b, padded)
+			}
 		case "FIREWALL":
 			fmt.Fprint(&b, firewallStyle(r.Firewall).Render(padded))
 		default:

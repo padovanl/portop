@@ -210,6 +210,8 @@ func (m Model) renderHelp() string {
 		label := strings.Join(r.binding.Keys(), "/")
 		fmt.Fprintf(&b, "%s  %s\n", styleKey.Render(padTrunc(label, 10)), r.desc)
 	}
+	b.WriteString("\n" + styleMuted.Render("Listening port color: ") + styleDanger.Render("every interface") +
+		styleMuted.Render(" · ") + styleWarn.Render("one address") + styleMuted.Render(" · ") + styleOk.Render("loopback only") + "\n")
 	b.WriteString("\n" + styleMuted.Render("press any key to close"))
 	return styleModal.Width(m.modalWidth()).Render(b.String())
 }
