@@ -201,6 +201,11 @@ func LoadDir(dir string) (Summary, error) {
 		return Summary{}, fmt.Errorf("%s is not a directory", dir)
 	}
 
+	env, err := projectEnv(dir)
+	if err != nil {
+		return Summary{}, err
+	}
+
 	var files []string
 	var ports []ConfiguredPort
 	for _, name := range defaultFiles {
@@ -212,8 +217,17 @@ func LoadDir(dir string) (Summary, error) {
 			}
 			return Summary{}, err
 		}
+		// Substitute ${VAR} values like Compose before reading ports,
+		// so "${WEB_PORT:-8080}:80" is audited as 8080.
+		var doc yaml.Node
+		if err := yaml.Unmarshal(data, &doc); err != nil {
+			return Summary{}, fmt.Errorf("%s: %w", name, err)
+		}
+		if err := interpolateNode(&doc, env); err != nil {
+			return Summary{}, fmt.Errorf("%s: %w", name, err)
+		}
 		var cf composeFile
-		if err := yaml.Unmarshal(data, &cf); err != nil {
+		if err := doc.Decode(&cf); err != nil {
 			return Summary{}, fmt.Errorf("%s: %w", name, err)
 		}
 		files = append(files, name)
