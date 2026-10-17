@@ -80,3 +80,39 @@ func TestDiffNoChanges(t *testing.T) {
 		t.Errorf("expected no diff, got added=%+v removed=%+v", added, removed)
 	}
 }
+
+// A service on 0.0.0.0 and [::] is one service, not two drift lines.
+func TestFromRowsMergesIPv4AndIPv6(t *testing.T) {
+	rows := []app.Row{
+		{Protocol: scanner.TCP, LocalAddr: net.ParseIP("0.0.0.0"), LocalPort: 22, State: scanner.StateListen, ProcessName: "sshd"},
+		{Protocol: scanner.TCP, LocalAddr: net.ParseIP("::"), LocalPort: 22, State: scanner.StateListen, ProcessName: "sshd"},
+	}
+	entries := FromRows(rows)
+	if len(entries) != 1 || entries[0].Scope != ScopeAll {
+		t.Fatalf("entries = %+v, want one sshd entry on all interfaces", entries)
+	}
+}
+
+// A database that moves from loopback to every interface is now reachable
+// from the network: --diff must report it.
+func TestDiffReportsExposureChange(t *testing.T) {
+	saved := FromRows([]app.Row{{Protocol: scanner.TCP, LocalAddr: net.ParseIP("127.0.0.1"), LocalPort: 5432, State: scanner.StateListen, ProcessName: "postgres"}})
+	now := FromRows([]app.Row{{Protocol: scanner.TCP, LocalAddr: net.ParseIP("0.0.0.0"), LocalPort: 5432, State: scanner.StateListen, ProcessName: "postgres"}})
+	added, removed := Diff(saved, now)
+	if len(added) != 1 || added[0].Scope != ScopeAll || len(removed) != 1 || removed[0].Scope != ScopeLoopback {
+		t.Fatalf("added=%+v removed=%+v, want the port reported on all interfaces instead of loopback", added, removed)
+	}
+}
+
+// Baselines saved by older versions have no scope; they keep comparing by
+// protocol and port, so an upgrade does not report every port.
+func TestDiffAcceptsBaselinesWithoutScope(t *testing.T) {
+	saved := []Entry{{Protocol: "TCP", Port: 22, Process: "sshd"}}
+	now := FromRows([]app.Row{
+		{Protocol: scanner.TCP, LocalAddr: net.ParseIP("0.0.0.0"), LocalPort: 22, State: scanner.StateListen, ProcessName: "sshd"},
+		{Protocol: scanner.TCP, LocalAddr: net.ParseIP("127.0.0.1"), LocalPort: 22, State: scanner.StateListen, ProcessName: "sshd"},
+	})
+	if added, removed := Diff(saved, now); len(added) != 0 || len(removed) != 0 {
+		t.Fatalf("added=%+v removed=%+v, want no changes", added, removed)
+	}
+}

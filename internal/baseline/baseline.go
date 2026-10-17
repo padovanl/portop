@@ -8,6 +8,7 @@ package baseline
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"sort"
@@ -21,9 +22,39 @@ type Entry struct {
 	Protocol string `json:"protocol"`
 	Port     uint16 `json:"port"`
 	Process  string `json:"process,omitempty"`
+	// Scope is who can reach the port: ScopeLoopback, ScopeAll or
+	// ScopeAddress. Baselines saved before it existed leave it empty.
+	Scope string `json:"scope,omitempty"`
 }
 
-func (e Entry) key() string { return e.Protocol + ":" + fmt.Sprint(e.Port) }
+// Scopes of a listening socket. A service moving from loopback to every
+// interface is the drift that matters most, so it is part of the identity
+// of an entry. A specific address is kept as one scope so a DHCP or
+// container address change is not reported.
+const (
+	ScopeLoopback = "loopback"
+	ScopeAll      = "all"
+	ScopeAddress  = "address"
+)
+
+func scopeOf(ip net.IP) string {
+	switch {
+	case ip == nil || ip.IsUnspecified():
+		return ScopeAll
+	case ip.IsLoopback():
+		return ScopeLoopback
+	default:
+		return ScopeAddress
+	}
+}
+
+func (e Entry) key(withScope bool) string {
+	k := e.Protocol + ":" + fmt.Sprint(e.Port)
+	if withScope {
+		k += ":" + e.Scope
+	}
+	return k
+}
 
 type file struct {
 	SavedAt time.Time `json:"saved_at"`
@@ -32,24 +63,35 @@ type file struct {
 
 // FromRows extracts the baseline-relevant fields (listening TCP and UDP
 // sockets only — baselines are about which services are supposed to be
-// running, not ephemeral connections) from a Collector snapshot.
+// running, not ephemeral connections) from a Collector snapshot. A service
+// listening on IPv4 and IPv6 alike yields one entry.
 func FromRows(rows []app.Row) []Entry {
 	var entries []Entry
+	seen := map[string]bool{}
 	for _, r := range rows {
 		if !r.Listening() {
 			continue
 		}
-		entries = append(entries, Entry{
+		e := Entry{
 			Protocol: string(r.Protocol),
 			Port:     r.LocalPort,
 			Process:  r.ProcessName,
-		})
+			Scope:    scopeOf(r.LocalAddr),
+		}
+		if seen[e.key(true)] {
+			continue
+		}
+		seen[e.key(true)] = true
+		entries = append(entries, e)
 	}
 	sort.Slice(entries, func(i, j int) bool {
 		if entries[i].Port != entries[j].Port {
 			return entries[i].Port < entries[j].Port
 		}
-		return entries[i].Protocol < entries[j].Protocol
+		if entries[i].Protocol != entries[j].Protocol {
+			return entries[i].Protocol < entries[j].Protocol
+		}
+		return entries[i].Scope < entries[j].Scope
 	})
 	return entries
 }
@@ -91,24 +133,36 @@ func Load(path string) ([]Entry, time.Time, error) {
 
 // Diff compares a baseline against the current live entries. added are
 // ports listening now that weren't in the baseline; removed are ports
-// in the baseline that aren't listening now.
+// in the baseline that aren't listening now. A port whose scope changed
+// (say from loopback to every interface) is both removed and added. A
+// baseline saved before scopes existed is compared by protocol and port
+// only, so upgrading portop does not report every port as changed.
 func Diff(baseline, current []Entry) (added, removed []Entry) {
+	withScope := true
+	for _, e := range baseline {
+		if e.Scope == "" {
+			withScope = false
+			break
+		}
+	}
 	inBaseline := make(map[string]bool, len(baseline))
 	for _, e := range baseline {
-		inBaseline[e.key()] = true
+		inBaseline[e.key(withScope)] = true
 	}
 	inCurrent := make(map[string]bool, len(current))
 	for _, e := range current {
-		inCurrent[e.key()] = true
-	}
-	for _, e := range current {
-		if !inBaseline[e.key()] {
+		k := e.key(withScope)
+		if !inBaseline[k] && !inCurrent[k] {
 			added = append(added, e)
 		}
+		inCurrent[k] = true
 	}
+	reported := map[string]bool{}
 	for _, e := range baseline {
-		if !inCurrent[e.key()] {
+		k := e.key(withScope)
+		if !inCurrent[k] && !reported[k] {
 			removed = append(removed, e)
+			reported[k] = true
 		}
 	}
 	return added, removed

@@ -73,8 +73,9 @@ Windows.
   (`--watch-new`).
 - **Baseline drift detection**: `--save-baseline` now, `--diff` later (e.g.
   from a cron job or systemd timer) — exits non-zero the instant a port
-  that wasn't in your baseline starts listening. Nothing else in this space
-  does this as a first-class feature.
+  that wasn't in your baseline starts listening, or a port that only
+  listened on loopback becomes reachable on every interface. Nothing else
+  in this space does this as a first-class feature.
 - **Docker Compose port audit**: `--compose /path/to/project` reads the
   folder's Compose file(s), then reports which configured published ports are
   listening, unused, or already taken by another process/container.
@@ -500,8 +501,9 @@ inside a VM.
 
 On every platform, well-known port names come from the system services
 database (`/etc/services`, or `%SystemRoot%\System32\drivers\etc\services`
-on Windows), and baseline diffing snapshots the `LISTEN` set to a small JSON
-file under your OS's config directory.
+on Windows), and baseline diffing snapshots the listening TCP and UDP ports, with
+whether each is bound to loopback, every interface or one address, to a
+small JSON file under your OS's config directory.
 
 ## ✅ Requirements
 

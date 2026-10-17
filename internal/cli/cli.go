@@ -4,9 +4,11 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"strconv"
 	"strings"
@@ -347,8 +349,12 @@ func runDiffBaseline(stdout, stderr io.Writer, path string, jsonOut bool, opts a
 		return 1
 	}
 	saved, savedAt, err := baseline.Load(path)
-	if err != nil {
+	if errors.Is(err, fs.ErrNotExist) {
 		fmt.Fprintln(stderr, "portop: no baseline found at "+path+" — run 'portop --save-baseline' first")
+		return 1
+	}
+	if err != nil {
+		fmt.Fprintln(stderr, terminaltext.Sanitize("portop: reading baseline: "+err.Error()))
 		return 1
 	}
 
@@ -378,10 +384,10 @@ func runDiffBaseline(stdout, stderr io.Writer, path string, jsonOut bool, opts a
 			fmt.Fprintln(stdout, "no changes — every listening port matches the baseline")
 		}
 		for _, e := range added {
-			fmt.Fprintln(stdout, styleDiffAdded.Render(fmt.Sprintf("+ :%d %s (%s) — new, not in baseline", e.Port, e.Protocol, terminaltext.Sanitize(orDash(e.Process)))))
+			fmt.Fprintln(stdout, styleDiffAdded.Render(fmt.Sprintf("+ :%d %s%s (%s) — new, not in baseline", e.Port, e.Protocol, scopeLabel(e.Scope), terminaltext.Sanitize(orDash(e.Process)))))
 		}
 		for _, e := range removed {
-			fmt.Fprintln(stdout, styleDiffRemoved.Render(fmt.Sprintf("- :%d %s (%s) — in baseline, not listening anymore", e.Port, e.Protocol, terminaltext.Sanitize(orDash(e.Process)))))
+			fmt.Fprintln(stdout, styleDiffRemoved.Render(fmt.Sprintf("- :%d %s%s (%s) — in baseline, not listening anymore", e.Port, e.Protocol, scopeLabel(e.Scope), terminaltext.Sanitize(orDash(e.Process)))))
 		}
 	}
 
@@ -389,6 +395,19 @@ func runDiffBaseline(stdout, stderr io.Writer, path string, jsonOut bool, opts a
 		return 3
 	}
 	return 0
+}
+
+// scopeLabel says who can reach a baseline entry's port.
+func scopeLabel(scope string) string {
+	switch scope {
+	case baseline.ScopeLoopback:
+		return " on loopback"
+	case baseline.ScopeAll:
+		return " on all interfaces"
+	case baseline.ScopeAddress:
+		return " on one address"
+	}
+	return ""
 }
 
 func runComposeAudit(stdout, stderr io.Writer, dir string, jsonOut bool, opts app.Options) int {
