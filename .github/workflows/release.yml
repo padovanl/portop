@@ -70,6 +70,13 @@ jobs:
             dist/*.deb
             dist/*.rpm
             dist/checksums.txt
+      # Makes the Go module proxy fetch the new tag and asks pkg.go.dev to
+      # index it, instead of waiting for someone to `go install` it.
+      - name: Announce the version to the Go module proxy
+        if: ${{ !contains(github.ref_name, '-') }}
+        run: |
+          curl -fsS "https://proxy.golang.org/github.com/padovanl/portop/@v/${GITHUB_REF_NAME}.info"
+          curl -sS -X POST --max-time 60 "https://pkg.go.dev/fetch/github.com/padovanl/portop@${GITHUB_REF_NAME}" || true
 
   # Each store job below is skipped (not failed) while its credentials are
   # missing, so a fresh fork still produces a GitHub release. Pre-release
