@@ -305,7 +305,7 @@ func (m *Model) applyRows(rows []app.Row) {
 	for _, r := range rows {
 		if r.FirstSeen {
 			m.newSeen[keyForRow(r)] = true
-			if m.cfg.NotifyOnNewPort && r.State == "LISTEN" {
+			if m.cfg.NotifyOnNewPort && r.Listening() {
 				notify.Send("portop: new port listening", r.ProcessName+" on :"+strconv.Itoa(int(r.LocalPort)))
 			}
 		}

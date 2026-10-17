@@ -120,3 +120,41 @@ func TestLabelPublishedPorts(t *testing.T) {
 		}
 	}
 }
+
+// TestCollectIsSafeForConcurrentCalls covers the TUI, which starts a new
+// scan on every tick without waiting for the previous one: when a scan is
+// slower than the refresh interval, two Collect calls overlap on the same
+// Collector. Run with -race.
+func TestCollectIsSafeForConcurrentCalls(t *testing.T) {
+	c := NewCollector()
+	ctx := context.Background()
+	done := make(chan error, 4)
+	for i := 0; i < cap(done); i++ {
+		go func() {
+			_, err := c.Collect(ctx, Options{})
+			done <- err
+		}()
+	}
+	for i := 0; i < cap(done); i++ {
+		if err := <-done; err != nil {
+			t.Fatalf("Collect: %v", err)
+		}
+	}
+}
+
+func TestRowListening(t *testing.T) {
+	cases := []struct {
+		row  Row
+		want bool
+	}{
+		{Row{Protocol: scanner.TCP, State: scanner.StateListen}, true},
+		{Row{Protocol: scanner.TCP, State: scanner.StateEstablished}, false},
+		{Row{Protocol: scanner.UDP, State: scanner.StateUnconn}, true},
+		{Row{Protocol: scanner.UDP, State: scanner.StateEstablished, RemotePort: 53}, false},
+	}
+	for _, c := range cases {
+		if got := c.row.Listening(); got != c.want {
+			t.Errorf("%s %s: Listening() = %v, want %v", c.row.Protocol, c.row.State, got, c.want)
+		}
+	}
+}

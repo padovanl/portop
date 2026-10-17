@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -192,5 +193,37 @@ func TestWebNoAuthHasNoSession(t *testing.T) {
 	}
 	if rec := serve(h, http.MethodGet, "http://127.0.0.1/login", "", nil); rec.Code != http.StatusNotFound {
 		t.Fatalf("login without auth: %d", rec.Code)
+	}
+}
+
+// Every IPv6 client controls at least a /64, so a new source address per
+// guess must not reset the lockout.
+func TestWebAuthLockoutCoversIPv6Prefix(t *testing.T) {
+	h, auth := authHandler(t, false)
+	start := time.Now()
+	auth.now = func() time.Time { return start }
+	attempt := func(remote, password string) int {
+		form := url.Values{"username": {"admin"}, "password": {password}}
+		req := httptest.NewRequest(http.MethodPost, "http://127.0.0.1/login", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.RemoteAddr = remote
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	for i := 0; i < maxLoginFailures; i++ {
+		remote := fmt.Sprintf("[2001:db8:1:2::%x]:40000", i+1)
+		if code := attempt(remote, "nope"); code != http.StatusUnauthorized {
+			t.Fatalf("attempt %d: %d", i+1, code)
+		}
+	}
+	if code := attempt("[2001:db8:1:2::ffff]:40000", "correct horse"); code != http.StatusTooManyRequests {
+		t.Fatalf("new address in the same /64: %d, want the lockout", code)
+	}
+	if code := attempt("[2001:db8:1:3::1]:40000", "correct horse"); code != http.StatusSeeOther {
+		t.Fatalf("another /64: %d, want a normal sign-in", code)
+	}
+	if code := attempt("192.0.2.7:40000", "correct horse"); code != http.StatusSeeOther {
+		t.Fatalf("IPv4 client: %d, want a normal sign-in", code)
 	}
 }

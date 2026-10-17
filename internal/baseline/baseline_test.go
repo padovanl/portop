@@ -13,11 +13,14 @@ func TestFromRowsFiltersToListenOnly(t *testing.T) {
 	rows := []app.Row{
 		{Protocol: scanner.TCP, LocalAddr: net.ParseIP("0.0.0.0"), LocalPort: 22, State: scanner.StateListen, ProcessName: "sshd"},
 		{Protocol: scanner.TCP, LocalAddr: net.ParseIP("127.0.0.1"), LocalPort: 51000, State: scanner.StateEstablished, ProcessName: "curl"},
-		{Protocol: scanner.UDP, LocalAddr: net.ParseIP("0.0.0.0"), LocalPort: 53, State: scanner.StateListen, ProcessName: "systemd-resolved"},
+		// UDP has no LISTEN state: a bound, unconnected socket is how a UDP
+		// service listens, and a connected one is a client.
+		{Protocol: scanner.UDP, LocalAddr: net.ParseIP("0.0.0.0"), LocalPort: 53, State: scanner.StateUnconn, ProcessName: "systemd-resolved"},
+		{Protocol: scanner.UDP, LocalAddr: net.ParseIP("10.0.0.2"), LocalPort: 41000, RemotePort: 123, State: scanner.StateEstablished, ProcessName: "chronyd"},
 	}
 	entries := FromRows(rows)
 	if len(entries) != 2 {
-		t.Fatalf("got %d entries, want 2 (LISTEN only): %+v", len(entries), entries)
+		t.Fatalf("got %d entries, want 2 (listening only): %+v", len(entries), entries)
 	}
 	if entries[0].Port != 22 || entries[1].Port != 53 {
 		t.Errorf("entries not sorted by port: %+v", entries)

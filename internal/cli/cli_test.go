@@ -285,8 +285,8 @@ func TestConfigSuppliesFlagDefault(t *testing.T) {
 		t.Fatalf("invalid JSON: %v\n%s", err, out.String())
 	}
 	for _, r := range rows {
-		if r.State != "LISTEN" {
-			t.Errorf("config's show_established:false should have filtered to LISTEN only, found %+v", r)
+		if r.State != "LISTEN" && !(r.Protocol == "UDP" && r.State == "UNCONN") {
+			t.Errorf("config's show_established:false should have filtered to listening sockets only, found %+v", r)
 		}
 	}
 }

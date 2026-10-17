@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/padovanl/portop/internal/dnscache"
@@ -32,6 +33,13 @@ type Row struct {
 	SystemdUnit   string
 	ContainerName string
 	FirstSeen     bool // true if this socket was absent from the previous scan
+}
+
+// Listening reports whether the socket accepts new traffic: a TCP socket
+// in LISTEN, or a bound UDP socket that has not connected to a peer (UDP
+// has no LISTEN state; ss -l lists these as UNCONN).
+func (r Row) Listening() bool {
+	return r.State == scanner.StateListen || (r.Protocol == scanner.UDP && r.State == scanner.StateUnconn)
 }
 
 // Matches reports whether a row contains the search text used by the TUI,
@@ -69,6 +77,10 @@ func keyFor(c scanner.Connection) Key {
 // Collector produces enriched Rows and tracks CPU usage and first-seen
 // state across successive calls to Collect.
 type Collector struct {
+	// mu serializes Collect: the TUI starts a scan on every tick without
+	// waiting for the previous one, and seen/init are not safe to share.
+	mu sync.Mutex
+
 	cpu    *scanner.CPUTracker
 	dns    *dnscache.Resolver
 	docker *docker.Client
@@ -100,6 +112,9 @@ type Options struct {
 // each into a Row. Rows are sorted by protocol then local port for stable
 // display.
 func (c *Collector) Collect(ctx context.Context, opts Options) ([]Row, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	conns, err := scanner.Scan()
 	if err != nil {
 		return nil, err
@@ -159,6 +174,7 @@ func (c *Collector) Collect(ctx context.Context, opts Options) ([]Row, error) {
 
 	c.seen = currentKeys
 	c.init = true
+	c.cpu.Retain(cpuByPID)
 
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].Protocol != rows[j].Protocol {

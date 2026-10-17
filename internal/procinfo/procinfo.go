@@ -10,6 +10,7 @@ import (
 	"os/user"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -58,7 +59,7 @@ func loadProc(pid int) (Info, error) {
 	rss, threads, startTicks := readStat(base)
 	info.RSSBytes = rss * uint64(os.Getpagesize())
 	info.NumThreads = threads
-	if bt, err := bootTime(); err == nil {
+	if bt, err := cachedBootTime(); err == nil {
 		info.StartTime = bt.Add(time.Duration(startTicks) * time.Second / clockTicksPerSec)
 	}
 
@@ -133,6 +134,31 @@ func readStat(base string) (rss uint64, numThreads int, startTicks uint64) {
 	startTicks = get(19)
 	rss = get(21)
 	return rss, numThreads, startTicks
+}
+
+// The kernel derives btime from the current clock minus the uptime on
+// every read, so it can move by a second between two reads. StartTime is
+// what identifies a process before it is signalled; computing it from a
+// moving btime made the same process look replaced, and the kill was
+// refused. The boot time is read once per ProcRoot and reused.
+var boot struct {
+	mu   sync.Mutex
+	root string
+	at   time.Time
+}
+
+func cachedBootTime() (time.Time, error) {
+	boot.mu.Lock()
+	defer boot.mu.Unlock()
+	if boot.root == ProcRoot && !boot.at.IsZero() {
+		return boot.at, nil
+	}
+	at, err := bootTime()
+	if err != nil {
+		return time.Time{}, err
+	}
+	boot.root, boot.at = ProcRoot, at
+	return at, nil
 }
 
 func bootTime() (time.Time, error) {
