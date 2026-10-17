@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -40,5 +41,20 @@ func TestNotifySendEndsOptionParsing(t *testing.T) {
 	want := []string{"notify-send", "--", "portop: new port listening", "--action=x on :8080"}
 	if !slices.Equal(cmd.Args, want) {
 		t.Fatalf("args = %q, want %q", cmd.Args, want)
+	}
+}
+
+// The toast runs under portop's own app ID when one was registered and
+// falls back to Windows PowerShell's otherwise.
+func TestWindowsToastUsesRegisteredAppID(t *testing.T) {
+	cmd := command("windows", "t", "b")
+	found := false
+	for _, kv := range cmd.Env {
+		if strings.HasPrefix(kv, "PORTOP_TOAST_APPID=") {
+			found = true
+		}
+	}
+	if !found || !strings.Contains(windowsToastScript, "$env:PORTOP_TOAST_APPID") || !strings.Contains(windowsToastScript, "WindowsPowerShell") {
+		t.Fatal("the toast script does not take the app ID from the environment with a PowerShell fallback")
 	}
 }
