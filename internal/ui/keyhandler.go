@@ -58,10 +58,7 @@ func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, keys.Enter):
 		if row, ok := m.selected(); ok && row.PID != 0 {
-			m.mode = modeDetail
-			m.detailInfo = nil
-			m.detailErr = nil
-			return m, loadDetailCmd(row.PID)
+			return m, m.openDetail(row)
 		}
 		m.setStatus(unresolvedHint(), true)
 

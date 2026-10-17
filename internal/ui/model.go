@@ -135,6 +135,10 @@ type Model struct {
 
 	newSeen map[app.Key]bool // ports flagged "new" since last acknowledgment (n)
 
+	// detailRow is the row the details were opened for. The table keeps
+	// refreshing and re-sorting underneath, so the selected row can be a
+	// different process by the time the details are drawn.
+	detailRow  app.Row
 	detailInfo *procinfo.Info
 	detailErr  error
 
@@ -216,6 +220,7 @@ type collectResultMsg struct {
 type tickMsg time.Time
 
 type detailResultMsg struct {
+	pid  int
 	info procinfo.Info
 	err  error
 }
@@ -260,7 +265,7 @@ func (m Model) collectCmd() tea.Cmd {
 func loadDetailCmd(pid int) tea.Cmd {
 	return func() tea.Msg {
 		info, err := procinfo.Load(pid)
-		return detailResultMsg{info: info, err: err}
+		return detailResultMsg{pid: pid, info: info, err: err}
 	}
 }
 
@@ -293,6 +298,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case detailResultMsg:
+		if msg.pid != m.detailRow.PID {
+			return m, nil // details of a process whose view was closed meanwhile
+		}
 		if msg.err == nil {
 			m.detailInfo = &msg.info
 		}
@@ -349,6 +357,15 @@ func (m *Model) openKillConfirm(row app.Row) {
 	m.killTarget = row
 	m.killStart = start
 	m.mode = modeConfirmKill
+}
+
+// openDetail shows row's process details and starts loading them.
+func (m *Model) openDetail(row app.Row) tea.Cmd {
+	m.mode = modeDetail
+	m.detailRow = row
+	m.detailInfo = nil
+	m.detailErr = nil
+	return loadDetailCmd(row.PID)
 }
 
 func (m *Model) setStatus(msg string, isErr bool) {

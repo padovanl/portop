@@ -114,10 +114,7 @@ func renderKeyHints() string {
 }
 
 func (m Model) renderDetail() string {
-	row, ok := m.selected()
-	if !ok {
-		return styleModal.Render("no row selected")
-	}
+	row := m.detailRow
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s\n", styleTitle.Render("Process details"))
@@ -125,7 +122,7 @@ func (m Model) renderDetail() string {
 		stateStyle(string(row.State)).Render("●"), terminaltext.Sanitize(row.ProcessName), row.LocalPort, row.Protocol)
 
 	if m.detailErr != nil {
-		b.WriteString(styleDanger.Render(terminaltext.Sanitize("could not read /proc: " + m.detailErr.Error())))
+		b.WriteString(styleDanger.Render(terminaltext.Sanitize("could not read process details: " + m.detailErr.Error())))
 	} else if m.detailInfo == nil {
 		b.WriteString(styleMuted.Render("loading..."))
 	} else {
