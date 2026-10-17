@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/padovanl/portop/internal/app"
@@ -197,10 +198,9 @@ func (m Model) renderTable() string {
 			line := newMarker() + plainRow(r, cols)
 			b.WriteString(styleRowNew.Render(line))
 		case isZebra:
-			line := strings.Repeat(" ", markerWidth) + coloredRow(r, cols)
-			b.WriteString(styleRowZebra.Render(line))
+			b.WriteString(styleRowZebra.Render(strings.Repeat(" ", markerWidth)) + coloredRow(r, cols, true))
 		default:
-			b.WriteString(strings.Repeat(" ", markerWidth) + coloredRow(r, cols))
+			b.WriteString(strings.Repeat(" ", markerWidth) + coloredRow(r, cols, false))
 		}
 		b.WriteByte('\n')
 	}
@@ -368,34 +368,37 @@ func plainRow(r app.Row, cols []column) string {
 }
 
 // coloredRow renders a row with semantic per-cell coloring: state,
-// protocol and CPU load each get their own color so the table reads at
-// a glance without following the cursor.
-func coloredRow(r app.Row, cols []column) string {
+// protocol, CPU load, exposure and firewall each get their own color so
+// the table reads at a glance without following the cursor. A zebra row
+// sets its background on every cell: each colored cell ends with a reset,
+// which would otherwise cut the stripe short after the first one.
+func coloredRow(r app.Row, cols []column, zebra bool) string {
 	var b strings.Builder
 	for _, c := range cols {
 		padded := padTrunc(terminaltext.Sanitize(cellValue(r, c.title)), c.width)
+		st := lipgloss.NewStyle()
 		switch c.title {
 		case "STATE":
-			fmt.Fprint(&b, stateStyle(string(r.State)).Render(padded))
+			st = stateStyle(string(r.State))
 		case "PROTO":
-			fmt.Fprint(&b, protoStyle(string(r.Protocol)).Render(padded))
+			st = protoStyle(string(r.Protocol))
 		case "CPU":
-			fmt.Fprint(&b, cpuStyle(r.CPUPercent).Render(padded))
+			st = cpuStyle(r.CPUPercent)
 		case "IFACE":
-			fmt.Fprint(&b, ifaceStyle(r).Render(padded))
+			st = ifaceStyle(r)
 		case "PORT":
 			// Exposure shows on the port itself, so it is visible however
 			// narrow the terminal and IFACE is dropped.
 			if r.Listening() {
-				fmt.Fprint(&b, ifaceStyle(r).Render(padded))
-			} else {
-				fmt.Fprint(&b, padded)
+				st = ifaceStyle(r)
 			}
 		case "FIREWALL":
-			fmt.Fprint(&b, firewallStyle(r.Firewall).Render(padded))
-		default:
-			fmt.Fprint(&b, padded)
+			st = firewallStyle(r.Firewall)
 		}
+		if zebra {
+			st = st.Background(colorZebra)
+		}
+		fmt.Fprint(&b, st.Render(padded))
 	}
 	return b.String()
 }
