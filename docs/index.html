@@ -661,7 +661,7 @@ sudo install -m 755 portop /usr/local/bin/portop</pre>
             </ol>
             <p>See <a href="https://support.apple.com/en-us/102445">Apple's instructions</a> for your macOS version.</p>
           </details>
-          <p>portop uses the system's <code>lsof</code> and <code>ps</code>. Run <code>sudo portop</code> to include other users' processes. Systemd, Docker Desktop VM process metadata and thread counts are not available on macOS.</p>
+          <p>portop uses the system's <code>lsof</code> and <code>ps</code>. Run <code>sudo portop</code> to include other users' processes. Systemd, Docker Desktop VM process metadata and thread counts are not available on macOS; containers are recognised by the ports Docker Desktop publishes.</p>
         </div>
 
         <div id="tab-pkg" class="panel" role="tabpanel" aria-labelledby="t-pkg">

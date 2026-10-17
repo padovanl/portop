@@ -315,7 +315,8 @@ This follows the first-launch guidance used by
 The scanner uses `/usr/sbin/lsof`; process details and CPU sampling use `/bin/ps`.
 Run `sudo portop` to include processes belonging to other users. Without it,
 some sockets can be omitted entirely. Systemd and Docker Desktop VM process
-metadata are unavailable; the process detail thread count is shown as `-`.
+metadata are unavailable; containers are recognised by the host ports Docker
+Desktop publishes. The process detail thread count is shown as `-`.
 
 ### Binary tarball (Linux and macOS)
 
@@ -479,7 +480,9 @@ other users' processes. systemd unit and Docker container association are
 derived from each process's cgroup path, so no D-Bus or Docker SDK
 dependency is needed; Docker container names are resolved via a couple of
 read-only calls to the Docker Engine API over its unix socket when
-available.
+available. The socket is found like the docker CLI finds it: a `unix://`
+`DOCKER_HOST`, `/var/run/docker.sock`, rootless Docker's
+`$XDG_RUNTIME_DIR/docker.sock` or Docker Desktop's `~/.docker/run/docker.sock`.
 
 `portop --compose DIR` adds one Docker-specific read-only call to
 `/containers/json?all=1` when Docker enrichment is enabled. That gives the audit
