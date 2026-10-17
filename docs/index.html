@@ -139,12 +139,12 @@
   }
   .pill strong { color: var(--mint); font-weight: 600; }
   .hero h1 {
-    font-size: clamp(2.5rem, 6.4vw, 4.4rem);
+    font-size: clamp(2.2rem, 5.6vw, 4rem);
     font-weight: 800;
     letter-spacing: -0.04em;
     line-height: 1.05;
     margin: 0 auto 22px;
-    max-width: 22ch;
+    max-width: 20em;
   }
   .gradient {
     background: linear-gradient(90deg, var(--azure), var(--mint), #6aa8ff, var(--azure));
@@ -156,10 +156,20 @@
   }
   @keyframes shimmer { to { background-position: 300% 0; } }
   /* Inline, so the gradient of the headline paints the rotating words too. */
-  .rotator, .rotator .word { display: inline; }
-  .rotator .word { animation: word-in .6s ease-out; }
-  @keyframes word-in { from { opacity: 0; filter: blur(8px); } to { opacity: 1; filter: none; } }
-  @media (prefers-reduced-motion: reduce) { .gradient, .rotator .word { animation: none; } }
+  /* The second line of the headline is typed, erased and retyped. */
+  .typed-line { display: block; min-height: 1.1em; }
+  .caret {
+    display: inline-block;
+    width: 0.09em;
+    height: 0.9em;
+    margin-left: 0.06em;
+    vertical-align: -0.08em;
+    background: var(--mint);
+    border-radius: 2px;
+    animation: caret 1s steps(1) infinite;
+  }
+  @keyframes caret { 50% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .gradient, .caret { animation: none; } }
   .hero .sub { color: var(--muted); font-size: 1.18rem; max-width: 60ch; margin: 0 auto 34px; }
 
   .actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-bottom: 30px; }
@@ -228,6 +238,13 @@
   .window-bar i:nth-child(3) { background: #28c840; margin-right: 8px; }
   .window img { display: block; width: 100%; height: auto; }
   .caption { color: var(--faint); font-size: 0.88rem; margin: 14px 0 0; text-align: center; }
+
+  /* Labels are not text to select: keep the arrow cursor on them. */
+  .pill, .platforms span, .flag, .eyebrow, .icon, .window-bar, .term-body, .caption {
+    cursor: default;
+    -webkit-user-select: none;
+    user-select: none;
+  }
 
   /* ---- terminal mock-up in the hero ---- */
   .term-body { padding: 14px 0 12px; font: 0.8rem/1.75 var(--mono); color: #cfd8ea; overflow-x: auto; }
@@ -404,6 +421,7 @@
     .site-header nav a:not(.gh) { display: none; }
     .hero { padding: 52px 0 24px; }
     .hero .sub { font-size: 1.05rem; }
+    .typed-line { min-height: 2.2em; }
     .quick { display: flex; }
     .window { margin-top: 44px; }
     section { padding: 64px 0; }
@@ -434,7 +452,7 @@
     <div class="wrap">
       <img class="hero-logo" src="assets/logo.png" alt="" width="84" height="84">
       <span class="pill"><strong>Open source</strong> · htop, but for ports</span>
-      <h1 aria-label="See what's really using every port">See what's really using<br><span class="gradient" aria-hidden="true"><span class="rotator" data-rotate="every port.|port 8080.|port 5432.|port 443.|port 22.">every port.</span></span></h1>
+      <h1 aria-label="Every port on your machine, and who owns it.">Every port on your machine,<span class="typed-line" aria-hidden="true"><span class="gradient" data-type="and who owns it.|and its container.|and its systemd unit.|and what changed.|one key from a kill.|live in your browser.">and who owns it.</span><span class="caret"></span></span></h1>
       <p class="sub">A live terminal UI for the TCP and UDP sockets on your machine. Each row shows the process, its systemd unit or Windows service and its Docker container, and one key lets you inspect or stop it.</p>
       <div class="actions">
         <a class="button primary" href="#install">Install portop</a>
@@ -766,18 +784,27 @@ sudo install -m 755 portop /usr/local/bin/portop</pre>
       });
     });
 
-    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      document.querySelectorAll('[data-rotate]').forEach(function (el) {
-        var words = el.dataset.rotate.split('|');
-        var i = 0;
-        setInterval(function () {
-          i = (i + 1) % words.length;
-          var word = document.createElement('span');
-          word.className = 'word';
-          word.textContent = words[i];
-          el.replaceChildren(word);
-        }, 2600);
-      });
+    var typed = document.querySelector('[data-type]');
+    if (typed && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      var phrases = typed.dataset.type.split('|');
+      var index = 0;
+      var text = phrases[0];
+      var deleting = true;
+      var step = function () {
+        var target = phrases[index];
+        if (deleting) {
+          text = text.slice(0, -1);
+          if (!text) { deleting = false; index = (index + 1) % phrases.length; }
+          typed.textContent = text;
+          setTimeout(step, text ? 28 : 280);
+        } else {
+          text = target.slice(0, text.length + 1);
+          typed.textContent = text;
+          if (text === target) { deleting = true; setTimeout(step, 2400); }
+          else setTimeout(step, 55 + Math.random() * 45);
+        }
+      };
+      setTimeout(step, 2400);
     }
 
     if (!navigator.clipboard) return;
