@@ -155,6 +155,7 @@ type Model struct {
 	settingsCursor    int
 	settingsThemeIdx  int
 	settingsCapturing bool
+	settingsNote      string // why the last captured key was refused
 
 	// collecting is true while a scan is running. Ticks and refreshes do
 	// not start another one meanwhile: a scan slower than the interval

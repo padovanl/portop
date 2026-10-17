@@ -168,7 +168,7 @@ func (m Model) renderConfirmKill() string {
 		terminaltext.Sanitize(m.killTarget.ProcessName), strconv.Itoa(m.killTarget.PID), m.killTarget.LocalPort)
 	b.WriteString(styleKey.Render("y") + styleFaint.Render(" "+platformLabels.terminate+"   "))
 	b.WriteString(styleKey.Render("f") + styleFaint.Render(" "+platformLabels.force+"   "))
-	b.WriteString(styleKey.Render("esc") + styleFaint.Render(" cancel"))
+	b.WriteString(styleKey.Render(keys.Escape.Keys()[0]) + styleFaint.Render(" cancel"))
 	return styleModal.Width(m.modalWidth()).Render(b.String())
 }
 
@@ -275,9 +275,13 @@ func (m Model) renderSettings() string {
 		b.WriteString("\n" + styleMuted.Render(resetLine) + "\n")
 	}
 
-	hint := "↑/↓ move · ←/→ browse themes · enter rebind/reset · esc close"
+	esc := keys.Escape.Keys()[0]
+	hint := "↑/↓ move · ←/→ browse themes · enter rebind/reset · " + esc + " close"
 	if m.settingsCapturing {
-		hint = "press any key to bind it · esc to cancel"
+		hint = "press any key to bind it · " + esc + " to cancel"
+	}
+	if m.settingsNote != "" {
+		b.WriteString("\n" + styleDanger.Render(m.settingsNote))
 	}
 	b.WriteString("\n" + styleMuted.Render(hint))
 	return styleModal.Width(m.modalWidth()).Render(b.String())

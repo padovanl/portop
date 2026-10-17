@@ -133,13 +133,14 @@ func copyText(row app.Row) string {
 }
 
 func (m Model) handleFilterKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc":
+	if key.Matches(msg, keys.Escape) {
 		m.filterInput.SetValue("")
 		m.filterInput.Blur()
 		m.mode = modeNormal
 		m.refilter()
 		return m, nil
+	}
+	switch msg.String() {
 	case "enter":
 		m.filterInput.Blur()
 		m.mode = modeNormal
@@ -165,8 +166,7 @@ func (m Model) handleConfirmKillKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleDetailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc", "enter", "q":
+	if key.Matches(msg, keys.Escape, keys.Enter, keys.Quit) {
 		m.mode = modeNormal
 	}
 	return m, nil
@@ -181,11 +181,19 @@ func (m Model) handleHelpKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m Model) handleSettingsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.settingsCapturing {
 		pressed := msg.String()
-		if pressed == "esc" {
+		if key.Matches(msg, keys.Escape) {
 			m.settingsCapturing = false
+			m.settingsNote = ""
 			return m, nil
 		}
 		action := KeyActions[m.settingsCursor-1]
+		// A key held by another action would make one of the two
+		// unreachable: bound to "up", "," would hide this very screen.
+		if other := actionBoundTo(pressed, action); other != "" {
+			m.settingsNote = pressed + " is already bound to " + actionDesc[other] + " — press another key"
+			return m, nil
+		}
+		m.settingsNote = ""
 		m.keyOverrides[action] = []string{pressed}
 		ApplyKeyBindings(m.keyOverrides)
 		m.settingsCapturing = false
@@ -193,9 +201,11 @@ func (m Model) handleSettingsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	switch msg.String() {
-	case "esc":
+	if key.Matches(msg, keys.Escape) {
 		m.mode = modeNormal
+		return m, nil
+	}
+	switch msg.String() {
 	case "up":
 		if m.settingsCursor > 0 {
 			m.settingsCursor--
@@ -229,6 +239,21 @@ func (m Model) handleSettingsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, nil
+}
+
+// actionBoundTo returns the action other than except that k triggers, or "".
+func actionBoundTo(k, except string) string {
+	for action, ks := range CurrentKeyBindings() {
+		if action == except {
+			continue
+		}
+		for _, bound := range ks {
+			if bound == k {
+				return action
+			}
+		}
+	}
+	return ""
 }
 
 // refilter recomputes m.filtered from m.rows given the current filter
