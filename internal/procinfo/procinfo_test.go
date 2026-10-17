@@ -91,6 +91,18 @@ func TestLoad(t *testing.T) {
 	if !info.StartTime.Equal(wantStart) {
 		t.Errorf("StartTime = %v, want %v", info.StartTime, wantStart)
 	}
+
+	// btime is recomputed by the kernel on every read and can move by a
+	// second; the same process must keep the same identity, or the kill
+	// confirmation refuses to signal it.
+	mustWrite(t, filepath.Join(root, "stat"), "cpu  0 0 0 0 0 0 0 0 0 0\nbtime 1000000001\n")
+	again, err := loadProc(4242)
+	if err != nil {
+		t.Fatalf("second Load: %v", err)
+	}
+	if !again.StartTime.Equal(info.StartTime) {
+		t.Errorf("StartTime moved from %v to %v when btime jittered", info.StartTime, again.StartTime)
+	}
 }
 
 func TestLoadMissingPID(t *testing.T) {
