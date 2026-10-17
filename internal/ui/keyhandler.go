@@ -59,14 +59,15 @@ func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, keys.Enter):
 		if row, ok := m.selected(); ok && row.PID != 0 {
 			return m, m.openDetail(row)
+		} else if ok {
+			m.setStatus(unresolvedHint(row), true)
 		}
-		m.setStatus(unresolvedHint(), true)
 
 	case key.Matches(msg, keys.Kill):
 		if row, ok := m.selected(); ok && row.PID != 0 {
 			m.openKillConfirm(row)
-		} else {
-			m.setStatus(unresolvedHint(), true)
+		} else if ok {
+			m.setStatus(unresolvedHint(row), true)
 		}
 
 	case key.Matches(msg, keys.Open):

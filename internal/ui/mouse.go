@@ -128,7 +128,7 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			m.cursor = originalIdx
 			row = m.filtered[originalIdx]
 			if row.PID == 0 {
-				m.setStatus(unresolvedHint(), true)
+				m.setStatus(unresolvedHint(row), true)
 				return m, nil
 			}
 			return m, m.openDetail(row)
@@ -136,7 +136,7 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		m.lastClick = mouseClick{key: key, pid: row.PID, x: event.X, y: event.Y, at: now}
 	case tea.MouseButtonRight:
 		if row.PID == 0 {
-			m.setStatus(unresolvedHint(), true)
+			m.setStatus(unresolvedHint(row), true)
 		} else {
 			m.openKillConfirm(row)
 		}

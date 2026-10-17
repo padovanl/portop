@@ -86,7 +86,7 @@ func (m Model) renderStatusBar() string {
 	case m.lastErr != nil:
 		msg = styleDanger.Render(terminaltext.Sanitize("scan error: " + m.lastErr.Error()))
 	default:
-		if hint := unresolvedStatusHint(m.rows); hint != "" {
+		if hint := unresolvedStatusHint(m.filtered); hint != "" {
 			msg = styleFaint.Render(hint)
 		}
 	}
