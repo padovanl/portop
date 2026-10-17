@@ -366,7 +366,9 @@ Run `portop --help` for the full flag list.
 ### Docker Compose port audit
 
 Point portop at a folder containing `compose.yml`, `compose.yaml`,
-`docker-compose.yml` or `docker-compose.yaml`:
+`docker-compose.yml` or `docker-compose.yaml`. Like Docker Compose, it reads
+the first of those it finds plus one `compose.override.yml` (or its
+variants), and substitutes `${VARIABLES}` from `.env` and the environment:
 
 ```bash
 portop --compose ~/selfhosted/crawl-stack
