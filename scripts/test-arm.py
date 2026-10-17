@@ -50,8 +50,11 @@ def main():
                                for row in rows):
                         raise AssertionError(f"{arch}: missing {protocol} socket {port} owned by PID {os.getpid()}")
                 listeners = json.loads(run(*flags, "--listen"))
-                if not listeners or any(row["state"] != "LISTEN" for row in listeners):
+                listening = lambda row: row["state"] == "LISTEN" or (row["protocol"] == "UDP" and row["state"] == "UNCONN")
+                if not listeners or not all(listening(row) for row in listeners):
                     raise AssertionError(f"{arch}: --listen returned invalid rows")
+                if not any(row["protocol"] == "UDP" and row["local_port"] == udp.getsockname()[1] for row in listeners):
+                    raise AssertionError(f"{arch}: --listen left out the bound UDP socket")
             print(f"{arch} ({cpu}): version, TCP/UDP ownership and --listen passed")
 
 

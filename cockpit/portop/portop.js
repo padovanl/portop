@@ -26,6 +26,8 @@
     const tabs = [...document.querySelectorAll(".tab")];
     let rows = [];
     let selectedState = "all";
+    // UDP has no LISTEN state: a bound, unconnected UDP socket is listening.
+    const isListening = row => row.state === "LISTEN" || (row.protocol === "UDP" && row.state === "UNCONN");
     let selected = null;
     let pendingForce = false;
     let refreshing = false;
@@ -61,7 +63,7 @@
     function render() {
         const query = filter.value.trim().toLowerCase();
         const matches = rows.filter(row =>
-            (selectedState === "all" || row.state === selectedState) &&
+            (selectedState === "all" || (selectedState === "LISTEN" ? isListening(row) : row.state === selectedState)) &&
             (!query || [row.local_port, row.local_address, row.remote_port, row.remote_address,
                 row.remote_host, row.pid, row.process, row.protocol, row.state,
                 row.systemd_unit, row.container].some(value =>
@@ -190,7 +192,7 @@
         refreshing = true;
         try {
             rows = JSON.parse(await cockpit.spawn(["portop", "--json", "--no-dns"], { err: "message" }));
-            const listening = rows.filter(row => row.state === "LISTEN").length;
+            const listening = rows.filter(isListening).length;
             byId("total-count").textContent = rows.length;
             byId("listen-count").textContent = listening;
             byId("process-count").textContent = new Set(rows.map(row => row.pid).filter(Boolean)).size;
