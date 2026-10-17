@@ -78,6 +78,7 @@
         for (const row of matches) {
             const tr = document.createElement("tr");
             const local = cell(tr, ":" + row.local_port, "primary port");
+            if (isListening(row)) local.append(scopeBadge(row.scope));
             subline(local, row.local_address + " · " + row.protocol + (row.ipv6 ? "6" : "4"));
             const remote = cell(tr, endpoint(row.remote_address, row.remote_port), row.remote_port ? "" : "muted");
             if (row.remote_host) subline(remote, row.remote_host);
@@ -87,7 +88,8 @@
             badge.textContent = row.state;
             stateCell.append(badge);
             const process = cell(tr, row.process || "Unknown", row.process ? "primary" : "muted");
-            if (row.pid) subline(process, "PID " + row.pid);
+            if (row.pid) subline(process, "PID " + row.pid + (row.user ? " · " + row.user : ""));
+            else if (row.user) subline(process, row.user);
             cell(tr, row.pid ? row.cpu_percent.toFixed(1) + "%" : "—", row.pid ? "" : "muted");
             const owner = cell(tr, row.systemd_unit || row.container || "—", row.systemd_unit || row.container ? "" : "muted");
             if (row.systemd_unit && row.container) subline(owner, row.container);
@@ -107,6 +109,18 @@
         byId("empty").hidden = matches.length !== 0;
     }
 
+    const scopeLabels = { all: "all interfaces", address: "one address", loopback: "loopback" };
+
+    // Who can reach the port: red for every interface, amber for one
+    // address, green for loopback only.
+    function scopeBadge(scope) {
+        const badge = document.createElement("span");
+        badge.className = "scope " + (scopeLabels[scope] ? scope : "loopback");
+        badge.textContent = scopeLabels[scope] || scope;
+        badge.title = "Reachable on " + (scopeLabels[scope] || scope);
+        return badge;
+    }
+
     function showSocket(row) {
         const fields = byId("socket-fields");
         fields.replaceChildren();
@@ -116,7 +130,9 @@
         field(fields, "Remote host", row.remote_host);
         field(fields, "Protocol", row.protocol + (row.ipv6 ? " · IPv6" : " · IPv4"));
         field(fields, "State", row.state);
+        field(fields, "Exposure", scopeLabels[row.scope] || row.scope);
         field(fields, "Process", row.process);
+        field(fields, "User", row.user);
         field(fields, "PID", row.pid || "—");
         field(fields, "CPU", row.pid ? row.cpu_percent.toFixed(1) + "%" : "—");
         field(fields, "Systemd unit", row.systemd_unit);

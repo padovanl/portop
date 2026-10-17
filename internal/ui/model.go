@@ -60,6 +60,8 @@ const (
 	sortByRemote
 	sortByContainer
 	sortBySystemd
+	sortByIface
+	sortByUser
 	sortModeCount
 )
 
@@ -81,6 +83,10 @@ func (s sortMode) String() string {
 		return "container"
 	case sortBySystemd:
 		return platformLabels.unitSort
+	case sortByIface:
+		return "exposure"
+	case sortByUser:
+		return "user"
 	default:
 		return "port"
 	}

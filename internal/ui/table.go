@@ -35,6 +35,11 @@ func sortRowsDirection(rows []app.Row, mode sortMode, descending bool) {
 			cmp = strings.Compare(strings.ToLower(rows[i].ContainerName), strings.ToLower(rows[j].ContainerName))
 		case sortBySystemd:
 			cmp = strings.Compare(strings.ToLower(rows[i].SystemdUnit), strings.ToLower(rows[j].SystemdUnit))
+		case sortByIface:
+			// Most exposed first: every interface, one address, loopback.
+			cmp = compareInt(exposureRank(rows[i]), exposureRank(rows[j]))
+		case sortByUser:
+			cmp = strings.Compare(strings.ToLower(rows[i].Username), strings.ToLower(rows[j].Username))
 		default: // sortByPort
 			cmp = compareInt(int(rows[i].LocalPort), int(rows[j].LocalPort))
 		}
@@ -49,6 +54,17 @@ func sortRowsDirection(rows []app.Row, mode sortMode, descending bool) {
 		}
 		return cmp < 0
 	})
+}
+
+func exposureRank(r app.Row) int {
+	switch r.Scope() {
+	case app.ScopeAll:
+		return 0
+	case app.ScopeAddress:
+		return 1
+	default:
+		return 2
+	}
 }
 
 func compareInt(a, b int) int {
@@ -91,7 +107,7 @@ func columnsFor(showEstablished bool, width int) []column {
 		{"PID", 7},
 		{"CPU", 6},
 	}
-	optional := []column{{"CONTAINER", 16}, {"SYSTEMD", 16}}
+	optional := []column{{"IFACE", 16}, {"USER", 12}, {"CONTAINER", 16}, {"SYSTEMD", 16}}
 	if showEstablished {
 		optional = append([]column{{"REMOTE", 30}}, optional...)
 	}
@@ -236,6 +252,10 @@ func sortModeForColumn(title string) (sortMode, bool) {
 		return sortByRemote, true
 	case "CONTAINER":
 		return sortByContainer, true
+	case "IFACE":
+		return sortByIface, true
+	case "USER":
+		return sortByUser, true
 	case "SYSTEMD":
 		return sortBySystemd, true
 	default:
@@ -276,6 +296,13 @@ func cellValue(r app.Row, colTitle string) string {
 		return fmt.Sprintf("%.1f%%", r.CPUPercent)
 	case "REMOTE":
 		return remoteDisplay(r)
+	case "IFACE":
+		return r.LocalAddr.String()
+	case "USER":
+		if r.Username == "" {
+			return "-"
+		}
+		return r.Username
 	case "SYSTEMD":
 		if r.SystemdUnit == "" {
 			return "-"
@@ -314,6 +341,8 @@ func coloredRow(r app.Row, cols []column) string {
 			fmt.Fprint(&b, protoStyle(string(r.Protocol)).Render(padded))
 		case "CPU":
 			fmt.Fprint(&b, cpuStyle(r.CPUPercent).Render(padded))
+		case "IFACE":
+			fmt.Fprint(&b, ifaceStyle(r).Render(padded))
 		default:
 			fmt.Fprint(&b, padded)
 		}

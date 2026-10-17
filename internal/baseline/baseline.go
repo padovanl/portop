@@ -8,7 +8,6 @@ package baseline
 import (
 	"encoding/json"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
 	"sort"
@@ -33,21 +32,10 @@ type Entry struct {
 // of an entry. A specific address is kept as one scope so a DHCP or
 // container address change is not reported.
 const (
-	ScopeLoopback = "loopback"
-	ScopeAll      = "all"
-	ScopeAddress  = "address"
+	ScopeLoopback = app.ScopeLoopback
+	ScopeAll      = app.ScopeAll
+	ScopeAddress  = app.ScopeAddress
 )
-
-func scopeOf(ip net.IP) string {
-	switch {
-	case ip == nil || ip.IsUnspecified():
-		return ScopeAll
-	case ip.IsLoopback():
-		return ScopeLoopback
-	default:
-		return ScopeAddress
-	}
-}
 
 func (e Entry) key(withScope bool) string {
 	k := e.Protocol + ":" + fmt.Sprint(e.Port)
@@ -77,7 +65,7 @@ func FromRows(rows []app.Row) []Entry {
 			Protocol: string(r.Protocol),
 			Port:     r.LocalPort,
 			Process:  r.ProcessName,
-			Scope:    scopeOf(r.LocalAddr),
+			Scope:    r.Scope(),
 		}
 		if seen[e.key(true)] {
 			continue

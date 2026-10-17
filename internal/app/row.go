@@ -4,6 +4,7 @@ package app
 import (
 	"context"
 	"net"
+	"os/user"
 	"runtime"
 	"sort"
 	"strconv"
@@ -29,11 +30,34 @@ type Row struct {
 	IPv6          bool
 	PID           int
 	ProcessName   string
+	Username      string // owner of the socket; empty if unknown
 	CPUPercent    float64
 	SystemdUnit   string
 	ContainerName string
 	FirstSeen     bool // true if this socket was absent from the previous scan
 }
+
+// Exposure says who can reach a socket's local address.
+const (
+	ScopeLoopback = "loopback" // 127.0.0.1, ::1: only this machine
+	ScopeAll      = "all"      // 0.0.0.0, ::: every interface
+	ScopeAddress  = "address"  // one specific address
+)
+
+// ScopeOf classifies a bind address by exposure.
+func ScopeOf(ip net.IP) string {
+	switch {
+	case ip == nil || ip.IsUnspecified():
+		return ScopeAll
+	case ip.IsLoopback():
+		return ScopeLoopback
+	default:
+		return ScopeAddress
+	}
+}
+
+// Scope is ScopeOf the row's local address.
+func (r Row) Scope() string { return ScopeOf(r.LocalAddr) }
 
 // Listening reports whether the socket accepts new traffic: a TCP socket
 // in LISTEN, or a bound UDP socket that has not connected to a peer (UDP
@@ -61,6 +85,7 @@ func (r Row) matchesTerm(term string) bool {
 	return strings.Contains(strconv.Itoa(int(r.LocalPort)), term) ||
 		strings.Contains(strconv.Itoa(r.PID), term) ||
 		strings.Contains(strings.ToLower(r.ProcessName), term) ||
+		strings.Contains(strings.ToLower(r.Username), term) ||
 		strings.Contains(strings.ToLower(r.SystemdUnit), term) ||
 		strings.Contains(strings.ToLower(r.ContainerName), term) ||
 		strings.Contains(strings.ToLower(r.LocalAddr.String()), term) ||
@@ -94,8 +119,9 @@ type Collector struct {
 	dns    *dnscache.Resolver
 	docker *docker.Client
 
-	seen map[Key]bool // sockets observed in any previous Collect call
-	init bool         // false until the first Collect call completes
+	seen  map[Key]bool // sockets observed in any previous Collect call
+	init  bool         // false until the first Collect call completes
+	users map[uint32]string
 }
 
 // NewCollector wires up a Collector with real system backends.
@@ -105,7 +131,28 @@ func NewCollector() *Collector {
 		dns:    dnscache.New(defaultDNSTimeout),
 		docker: docker.NewClient(),
 		seen:   make(map[Key]bool),
+		users:  make(map[uint32]string),
 	}
+}
+
+// username names a socket's owner. Windows reports the account with the
+// socket; Linux and macOS report a uid, resolved once per uid.
+func (c *Collector) username(conn scanner.Connection) string {
+	if conn.User != "" || runtime.GOOS == "windows" {
+		return conn.User
+	}
+	if conn.PID == 0 && conn.UID == 0 && conn.Inode == 0 {
+		return "" // no owner information at all (closing socket)
+	}
+	if name, ok := c.users[conn.UID]; ok {
+		return name
+	}
+	name := strconv.FormatUint(uint64(conn.UID), 10)
+	if u, err := user.LookupId(name); err == nil {
+		name = u.Username
+	}
+	c.users[conn.UID] = name
+	return name
 }
 
 const defaultDNSTimeout = 800 * time.Millisecond
@@ -148,6 +195,7 @@ func (c *Collector) Collect(ctx context.Context, opts Options) ([]Row, error) {
 			IPv6:        conn.IPv6,
 			PID:         conn.PID,
 			ProcessName: conn.ProcessName,
+			Username:    c.username(conn),
 			FirstSeen:   c.init && !c.seen[k],
 		}
 

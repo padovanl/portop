@@ -72,6 +72,7 @@ type Connection struct {
 
 	PID         int    // 0 if the owning process could not be determined
 	ProcessName string // empty if unknown
+	User        string // owning account where the OS reports a name, not a UID (Windows)
 }
 
 // IsIPv6 reports whether this connection was read from a v6 proc table.

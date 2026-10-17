@@ -507,6 +507,8 @@ type jsonRow struct {
 	IPv6          bool    `json:"ipv6"`
 	PID           int     `json:"pid,omitempty"`
 	Process       string  `json:"process,omitempty"`
+	User          string  `json:"user,omitempty"`
+	Scope         string  `json:"scope"`
 	CPUPercent    float64 `json:"cpu_percent"`
 	SystemdUnit   string  `json:"systemd_unit,omitempty"`
 	Container     string  `json:"container,omitempty"`
@@ -521,6 +523,8 @@ func toJSONRow(r app.Row) jsonRow {
 		IPv6:         r.IPv6,
 		PID:          r.PID,
 		Process:      r.ProcessName,
+		User:         r.Username,
+		Scope:        r.Scope(),
 		CPUPercent:   r.CPUPercent,
 		SystemdUnit:  r.SystemdUnit,
 		Container:    r.ContainerName,

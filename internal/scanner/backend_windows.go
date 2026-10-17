@@ -52,10 +52,50 @@ func Scan() ([]Connection, error) {
 	}
 
 	names := processNames()
+	accounts := map[int]string{}
 	for i := range out {
-		out[i].ProcessName = names[uint32(out[i].PID)]
+		pid := out[i].PID
+		out[i].ProcessName = names[uint32(pid)]
+		account, seen := accounts[pid]
+		if !seen {
+			account = processAccount(pid)
+			accounts[pid] = account
+		}
+		out[i].User = account
 	}
 	return out, nil
+}
+
+// processAccount returns the account a process runs as ("DOMAIN\user",
+// or a bare name for built-in accounts such as SYSTEM), or "" when the
+// process cannot be opened (elevated or protected, without elevation).
+func processAccount(pid int) string {
+	if pid <= 0 {
+		return ""
+	}
+	h, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, uint32(pid))
+	if err != nil {
+		return ""
+	}
+	defer windows.CloseHandle(h)
+	var token windows.Token
+	if err := windows.OpenProcessToken(h, windows.TOKEN_QUERY, &token); err != nil {
+		return ""
+	}
+	defer token.Close()
+	tu, err := token.GetTokenUser()
+	if err != nil {
+		return ""
+	}
+	account, domain, _, err := tu.User.Sid.LookupAccount("")
+	switch {
+	case err != nil:
+		return tu.User.Sid.String()
+	case domain == "" || domain == "NT AUTHORITY":
+		return account
+	default:
+		return domain + `\` + account
+	}
 }
 
 // extendedTable calls GetExtended{Tcp,Udp}Table, growing the buffer until

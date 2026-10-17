@@ -212,3 +212,10 @@ h3 { margin: 18px 0 10px; color: var(--cyan); font-size: .7rem; letter-spacing: 
 @media (max-width: 560px) { .top-actions { gap: 8px; } .topbar .brand small, #session-user { display: none; } .mode { font-size: 0; } .live-dot { flex: none; } .workspace { width: min(100% - 22px, 1500px); } .stats strong { font-size: 1.2rem; } .stats div { padding: 9px; } .tabs { overflow-x: auto; } .tab { white-space: nowrap; } .dialog-footer { align-items: stretch; flex-direction: column; } .dialog-footer > div { justify-content: flex-end; } .fields { grid-template-columns: 95px minmax(0, 1fr); } }
 @media (max-width: 800px) { .ghost-rows > div { grid-template-columns: 1fr 1.4fr .9fr; } .ghost-rows .bar:nth-child(n+4) { display: none; } }
 @media (prefers-reduced-motion: reduce) { .live-dot { box-shadow: none; } }
+
+/* Exposure of the bind address: who can reach the port. */
+.scope { display: inline-block; margin-left: 6px; padding: 1px 5px; border: 1px solid var(--state-border); border-radius: 4px; font-size: .6rem; font-weight: 600; letter-spacing: .02em; vertical-align: middle; }
+.scope.all { border-color: var(--danger-border); color: var(--danger-text); background: var(--danger-bg); }
+.scope.address { border-color: var(--warn); color: var(--warn); background: var(--warn-bg); }
+.scope.loopback { border-color: var(--listen-border); color: var(--listen-text); background: var(--listen-bg); }
+.state.unconn { border-color: var(--listen-border); color: var(--listen-text); background: var(--listen-bg); }

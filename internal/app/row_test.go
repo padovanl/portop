@@ -176,3 +176,27 @@ func TestRowMatchesEveryWord(t *testing.T) {
 		}
 	}
 }
+
+func TestScopeOf(t *testing.T) {
+	for addr, want := range map[string]string{
+		"0.0.0.0": ScopeAll, "::": ScopeAll,
+		"127.0.0.1": ScopeLoopback, "::1": ScopeLoopback,
+		"192.168.1.5": ScopeAddress, "fe80::1": ScopeAddress,
+	} {
+		if got := ScopeOf(net.ParseIP(addr)); got != want {
+			t.Errorf("ScopeOf(%s) = %s, want %s", addr, got, want)
+		}
+	}
+}
+
+// A socket with no owner at all (a Linux TIME_WAIT entry) must not be
+// attributed to root just because its uid field reads 0.
+func TestUsernameOfOwnerlessSocket(t *testing.T) {
+	c := NewCollector()
+	if got := c.username(scanner.Connection{State: scanner.StateTimeWait}); got != "" {
+		t.Fatalf("username = %q, want empty", got)
+	}
+	if got := c.username(scanner.Connection{User: `HOST\alice`}); got != `HOST\alice` {
+		t.Fatalf("username from the OS = %q", got)
+	}
+}

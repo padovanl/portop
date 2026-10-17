@@ -1,6 +1,10 @@
 package ui
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"github.com/charmbracelet/lipgloss"
+
+	"github.com/padovanl/portop/internal/app"
+)
 
 // Palette is the full set of colors a theme controls. Every field is an
 // AdaptiveColor pair (light/dark terminal background) except where noted.
@@ -396,4 +400,18 @@ func protoStyle(proto string) lipgloss.Style {
 		return styleProtoUDP
 	}
 	return styleProtoTCP
+}
+
+// ifaceStyle colors the IFACE column by exposure, so a listener reachable
+// from the network stands out without reading the address: green for
+// loopback, red for every interface, amber for one specific address.
+func ifaceStyle(r app.Row) lipgloss.Style {
+	switch r.Scope() {
+	case app.ScopeLoopback:
+		return styleOk
+	case app.ScopeAll:
+		return styleDanger
+	default:
+		return styleWarn
+	}
 }
