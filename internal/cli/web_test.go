@@ -193,3 +193,17 @@ func TestWebProcessActions(t *testing.T) {
 		t.Fatalf("terminate: %d: %s", response.Code, response.Body.String())
 	}
 }
+
+// A dashboard on --web-addr is reachable before sign-in: every phase of a
+// connection must be bounded, or slow and idle clients pin descriptors.
+func TestWebServerBoundsConnections(t *testing.T) {
+	s := newWebServer(http.NotFoundHandler())
+	if s.ReadHeaderTimeout <= 0 || s.ReadTimeout <= 0 || s.WriteTimeout <= 0 || s.IdleTimeout <= 0 || s.MaxHeaderBytes <= 0 {
+		t.Fatalf("unbounded server: header %v, read %v, write %v, idle %v, max header %d",
+			s.ReadHeaderTimeout, s.ReadTimeout, s.WriteTimeout, s.IdleTimeout, s.MaxHeaderBytes)
+	}
+	// /api/ports may scan for up to 10 s before it writes anything.
+	if s.WriteTimeout <= 10*time.Second {
+		t.Fatalf("WriteTimeout %v would cut off a full port scan", s.WriteTimeout)
+	}
+}
