@@ -35,6 +35,13 @@ type Row struct {
 	FirstSeen     bool // true if this socket was absent from the previous scan
 }
 
+// Listening reports whether the socket accepts new traffic: a TCP socket
+// in LISTEN, or a bound UDP socket that has not connected to a peer (UDP
+// has no LISTEN state; ss -l lists these as UNCONN).
+func (r Row) Listening() bool {
+	return r.State == scanner.StateListen || (r.Protocol == scanner.UDP && r.State == scanner.StateUnconn)
+}
+
 // Matches reports whether a row contains the search text used by the TUI,
 // JSON output, and web dashboard.
 func (r Row) Matches(query string) bool {

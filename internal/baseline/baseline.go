@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/padovanl/portop/internal/app"
-	"github.com/padovanl/portop/internal/scanner"
 )
 
 // Entry is one listening socket as recorded in a baseline snapshot.
@@ -31,13 +30,13 @@ type file struct {
 	Entries []Entry   `json:"entries"`
 }
 
-// FromRows extracts the baseline-relevant fields (LISTEN sockets only —
-// baselines are about which services are supposed to be running, not
-// ephemeral connections) from a Collector snapshot.
+// FromRows extracts the baseline-relevant fields (listening TCP and UDP
+// sockets only — baselines are about which services are supposed to be
+// running, not ephemeral connections) from a Collector snapshot.
 func FromRows(rows []app.Row) []Entry {
 	var entries []Entry
 	for _, r := range rows {
-		if r.State != scanner.StateListen {
+		if !r.Listening() {
 			continue
 		}
 		entries = append(entries, Entry{

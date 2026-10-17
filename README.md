@@ -336,7 +336,7 @@ go install github.com/padovanl/portop/cmd/portop@latest
 portop                 # launch the TUI (LISTEN + ESTABLISHED)
 portop 8080             # launch the TUI pre-filtered on port 8080
 portop redis            # launch the TUI pre-filtered on a process name
-portop --listen          # show only listening (LISTEN) sockets
+portop --listen          # show only listening sockets (TCP LISTEN, bound UDP)
 portop --json            # print one JSON snapshot and exit
 portop --watch-new       # desktop-notify when a new port starts listening
 

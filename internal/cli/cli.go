@@ -20,7 +20,6 @@ import (
 	"github.com/padovanl/portop/internal/compose"
 	"github.com/padovanl/portop/internal/config"
 	"github.com/padovanl/portop/internal/procinfo"
-	"github.com/padovanl/portop/internal/scanner"
 	"github.com/padovanl/portop/internal/terminaltext"
 	"github.com/padovanl/portop/internal/ui"
 )
@@ -33,7 +32,7 @@ const usage = `portop — what's really using your ports?
 Usage:
   portop                 launch the TUI (shows LISTEN + ESTABLISHED)
   portop <port|name>     launch the TUI pre-filtered on a port or process
-  portop --listen         show only listening (LISTEN) sockets
+  portop --listen         show only listening sockets (TCP LISTEN, bound UDP)
   portop --json           print a JSON snapshot and exit
   portop --save-baseline  remember which ports are currently listening
   portop --diff           compare live ports against the saved baseline
@@ -66,7 +65,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		fs.PrintDefaults()
 	}
 
-	listenOnly := fs.Bool("listen", false, "show only sockets in LISTEN state")
+	listenOnly := fs.Bool("listen", false, "show only listening sockets (TCP LISTEN and bound UDP)")
 	jsonMode := fs.Bool("json", false, "print a JSON snapshot and exit (non-interactive)")
 	webMode := fs.Bool("web", false, "serve a local web dashboard")
 	webPort := fs.Int("web-port", 8088, "web dashboard port (loopback only)")
@@ -79,7 +78,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	noDNS := fs.Bool("no-dns", false, "disable reverse DNS lookups on ESTABLISHED connections")
 	noSystemd := fs.Bool("no-systemd", false, "disable systemd unit association")
 	noDocker := fs.Bool("no-docker", false, "disable Docker container association")
-	watchNew := fs.Bool("watch-new", false, "send a desktop notification when a new LISTEN port appears")
+	watchNew := fs.Bool("watch-new", false, "send a desktop notification when a new listening port appears")
 	interval := fs.Duration("interval", 2*time.Second, "TUI refresh interval")
 	showVersion := fs.Bool("version", false, "print the version and exit")
 	saveBaseline := fs.Bool("save-baseline", false, "record which ports are currently listening")
@@ -295,7 +294,7 @@ func runJSON(stdout, stderr io.Writer, filter string, listenOnly bool, opts app.
 
 	out := make([]jsonRow, 0, len(rows))
 	for _, r := range rows {
-		if listenOnly && r.State != scanner.StateListen {
+		if listenOnly && !r.Listening() {
 			continue
 		}
 		if !r.Matches(filter) {
@@ -338,7 +337,7 @@ var (
 	styleDiffRemoved = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#6B7280", Dark: "#8A93A6"})
 )
 
-// runDiffBaseline compares the live LISTEN ports against a previously
+// runDiffBaseline compares the live listening ports against a previously
 // saved baseline and reports what changed. It exits 3 if anything
 // changed (added or removed), so it composes with cron/systemd timers
 // and `&&`/`||` shell chains without extra parsing.

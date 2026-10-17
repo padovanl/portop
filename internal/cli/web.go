@@ -20,7 +20,6 @@ import (
 
 	"github.com/padovanl/portop/internal/app"
 	"github.com/padovanl/portop/internal/procinfo"
-	"github.com/padovanl/portop/internal/scanner"
 )
 
 //go:embed web/index.html
@@ -86,7 +85,7 @@ func webHandler(collect func(context.Context, app.Options) ([]app.Row, error), c
 		}
 		out := make([]jsonRow, 0, len(rows))
 		for _, row := range rows {
-			if cfg.ListenOnly && row.State != scanner.StateListen {
+			if cfg.ListenOnly && !row.Listening() {
 				continue
 			}
 			if !row.Matches(cfg.Filter) {
