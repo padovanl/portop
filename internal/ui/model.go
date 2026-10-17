@@ -62,6 +62,7 @@ const (
 	sortBySystemd
 	sortByIface
 	sortByUser
+	sortByTraffic
 	sortModeCount
 )
 
@@ -87,6 +88,8 @@ func (s sortMode) String() string {
 		return "exposure"
 	case sortByUser:
 		return "user"
+	case sortByTraffic:
+		return "traffic"
 	default:
 		return "port"
 	}
@@ -101,6 +104,7 @@ type Config struct {
 	ResolveSystemd  bool
 	ResolveDocker   bool
 	ResolveFirewall bool
+	ResolveTraffic  bool
 	NotifyOnNewPort bool
 
 	// ConfigPath is where the settings screen (",") persists live theme
@@ -262,6 +266,7 @@ func (m Model) collectCmd() tea.Cmd {
 		ResolveDocker:   m.cfg.ResolveDocker,
 		ResolveDNS:      m.cfg.ResolveDNS,
 		ResolveFirewall: m.cfg.ResolveFirewall,
+		ResolveTraffic:  m.cfg.ResolveTraffic,
 	}
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

@@ -86,6 +86,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	noSystemd := fs.Bool("no-systemd", false, "disable systemd unit association")
 	noDocker := fs.Bool("no-docker", false, "disable Docker container association")
 	noFirewall := fs.Bool("no-firewall", false, "do not read the host firewall for exposed ports")
+	noTraffic := fs.Bool("no-traffic", false, "do not read per-connection traffic")
 	watchNew := fs.Bool("watch-new", false, "send a desktop notification when a new listening port appears")
 	interval := fs.Duration("interval", 2*time.Second, "TUI refresh interval")
 	showVersion := fs.Bool("version", false, "print the version and exit")
@@ -177,6 +178,9 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	if !explicit["no-firewall"] && fileCfg.ResolveFirewall != nil && !*fileCfg.ResolveFirewall {
 		*noFirewall = true
 	}
+	if !explicit["no-traffic"] && fileCfg.ResolveTraffic != nil && !*fileCfg.ResolveTraffic {
+		*noTraffic = true
+	}
 	if !explicit["watch-new"] && fileCfg.WatchNew != nil {
 		*watchNew = *fileCfg.WatchNew
 	}
@@ -256,6 +260,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		ResolveDocker:   !*noDocker,
 		ResolveDNS:      !*noDNS,
 		ResolveFirewall: !*noFirewall,
+		ResolveTraffic:  !*noTraffic,
 	}
 
 	blPath := *baselinePath
@@ -297,6 +302,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		ResolveSystemd:  opts.ResolveSystemd,
 		ResolveDocker:   opts.ResolveDocker,
 		ResolveFirewall: opts.ResolveFirewall,
+		ResolveTraffic:  opts.ResolveTraffic,
 		NotifyOnNewPort: *watchNew,
 		ConfigPath:      cfgPath,
 		Theme:           themeName,
@@ -527,23 +533,27 @@ func orEmpty(e []baseline.Entry) []baseline.Entry {
 }
 
 type jsonRow struct {
-	Protocol      string  `json:"protocol"`
-	LocalAddress  string  `json:"local_address"`
-	LocalPort     uint16  `json:"local_port"`
-	RemoteAddress string  `json:"remote_address,omitempty"`
-	RemotePort    uint16  `json:"remote_port,omitempty"`
-	RemoteHost    string  `json:"remote_host,omitempty"`
-	State         string  `json:"state"`
-	IPv6          bool    `json:"ipv6"`
-	PID           int     `json:"pid,omitempty"`
-	Process       string  `json:"process,omitempty"`
-	User          string  `json:"user,omitempty"`
-	Workers       []int   `json:"workers,omitempty"`
-	Firewall      string  `json:"firewall,omitempty"`
-	Scope         string  `json:"scope"`
-	CPUPercent    float64 `json:"cpu_percent"`
-	SystemdUnit   string  `json:"systemd_unit,omitempty"`
-	Container     string  `json:"container,omitempty"`
+	Protocol      string   `json:"protocol"`
+	LocalAddress  string   `json:"local_address"`
+	LocalPort     uint16   `json:"local_port"`
+	RemoteAddress string   `json:"remote_address,omitempty"`
+	RemotePort    uint16   `json:"remote_port,omitempty"`
+	RemoteHost    string   `json:"remote_host,omitempty"`
+	State         string   `json:"state"`
+	IPv6          bool     `json:"ipv6"`
+	PID           int      `json:"pid,omitempty"`
+	Process       string   `json:"process,omitempty"`
+	User          string   `json:"user,omitempty"`
+	Workers       []int    `json:"workers,omitempty"`
+	Firewall      string   `json:"firewall,omitempty"`
+	RXBytes       *uint64  `json:"rx_bytes,omitempty"`
+	TXBytes       *uint64  `json:"tx_bytes,omitempty"`
+	RXRate        *float64 `json:"rx_bytes_per_second,omitempty"`
+	TXRate        *float64 `json:"tx_bytes_per_second,omitempty"`
+	Scope         string   `json:"scope"`
+	CPUPercent    float64  `json:"cpu_percent"`
+	SystemdUnit   string   `json:"systemd_unit,omitempty"`
+	Container     string   `json:"container,omitempty"`
 }
 
 func toJSONRow(r app.Row) jsonRow {
@@ -562,6 +572,12 @@ func toJSONRow(r app.Row) jsonRow {
 		CPUPercent:   r.CPUPercent,
 		SystemdUnit:  r.SystemdUnit,
 		Container:    r.ContainerName,
+	}
+	if r.TrafficKnown {
+		jr.RXBytes, jr.TXBytes = &r.RXBytes, &r.TXBytes
+	}
+	if r.RateKnown {
+		jr.RXRate, jr.TXRate = &r.RXRate, &r.TXRate
 	}
 	if r.RemotePort != 0 {
 		jr.RemoteAddress = r.RemoteAddr.String()

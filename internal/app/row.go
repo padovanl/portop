@@ -17,27 +17,35 @@ import (
 	"github.com/padovanl/portop/internal/firewall"
 	"github.com/padovanl/portop/internal/scanner"
 	"github.com/padovanl/portop/internal/systemdinfo"
+	"github.com/padovanl/portop/internal/traffic"
 )
 
 // Row is a single, fully enriched table row.
 type Row struct {
-	Protocol      scanner.Protocol
-	LocalAddr     net.IP
-	LocalPort     uint16
-	RemoteAddr    net.IP
-	RemotePort    uint16
-	RemoteHost    string // reverse DNS, empty until resolved
-	State         scanner.State
-	IPv6          bool
-	PID           int
-	ProcessName   string
-	Username      string // owner of the socket; empty if unknown
-	Workers       []int  // other processes holding the same socket (a server's workers)
-	Firewall      string // the host firewall's verdict for an exposed listener; "" if unknown or loopback
-	CPUPercent    float64
-	SystemdUnit   string
-	ContainerName string
-	FirstSeen     bool // true if this socket was absent from the previous scan
+	Protocol    scanner.Protocol
+	LocalAddr   net.IP
+	LocalPort   uint16
+	RemoteAddr  net.IP
+	RemotePort  uint16
+	RemoteHost  string // reverse DNS, empty until resolved
+	State       scanner.State
+	IPv6        bool
+	PID         int
+	ProcessName string
+	Username    string // owner of the socket; empty if unknown
+	Workers     []int  // other processes holding the same socket (a server's workers)
+	Firewall    string // the host firewall's verdict for an exposed listener; "" if unknown or loopback
+	// Traffic of an established TCP connection where the platform reports
+	// it: lifetime totals, and bytes per second since the previous scan
+	// (RateKnown is false on the first scan that sees the connection).
+	RXBytes, TXBytes uint64
+	RXRate, TXRate   float64
+	TrafficKnown     bool
+	RateKnown        bool
+	CPUPercent       float64
+	SystemdUnit      string
+	ContainerName    string
+	FirstSeen        bool // true if this socket was absent from the previous scan
 }
 
 // Exposure says who can reach a socket's local address.
@@ -125,6 +133,9 @@ type Collector struct {
 	seen  map[Key]bool // sockets observed in any previous Collect call
 	init  bool         // false until the first Collect call completes
 	users map[uint32]string
+
+	traffic   map[traffic.Key]traffic.Counter // counters of the previous scan
+	trafficAt time.Time
 }
 
 // NewCollector wires up a Collector with real system backends.
@@ -136,6 +147,31 @@ func NewCollector() *Collector {
 		seen:   make(map[Key]bool),
 		users:  make(map[uint32]string),
 	}
+}
+
+// applyTraffic fills the counters of established TCP rows and, against
+// the previous scan, their rates. A counter that went down belongs to a
+// new connection reusing the same endpoints.
+func (c *Collector) applyTraffic(rows []Row, now map[traffic.Key]traffic.Counter, at time.Time) {
+	elapsed := at.Sub(c.trafficAt).Seconds()
+	for i := range rows {
+		r := &rows[i]
+		if r.Protocol != scanner.TCP || r.State != scanner.StateEstablished {
+			continue
+		}
+		k := traffic.KeyFor(r.LocalAddr, r.LocalPort, r.RemoteAddr, r.RemotePort)
+		cur, ok := now[k]
+		if !ok {
+			continue
+		}
+		r.RXBytes, r.TXBytes, r.TrafficKnown = cur.RX, cur.TX, true
+		if prev, seen := c.traffic[k]; seen && elapsed > 0 && cur.RX >= prev.RX && cur.TX >= prev.TX {
+			r.RXRate = float64(cur.RX-prev.RX) / elapsed
+			r.TXRate = float64(cur.TX-prev.TX) / elapsed
+			r.RateKnown = true
+		}
+	}
+	c.traffic, c.trafficAt = now, at
 }
 
 // applyFirewall records the firewall's verdict on every listener the
@@ -204,6 +240,7 @@ type Options struct {
 	ResolveDocker   bool
 	ResolveDNS      bool
 	ResolveFirewall bool
+	ResolveTraffic  bool
 }
 
 // Collect scans current sockets, resolves owning processes, and enriches
@@ -268,6 +305,9 @@ func (c *Collector) Collect(ctx context.Context, opts Options) ([]Row, error) {
 
 	if opts.ResolveFirewall {
 		applyFirewall(rows, firewall.Current())
+	}
+	if opts.ResolveTraffic {
+		c.applyTraffic(rows, traffic.Sample(), time.Now())
 	}
 
 	if opts.ResolveDocker && portBasedContainers && c.docker.Available() {

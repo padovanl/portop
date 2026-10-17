@@ -21,6 +21,7 @@ type Config struct {
 	ResolveSystemd  *bool               `yaml:"resolve_systemd,omitempty"`
 	ResolveDocker   *bool               `yaml:"resolve_docker,omitempty"`
 	ResolveFirewall *bool               `yaml:"resolve_firewall,omitempty"`
+	ResolveTraffic  *bool               `yaml:"resolve_traffic,omitempty"`
 	WatchNew        *bool               `yaml:"watch_new,omitempty"`
 	Theme           string              `yaml:"theme,omitempty"`
 	Keybindings     map[string][]string `yaml:"keybindings,omitempty"`
@@ -81,6 +82,7 @@ const defaultConfigTemplate = `# portop config.yml
 # resolve_systemd: true     # associate the owning systemd unit
 # resolve_docker: true      # associate the owning Docker container
 # resolve_firewall: true    # read the host firewall for exposed ports
+# resolve_traffic: true     # per-connection throughput (Linux, macOS)
 # watch_new: false          # desktop notification on a new LISTEN port
 
 # Color theme: default | dracula | nord | solarized | gruvbox | catppuccin

@@ -90,6 +90,7 @@
             subline(local, row.local_address + " · " + row.protocol + (row.ipv6 ? "6" : "4"));
             const remote = cell(tr, endpoint(row.remote_address, row.remote_port), row.remote_port ? "" : "muted");
             if (row.remote_host) subline(remote, row.remote_host);
+            if (row.rx_bytes_per_second !== undefined) subline(remote, "↓ " + rate(row.rx_bytes_per_second) + "  ↑ " + rate(row.tx_bytes_per_second));
             const stateCell = cell(tr, "");
             const badge = document.createElement("span");
             badge.className = "state " + row.state.toLowerCase();
@@ -117,6 +118,14 @@
         byId("visible-count").textContent = matches.length;
         byId("empty").hidden = matches.length !== 0;
     }
+
+    function size(bytes) {
+        const units = ["B", "KB", "MB", "GB", "TB"];
+        let value = bytes, unit = 0;
+        while (value >= 1000 && unit < units.length - 1) { value /= 1000; unit++; }
+        return (unit ? value.toFixed(value < 10 ? 1 : 0) : String(Math.round(value))) + " " + units[unit];
+    }
+    const rate = bytesPerSecond => size(bytesPerSecond) + "/s";
 
     const scopeLabels = { all: "all interfaces", address: "one address", loopback: "loopback" };
 
@@ -149,6 +158,9 @@
         field(fields, "Protocol", row.protocol + (row.ipv6 ? " · IPv6" : " · IPv4"));
         field(fields, "State", row.state);
         field(fields, "Exposure", scopeLabels[row.scope] || row.scope);
+        field(fields, "Traffic", row.rx_bytes === undefined ? "" :
+            `↓ ${size(row.rx_bytes)}  ↑ ${size(row.tx_bytes)}` +
+            (row.rx_bytes_per_second === undefined ? "" : `  (now ↓ ${rate(row.rx_bytes_per_second)} ↑ ${rate(row.tx_bytes_per_second)})`));
         field(fields, "Firewall", row.firewall ? firewallLabels[row.firewall] || row.firewall : "");
         field(fields, "Process", row.process);
         field(fields, "User", row.user);

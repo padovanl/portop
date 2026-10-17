@@ -6,10 +6,12 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/padovanl/portop/internal/docker"
 	"github.com/padovanl/portop/internal/firewall"
 	"github.com/padovanl/portop/internal/scanner"
+	"github.com/padovanl/portop/internal/traffic"
 )
 
 // TestCollectFindsRealListener opens a real TCP listener on the current
@@ -242,5 +244,32 @@ func TestApplyFirewall(t *testing.T) {
 	applyFirewall(rows, fakePolicy{80: firewall.Blocked, 81: firewall.Allowed, 82: firewall.Allowed})
 	if rows[0].Firewall != "blocked" || rows[1].Firewall != "" || rows[2].Firewall != "" {
 		t.Fatalf("verdicts = %q %q %q", rows[0].Firewall, rows[1].Firewall, rows[2].Firewall)
+	}
+}
+
+func TestApplyTraffic(t *testing.T) {
+	conn := Row{Protocol: scanner.TCP, LocalAddr: net.ParseIP("10.0.0.2"), LocalPort: 51000,
+		RemoteAddr: net.ParseIP("1.2.3.4"), RemotePort: 443, State: scanner.StateEstablished}
+	k := traffic.KeyFor(conn.LocalAddr, conn.LocalPort, conn.RemoteAddr, conn.RemotePort)
+	c := NewCollector()
+	t0 := time.Unix(1700000000, 0)
+
+	rows := []Row{conn}
+	c.applyTraffic(rows, map[traffic.Key]traffic.Counter{k: {RX: 1000, TX: 100}}, t0)
+	if !rows[0].TrafficKnown || rows[0].RateKnown || rows[0].RXBytes != 1000 {
+		t.Fatalf("first scan: %+v", rows[0])
+	}
+
+	rows = []Row{conn}
+	c.applyTraffic(rows, map[traffic.Key]traffic.Counter{k: {RX: 5000, TX: 300}}, t0.Add(2*time.Second))
+	if !rows[0].RateKnown || rows[0].RXRate != 2000 || rows[0].TXRate != 100 {
+		t.Fatalf("second scan: %+v", rows[0])
+	}
+
+	// The same endpoints reused by a new connection: counters restart.
+	rows = []Row{conn}
+	c.applyTraffic(rows, map[traffic.Key]traffic.Counter{k: {RX: 10, TX: 10}}, t0.Add(4*time.Second))
+	if rows[0].RateKnown {
+		t.Fatalf("rate across a reused connection: %+v", rows[0])
 	}
 }

@@ -13,7 +13,7 @@ import (
 	"github.com/padovanl/portop/internal/terminaltext"
 )
 
-func defaultSortDescending(mode sortMode) bool { return mode == sortByCPU }
+func defaultSortDescending(mode sortMode) bool { return mode == sortByCPU || mode == sortByTraffic }
 
 func sortRowsDirection(rows []app.Row, mode sortMode, descending bool) {
 	sort.SliceStable(rows, func(i, j int) bool {
@@ -40,6 +40,8 @@ func sortRowsDirection(rows []app.Row, mode sortMode, descending bool) {
 			cmp = compareInt(exposureRank(rows[i]), exposureRank(rows[j]))
 		case sortByUser:
 			cmp = strings.Compare(strings.ToLower(rows[i].Username), strings.ToLower(rows[j].Username))
+		case sortByTraffic:
+			cmp = compareFloat(rows[i].RXRate+rows[i].TXRate, rows[j].RXRate+rows[j].TXRate)
 		default: // sortByPort
 			cmp = compareInt(int(rows[i].LocalPort), int(rows[j].LocalPort))
 		}
@@ -54,6 +56,24 @@ func sortRowsDirection(rows []app.Row, mode sortMode, descending bool) {
 		}
 		return cmp < 0
 	})
+}
+
+// formatRate shortens bytes per second: 512, 1.2K, 34M, 1.1G.
+func formatRate(bps float64) string {
+	switch {
+	case bps < 1000:
+		return strconv.Itoa(int(bps + 0.5))
+	case bps < 10_000:
+		return strconv.FormatFloat(bps/1000, 'f', 1, 64) + "K"
+	case bps < 1_000_000:
+		return strconv.Itoa(int(bps/1000+0.5)) + "K"
+	case bps < 10_000_000:
+		return strconv.FormatFloat(bps/1_000_000, 'f', 1, 64) + "M"
+	case bps < 1_000_000_000:
+		return strconv.Itoa(int(bps/1_000_000+0.5)) + "M"
+	default:
+		return strconv.FormatFloat(bps/1_000_000_000, 'f', 1, 64) + "G"
+	}
 }
 
 func exposureRank(r app.Row) int {
@@ -109,7 +129,7 @@ func columnsFor(showEstablished bool, width int) []column {
 	}
 	optional := []column{{"IFACE", 16}, {"FIREWALL", 11}, {"USER", 12}, {"CONTAINER", 16}, {"SYSTEMD", 16}}
 	if showEstablished {
-		optional = append([]column{{"REMOTE", 30}}, optional...)
+		optional = append([]column{{"REMOTE", 30}, {"TRAFFIC", 15}}, optional...)
 	}
 
 	budget := innerWidth(width) - markerWidth
@@ -254,6 +274,8 @@ func sortModeForColumn(title string) (sortMode, bool) {
 		return sortByContainer, true
 	case "IFACE":
 		return sortByIface, true
+	case "TRAFFIC":
+		return sortByTraffic, true
 	case "USER":
 		return sortByUser, true
 	case "SYSTEMD":
@@ -307,6 +329,11 @@ func cellValue(r app.Row, colTitle string) string {
 			return "-"
 		}
 		return r.Username
+	case "TRAFFIC":
+		if !r.RateKnown {
+			return "-"
+		}
+		return "↓" + formatRate(r.RXRate) + " ↑" + formatRate(r.TXRate)
 	case "FIREWALL":
 		switch {
 		case r.Firewall != "":

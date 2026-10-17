@@ -74,3 +74,18 @@ func TestFirewallCell(t *testing.T) {
 		t.Errorf("loopback = %q, want -", got)
 	}
 }
+
+func TestTrafficCell(t *testing.T) {
+	if got := cellValue(app.Row{}, "TRAFFIC"); got != "-" {
+		t.Errorf("no traffic = %q", got)
+	}
+	row := app.Row{RateKnown: true, RXRate: 1234, TXRate: 87}
+	if got := cellValue(row, "TRAFFIC"); got != "↓1.2K ↑87" {
+		t.Errorf("TRAFFIC = %q", got)
+	}
+	for bps, want := range map[float64]string{0: "0", 999: "999", 12_500: "13K", 2_500_000: "2.5M", 340_000_000: "340M", 3e9: "3.0G"} {
+		if got := formatRate(bps); got != want {
+			t.Errorf("formatRate(%v) = %q, want %q", bps, got, want)
+		}
+	}
+}
