@@ -156,3 +156,23 @@ func TestFreeReportsWhatItCannotDo(t *testing.T) {
 		t.Fatalf("changed process: exit %d, want 1", code)
 	}
 }
+
+// SIGKILL to a master leaves its workers listening, so --force reaches
+// every process holding the socket; SIGTERM goes to the master only.
+func TestFreeForceReachesWorkers(t *testing.T) {
+	master := listener(8080, 41, "nginx")
+	master.Workers = []int{43, 42}
+	f := &fakeEnv{scans: [][]app.Row{{master}, nil}}
+	var out, errOut bytes.Buffer
+	if code := runFree(&out, &errOut, "8080", true, true, time.Second, f.env("", false)); code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, errOut.String())
+	}
+	if strings.Join(f.signals, ",") != "KILL 41,KILL 42,KILL 43" {
+		t.Fatalf("signals = %v", f.signals)
+	}
+
+	f = &fakeEnv{scans: [][]app.Row{{master}, nil}}
+	if code := runFree(&out, &errOut, "8080", false, true, time.Second, f.env("", false)); code != 0 || strings.Join(f.signals, ",") != "TERM 41" {
+		t.Fatalf("exit %d, signals %v, want SIGTERM to the master only", code, f.signals)
+	}
+}

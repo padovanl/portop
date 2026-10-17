@@ -31,6 +31,7 @@ type Row struct {
 	PID           int
 	ProcessName   string
 	Username      string // owner of the socket; empty if unknown
+	Workers       []int  // other processes holding the same socket (a server's workers)
 	CPUPercent    float64
 	SystemdUnit   string
 	ContainerName string
@@ -135,6 +136,17 @@ func NewCollector() *Collector {
 	}
 }
 
+// workers lists the holders of conn's socket other than its main process.
+func workers(conn scanner.Connection) []int {
+	var out []int
+	for _, pid := range conn.Owners {
+		if pid != conn.PID {
+			out = append(out, pid)
+		}
+	}
+	return out
+}
+
 // username names a socket's owner. Windows reports the account with the
 // socket; Linux and macOS report a uid, resolved once per uid.
 func (c *Collector) username(conn scanner.Connection) string {
@@ -196,6 +208,7 @@ func (c *Collector) Collect(ctx context.Context, opts Options) ([]Row, error) {
 			PID:         conn.PID,
 			ProcessName: conn.ProcessName,
 			Username:    c.username(conn),
+			Workers:     workers(conn),
 			FirstSeen:   c.init && !c.seen[k],
 		}
 

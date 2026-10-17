@@ -3,6 +3,7 @@ package scanner
 import (
 	"fmt"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -148,4 +149,75 @@ func parseCPUTime(value string) (uint64, error) {
 		clock = clock*60 + n
 	}
 	return uint64((seconds + clock) * clockTicksPerSec), nil
+}
+
+// mergeShared folds the rows lsof prints once per process for a socket
+// several processes hold (a server master and its workers) into one row
+// per socket, owned by the main process. parents maps each PID to its
+// parent for the PIDs given.
+func mergeShared(conns []Connection, parents func(pids []int) map[int]int) []Connection {
+	type socketKey struct {
+		proto         Protocol
+		ipv6          bool
+		local, remote string
+		state         State
+	}
+	keyOf := func(c Connection) socketKey {
+		return socketKey{c.Protocol, c.IPv6,
+			net.JoinHostPort(c.LocalAddr.String(), strconv.Itoa(int(c.LocalPort))),
+			net.JoinHostPort(c.RemoteAddr.String(), strconv.Itoa(int(c.RemotePort))), c.State}
+	}
+	index := map[socketKey]int{}
+	owners := map[int][]int{}
+	names := map[int]string{}
+	uids := map[int]uint32{}
+	var out []Connection
+	for _, c := range conns {
+		names[c.PID] = c.ProcessName
+		uids[c.PID] = c.UID
+		k := keyOf(c)
+		if i, ok := index[k]; ok {
+			if !slices.Contains(owners[i], c.PID) {
+				owners[i] = append(owners[i], c.PID)
+			}
+			continue
+		}
+		index[k] = len(out)
+		owners[len(out)] = []int{c.PID}
+		out = append(out, c)
+	}
+	var shared []int
+	for _, pids := range owners {
+		if len(pids) > 1 {
+			shared = append(shared, pids...)
+		}
+	}
+	if len(shared) == 0 {
+		return out
+	}
+	parentOf := parents(shared)
+	for i, pids := range owners {
+		if len(pids) > 1 {
+			out[i].setOwners(pids, func(pid int) int { return parentOf[pid] }, func(pid int) string { return names[pid] })
+			out[i].UID = uids[out[i].PID]
+		}
+	}
+	return out
+}
+
+// parsePSParents reads `ps -o pid=,ppid=` output.
+func parsePSParents(out []byte) map[int]int {
+	parents := map[int]int{}
+	for _, line := range strings.Split(string(out), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) != 2 {
+			continue
+		}
+		pid, err1 := strconv.Atoi(fields[0])
+		ppid, err2 := strconv.Atoi(fields[1])
+		if err1 == nil && err2 == nil {
+			parents[pid] = ppid
+		}
+	}
+	return parents
 }

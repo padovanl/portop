@@ -168,16 +168,26 @@ func runFree(stdout, stderr io.Writer, arg string, force, yes bool, timeout time
 			fmt.Fprintf(stderr, "portop: %s is held by a process portop cannot see; try again with %s\n", spec, elevateHint())
 			return 1
 		}
-		if seen[r.PID] {
-			continue
+		// SIGTERM to a server's master stops its workers too; SIGKILL
+		// does not, so --force signals every process holding the socket.
+		pids := []int{r.PID}
+		if force {
+			pids = append(pids, r.Workers...)
 		}
-		seen[r.PID] = true
-		start, err := env.startTime(r.PID)
-		if err != nil {
-			fmt.Fprintf(stderr, "portop: cannot verify PID %d: %v\n", r.PID, err)
-			return 1
+		for _, pid := range pids {
+			if seen[pid] {
+				continue
+			}
+			seen[pid] = true
+			start, err := env.startTime(pid)
+			if err != nil {
+				fmt.Fprintf(stderr, "portop: cannot verify PID %d: %v\n", pid, err)
+				return 1
+			}
+			owner := r
+			owner.PID = pid
+			targets = append(targets, target{owner, start})
 		}
-		targets = append(targets, target{r, start})
 	}
 	sort.Slice(targets, func(i, j int) bool { return targets[i].row.PID < targets[j].row.PID })
 

@@ -88,7 +88,8 @@
             badge.textContent = row.state;
             stateCell.append(badge);
             const process = cell(tr, row.process || "Unknown", row.process ? "primary" : "muted");
-            if (row.pid) subline(process, "PID " + row.pid + (row.user ? " · " + row.user : ""));
+            const workers = row.workers ? row.workers.length : 0;
+            if (row.pid) subline(process, "PID " + row.pid + (workers ? ` · +${workers} worker${workers > 1 ? "s" : ""}` : "") + (row.user ? " · " + row.user : ""));
             else if (row.user) subline(process, row.user);
             cell(tr, row.pid ? row.cpu_percent.toFixed(1) + "%" : "—", row.pid ? "" : "muted");
             const owner = cell(tr, row.systemd_unit || row.container || "—", row.systemd_unit || row.container ? "" : "muted");
@@ -133,6 +134,7 @@
         field(fields, "Exposure", scopeLabels[row.scope] || row.scope);
         field(fields, "Process", row.process);
         field(fields, "User", row.user);
+        field(fields, "Workers", row.workers && row.workers.length ? row.workers.join(", ") : "");
         field(fields, "PID", row.pid || "—");
         field(fields, "CPU", row.pid ? row.cpu_percent.toFixed(1) + "%" : "—");
         field(fields, "Systemd unit", row.systemd_unit);

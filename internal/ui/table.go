@@ -286,6 +286,10 @@ func cellValue(r app.Row, colTitle string) string {
 		if r.ProcessName == "" {
 			return "-"
 		}
+		if n := len(r.Workers); n > 0 {
+			// Keep the count visible when a long name is truncated.
+			return r.ProcessName + " +" + strconv.Itoa(n)
+		}
 		return r.ProcessName
 	case "PID":
 		if r.PID == 0 {

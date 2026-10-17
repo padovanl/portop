@@ -131,6 +131,9 @@ func (m Model) renderDetail() string {
 			fmt.Fprintf(&b, "%s %s\n", styleTag.Render(padTrunc(label, 11)), terminaltext.Sanitize(val))
 		}
 		field("PID:", strconv.Itoa(info.PID))
+		if len(row.Workers) > 0 {
+			field("Workers:", workerList(row.Workers))
+		}
 		field("User:", orDash(info.User))
 		field("Cmdline:", orDash(info.Cmdline))
 		field("Executable:", orDash(info.Exe))
@@ -164,8 +167,12 @@ func (m Model) renderDetail() string {
 func (m Model) renderConfirmKill() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s\n\n", styleDanger.Render("Kill this process?"))
-	fmt.Fprintf(&b, "%s (PID %s) listening on :%d\n\n",
+	fmt.Fprintf(&b, "%s (PID %s) listening on :%d\n",
 		terminaltext.Sanitize(m.killTarget.ProcessName), strconv.Itoa(m.killTarget.PID), m.killTarget.LocalPort)
+	if n := len(m.killTarget.Workers); n > 0 {
+		b.WriteString(styleMuted.Render(fmt.Sprintf("main process of %d worker(s) sharing the port; they usually exit with it", n)) + "\n")
+	}
+	b.WriteString("\n")
 	b.WriteString(styleKey.Render("y") + styleFaint.Render(" "+platformLabels.terminate+"   "))
 	b.WriteString(styleKey.Render("f") + styleFaint.Render(" "+platformLabels.force+"   "))
 	b.WriteString(styleKey.Render(keys.Escape.Keys()[0]) + styleFaint.Render(" cancel"))
@@ -292,6 +299,20 @@ func (m Model) renderSettings() string {
 // the detail view) or the full terminal width.
 func (m Model) modalWidth() int {
 	return min(max(m.width-12, 40), 88)
+}
+
+// workerList shows up to eight worker PIDs and how many more there are.
+func workerList(pids []int) string {
+	const shown = 8
+	parts := make([]string, 0, shown+1)
+	for i, pid := range pids {
+		if i == shown {
+			parts = append(parts, "+"+strconv.Itoa(len(pids)-shown)+" more")
+			break
+		}
+		parts = append(parts, strconv.Itoa(pid))
+	}
+	return strconv.Itoa(len(pids)) + " (" + strings.Join(parts, ", ") + ")"
 }
 
 func orDash(s string) string {

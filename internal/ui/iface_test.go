@@ -49,3 +49,13 @@ func TestSortByExposure(t *testing.T) {
 		t.Fatal("clicking the IFACE heading does not sort by exposure")
 	}
 }
+
+func TestProcessCellCountsWorkers(t *testing.T) {
+	row := app.Row{ProcessName: "nginx", Workers: []int{101, 102}}
+	if got := cellValue(row, "PROCESS"); got != "nginx +2" {
+		t.Fatalf("PROCESS = %q, want nginx +2", got)
+	}
+	if got := workerList([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}); got != "10 (1, 2, 3, 4, 5, 6, 7, 8, +2 more)" {
+		t.Fatalf("workerList = %q", got)
+	}
+}

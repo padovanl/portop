@@ -532,6 +532,7 @@ type jsonRow struct {
 	PID           int     `json:"pid,omitempty"`
 	Process       string  `json:"process,omitempty"`
 	User          string  `json:"user,omitempty"`
+	Workers       []int   `json:"workers,omitempty"`
 	Scope         string  `json:"scope"`
 	CPUPercent    float64 `json:"cpu_percent"`
 	SystemdUnit   string  `json:"systemd_unit,omitempty"`
@@ -548,6 +549,7 @@ func toJSONRow(r app.Row) jsonRow {
 		PID:          r.PID,
 		Process:      r.ProcessName,
 		User:         r.Username,
+		Workers:      r.Workers,
 		Scope:        r.Scope(),
 		CPUPercent:   r.CPUPercent,
 		SystemdUnit:  r.SystemdUnit,

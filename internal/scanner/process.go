@@ -28,6 +28,7 @@ func ResolveProcesses(conns []Connection) []Connection {
 	}
 
 	nameCache := make(map[int]string)
+	owners := make(map[int][]int) // conns index -> every PID holding it
 	for _, e := range entries {
 		pid, err := strconv.Atoi(e.Name())
 		if err != nil {
@@ -51,6 +52,10 @@ func ResolveProcesses(conns []Connection) []Connection {
 			if !tracked {
 				continue
 			}
+			if len(owners[idx]) > 0 && owners[idx][len(owners[idx])-1] == pid {
+				continue // the same process holds it through another fd
+			}
+			owners[idx] = append(owners[idx], pid)
 			conns[idx].PID = pid
 			name, ok := nameCache[pid]
 			if !ok {
@@ -60,7 +65,31 @@ func ResolveProcesses(conns []Connection) []Connection {
 			conns[idx].ProcessName = name
 		}
 	}
+	for idx, pids := range owners {
+		if len(pids) > 1 {
+			conns[idx].setOwners(pids, readParent, readComm)
+		}
+	}
 	return conns
+}
+
+// readParent returns pid's parent from /proc/<pid>/stat, or 0.
+func readParent(pid int) int {
+	data, err := os.ReadFile(ProcRoot + "/" + strconv.Itoa(pid) + "/stat")
+	if err != nil {
+		return 0
+	}
+	s := string(data)
+	end := strings.LastIndexByte(s, ')')
+	if end < 0 || end+2 >= len(s) {
+		return 0
+	}
+	fields := strings.Fields(s[end+2:]) // state, ppid, ...
+	if len(fields) < 2 {
+		return 0
+	}
+	ppid, _ := strconv.Atoi(fields[1])
+	return ppid
 }
 
 // parseSocketInode extracts the inode from a symlink target of the form
