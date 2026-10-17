@@ -46,19 +46,25 @@ func (r Row) Listening() bool {
 }
 
 // Matches reports whether a row contains the search text used by the TUI,
-// JSON output, and web dashboard.
+// JSON output, and web dashboard. Each whitespace-separated word must
+// match some field, so "nginx 443" finds nginx's rows on port 443.
 func (r Row) Matches(query string) bool {
-	query = strings.ToLower(strings.TrimSpace(query))
-	if query == "" {
-		return true
+	for _, term := range strings.Fields(strings.ToLower(query)) {
+		if !r.matchesTerm(term) {
+			return false
+		}
 	}
-	return strings.Contains(strconv.Itoa(int(r.LocalPort)), query) ||
-		strings.Contains(strconv.Itoa(r.PID), query) ||
-		strings.Contains(strings.ToLower(r.ProcessName), query) ||
-		strings.Contains(strings.ToLower(r.SystemdUnit), query) ||
-		strings.Contains(strings.ToLower(r.ContainerName), query) ||
-		strings.Contains(strings.ToLower(r.LocalAddr.String()), query) ||
-		(r.RemotePort != 0 && strings.Contains(strings.ToLower(r.RemoteAddr.String()), query))
+	return true
+}
+
+func (r Row) matchesTerm(term string) bool {
+	return strings.Contains(strconv.Itoa(int(r.LocalPort)), term) ||
+		strings.Contains(strconv.Itoa(r.PID), term) ||
+		strings.Contains(strings.ToLower(r.ProcessName), term) ||
+		strings.Contains(strings.ToLower(r.SystemdUnit), term) ||
+		strings.Contains(strings.ToLower(r.ContainerName), term) ||
+		strings.Contains(strings.ToLower(r.LocalAddr.String()), term) ||
+		(r.RemotePort != 0 && strings.Contains(strings.ToLower(r.RemoteAddr.String()), term))
 }
 
 // Key identifies a socket by protocol and endpoints across scans.

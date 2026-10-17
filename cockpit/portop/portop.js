@@ -65,13 +65,14 @@
     }
 
     function render() {
-        const query = filter.value.trim().toLowerCase();
+        // Every word must match some field: "nginx 443" narrows to both.
+        const terms = filter.value.toLowerCase().split(/\s+/).filter(Boolean);
         const matches = rows.filter(row =>
             (selectedState === "all" || (selectedState === "LISTEN" ? isListening(row) : row.state === selectedState)) &&
-            (!query || [row.local_port, row.local_address, row.remote_port, row.remote_address,
+            terms.every(term => [row.local_port, row.local_address, row.remote_port, row.remote_address,
                 row.remote_host, row.pid, row.process, row.protocol, row.state,
                 row.systemd_unit, row.container].some(value =>
-                String(value || "").toLowerCase().includes(query))));
+                String(value || "").toLowerCase().includes(term))));
         const fragment = document.createDocumentFragment();
 
         for (const row of matches) {

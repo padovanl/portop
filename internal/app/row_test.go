@@ -159,3 +159,20 @@ func TestRowListening(t *testing.T) {
 		}
 	}
 }
+
+// "portop 8080 nginx" or typing "nginx 443" narrows by every word.
+func TestRowMatchesEveryWord(t *testing.T) {
+	row := Row{Protocol: scanner.TCP, LocalAddr: net.ParseIP("0.0.0.0"), LocalPort: 443, PID: 812, ProcessName: "nginx"}
+	for query, want := range map[string]bool{
+		"":           true,
+		"nginx":      true,
+		"nginx 443":  true,
+		"443  NGINX": true,
+		"nginx 8080": false,
+		"postgres":   false,
+	} {
+		if got := row.Matches(query); got != want {
+			t.Errorf("Matches(%q) = %v, want %v", query, got, want)
+		}
+	}
+}
