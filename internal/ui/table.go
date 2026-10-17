@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/padovanl/portop/internal/app"
 	"github.com/padovanl/portop/internal/scanner"
 	"github.com/padovanl/portop/internal/services"
@@ -331,17 +333,19 @@ func remoteDisplay(r app.Row) string {
 	return host + ":" + strconv.Itoa(int(r.RemotePort))
 }
 
+// padTrunc fits s into exactly width terminal cells, keeping a one-cell
+// gap before the next column. Widths are counted in cells, not runes: a
+// CJK or emoji character takes two, and counting it as one pushed every
+// following column out of line.
 func padTrunc(s string, width int) string {
-	runes := []rune(s)
-	if len(runes) > width-1 {
+	if ansi.StringWidth(s) > width-1 {
 		if width-2 > 0 {
-			runes = append(runes[:width-2], '…')
+			s = ansi.Truncate(s, width-1, "…")
 		} else {
-			runes = runes[:width]
+			s = ansi.Truncate(s, width, "")
 		}
 	}
-	s = string(runes)
-	if pad := width - len([]rune(s)); pad > 0 {
+	if pad := width - ansi.StringWidth(s); pad > 0 {
 		s += strings.Repeat(" ", pad)
 	}
 	return s

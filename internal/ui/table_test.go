@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"github.com/charmbracelet/x/ansi"
 	"net"
 	"strings"
 	"testing"
@@ -136,5 +137,18 @@ func TestPadTrunc(t *testing.T) {
 	}
 	if got := padTrunc("abcdefgh", 5); len([]rune(got)) != 5 {
 		t.Errorf("padTrunc long len = %d, want 5 (got %q)", len([]rune(got)), got)
+	}
+}
+
+// Process and container names can hold double-width characters; every
+// cell must still take exactly its column's width on screen.
+func TestPadTruncCountsTerminalCells(t *testing.T) {
+	for _, s := range []string{"微信", "微信微信微信微信微信", "docker-🐳-proxy", "café", "plain"} {
+		for _, width := range []int{6, 11, 18} {
+			got := padTrunc(s, width)
+			if w := ansi.StringWidth(got); w != width {
+				t.Errorf("padTrunc(%q, %d) = %q, %d cells wide", s, width, got, w)
+			}
+		}
 	}
 }
