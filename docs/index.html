@@ -3,744 +3,543 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>portop</title>
+<title>portop: see which process owns every port</title>
 <meta name="description" content="portop is an htop-style terminal UI for TCP/UDP ports on Linux, macOS and Windows, with a web dashboard and a Cockpit add-on. Find the owning process, inspect it, or stop it.">
 <meta property="og:title" content="portop">
 <meta property="og:image" content="https://padovanl.github.io/portop/assets/logo.png">
-<meta property="og:description" content="An htop-style terminal UI for TCP/UDP ports — process, systemd unit or Windows service and Docker container in one dashboard, with baseline drift detection, themes and remappable keys.">
+<meta property="og:description" content="An htop-style terminal UI for TCP/UDP ports: the process, systemd unit or Windows service and Docker container behind each one, with baseline drift detection and a web dashboard.">
+<meta name="color-scheme" content="dark light">
 <link rel="icon" href="assets/logo.png">
 <style>
-  /* Colours come from the portop logo: night blue, its azure and its mint. */
+  /* Accent colours come from the portop logo. */
   :root {
-    --bg: #0b1020;
-    --surface: #121930;
-    --surface-2: #1a2340;
-    --text: #e2e9f8;
-    --muted: #94a3c4;
-    --dim: #5f6d8f;
+    --bg: #0c111d;
+    --bg-raised: #121a2b;
+    --bg-code: #0f1626;
+    --text: #e4e9f2;
+    --muted: #9aa5ba;
+    --faint: #6b7790;
+    --line: #232d42;
     --accent: #4cc2ff;
-    --accent-dim: #2f86c9;
-    --hairline: rgba(76, 194, 255, 0.18);
-    --hairline-soft: rgba(76, 194, 255, 0.09);
+    --accent-strong: #7fd4ff;
+    --on-accent: #06121f;
+    --green: #34d399;
 
-    --term-green: #34e3a4;
-    --term-blue: #6aa8ff;
-    --term-yellow: #ffb454;
-    --term-red: #ff6b6b;
-
-    --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", "Fira Code", Consolas, "Liberation Mono", Menlo, monospace;
-    --serif: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, "Liberation Serif", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #ffffff;
+      --bg-raised: #f5f7fa;
+      --bg-code: #f3f5f8;
+      --text: #141b2a;
+      --muted: #536077;
+      --faint: #7a8599;
+      --line: #e1e6ee;
+      --accent: #0a6db4;
+      --accent-strong: #08578f;
+      --on-accent: #ffffff;
+      --green: #0f8a5f;
+    }
   }
 
   * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  @media (prefers-reduced-motion: reduce) {
-    html { scroll-behavior: auto; }
-    *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
-  }
+  html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 
   body {
     margin: 0;
     background: var(--bg);
     color: var(--text);
-    font-family: var(--serif);
-    line-height: 1.65;
-    font-size: 17px;
+    font: 16px/1.6 var(--sans);
+    -webkit-font-smoothing: antialiased;
   }
-
-  ::selection { background: var(--accent); color: var(--bg); }
 
   a { color: var(--accent); text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  a:focus-visible, button:focus-visible, .install-tab:focus-visible {
+  a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible, summary:focus-visible {
     outline: 2px solid var(--accent);
-    outline-offset: 3px;
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 
-  code, pre, kbd, .mono { font-family: var(--mono); }
-
-  .wrap { max-width: 980px; margin: 0 auto; padding: 0 24px; }
-
-  h1, h2, h3 { font-family: var(--mono); text-wrap: balance; color: var(--text); }
-
-  .crt-veil {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 50;
-    background:
-      repeating-linear-gradient(to bottom, rgba(0,0,0,0.09) 0px, rgba(0,0,0,0.09) 1px, transparent 1px, transparent 3px),
-      radial-gradient(ellipse at 50% 0%, transparent 55%, rgba(0,0,0,0.35) 100%);
-    mix-blend-mode: multiply;
-    opacity: 0.5;
+  code, pre, kbd { font-family: var(--mono); font-size: 0.9em; }
+  :not(pre) > code {
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 0.05em 0.35em;
+  }
+  kbd {
+    display: inline-block;
+    min-width: 1.6em;
+    text-align: center;
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 0 0.4em;
+    font-size: 0.82em;
+    line-height: 1.6;
   }
 
-  /* ---- top bar ---- */
-  .topbar {
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  h1, h2, h3 { line-height: 1.25; text-wrap: balance; }
+  h2 { font-size: 1.6rem; font-weight: 650; letter-spacing: -0.01em; margin: 0 0 8px; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 0 0 6px; }
+  .lede { color: var(--muted); max-width: 62ch; margin: 0 0 40px; font-size: 1.05rem; }
+
+  /* ---- header ---- */
+  .site-header {
     position: sticky;
     top: 0;
-    z-index: 40;
-    background: var(--surface);
-    border-bottom: 1px solid var(--hairline);
-    backdrop-filter: blur(6px);
+    z-index: 10;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: saturate(160%) blur(10px);
+    border-bottom: 1px solid var(--line);
   }
-  .topbar-inner {
-    max-width: 980px;
-    margin: 0 auto;
-    padding: 0 24px;
-    height: 52px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-family: var(--mono);
-    font-size: 0.86rem;
-  }
-  .topbar .brand {
-    display: inline-flex;
-    align-items: center;
-    gap: 9px;
-    color: var(--text);
-    font-weight: 700;
-    letter-spacing: 0.02em;
-  }
-  .topbar .brand:hover { text-decoration: none; }
-  .topbar .brand img { display: block; border-radius: 6px; }
-  .topbar nav { display: flex; gap: 22px; align-items: center; }
-  .topbar nav a { color: var(--muted); }
-  .topbar nav a:hover { color: var(--accent); text-decoration: none; }
-  .topbar nav a.gh { color: var(--text); }
+  .site-header .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--text); font-weight: 650; font-size: 1.05rem; }
+  .brand:hover { text-decoration: none; }
+  .brand img { border-radius: 6px; display: block; }
+  .site-header nav { display: flex; gap: 26px; font-size: 0.92rem; }
+  .site-header nav a { color: var(--muted); }
+  .site-header nav a:hover { color: var(--text); text-decoration: none; }
 
   /* ---- hero ---- */
-  header.hero { padding: 76px 0 64px; }
-  .hero-inner { max-width: 980px; margin: 0 auto; padding: 0 24px; }
-  .eyebrow {
-    font-family: var(--mono);
-    color: var(--muted);
-    font-size: 0.85rem;
-    letter-spacing: 0.04em;
-    margin-bottom: 18px;
-  }
-  .eyebrow::before { content: "$ "; color: var(--accent-dim); }
-  h1.wordmark {
-    font-size: clamp(2.6rem, 6vw, 4.2rem);
-    margin: 0 0 18px;
-    font-weight: 700;
-    line-height: 1.15;
-    letter-spacing: -0.01em;
-    text-shadow: 0 0 34px rgba(76, 194, 255, 0.28);
-  }
-  .wordmark-logo { width: 1em; height: 1em; margin-right: 0.25em; border-radius: 0.22em; vertical-align: -0.16em; }
-  h1.wordmark .port { color: var(--text); }
-  h1.wordmark .op { color: var(--accent); }
-  .cursor {
-    display: inline-block;
-    width: 0.5em;
-    background: var(--accent);
-    color: var(--accent);
-    animation: blink 1.1s steps(1) infinite;
-  }
-  @keyframes blink { 50% { opacity: 0; } }
-
-  .tagline {
-    font-family: var(--serif);
-    font-style: italic;
-    color: var(--text);
-    font-size: 1.28rem;
-    max-width: 46ch;
-    margin: 0 0 30px;
-    opacity: 0.92;
-  }
-  .tagline strong { font-style: normal; color: var(--accent); }
-
-  .cta-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 26px; }
-  .btn {
+  .hero { padding: 88px 0 56px; }
+  .hero h1 { font-size: clamp(2.2rem, 5vw, 3.4rem); font-weight: 700; letter-spacing: -0.025em; margin: 0 0 20px; max-width: 18ch; }
+  .hero p { color: var(--muted); font-size: 1.15rem; max-width: 60ch; margin: 0 0 32px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 20px; }
+  .button {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 11px 20px;
-    font-family: var(--mono);
+    padding: 10px 18px;
+    border-radius: 8px;
     font-weight: 600;
-    font-size: 0.92rem;
-    border-radius: 5px;
-    border: 1px solid var(--hairline);
-  }
-  .btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
-  .btn.primary:hover { background: #7bd3ff; text-decoration: none; }
-  .btn.secondary { background: transparent; color: var(--text); }
-  .btn.secondary:hover { border-color: var(--accent-dim); text-decoration: none; }
-
-  .badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 52px; }
-  .badges img { height: 20px; display: block; filter: grayscale(0.15) contrast(0.94); }
-
-  /* ---- simulated terminal window ---- */
-  .term-window {
-    background: var(--surface);
-    border: 1px solid var(--hairline);
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 30px 70px -30px rgba(76, 194, 255, 0.22), 0 0 0 1px rgba(0,0,0,0.4);
-  }
-  .term-titlebar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 9px 14px;
-    background: var(--surface-2);
-    border-bottom: 1px solid var(--hairline);
-    font-family: var(--mono);
-    font-size: 0.78rem;
-    color: var(--muted);
-  }
-  .term-dots { display: flex; gap: 6px; margin-right: 4px; }
-  .term-dots span { width: 9px; height: 9px; border-radius: 50%; background: var(--dim); display: block; }
-  .term-body {
-    font-family: var(--mono);
-    font-size: 0.82rem;
-    padding: 16px 18px 18px;
+    font-size: 0.95rem;
+    border: 1px solid var(--line);
     color: var(--text);
-    overflow-x: auto;
   }
-  .term-header { color: var(--text); font-weight: 700; margin-bottom: 4px; white-space: nowrap; }
-  .term-legend { color: var(--dim); font-size: 0.76rem; margin-bottom: 10px; white-space: nowrap; }
-  .term-cols { display: grid; grid-template-columns: 7ch 5ch 11ch 10ch 6ch 1fr; gap: 8px; color: var(--muted); font-size: 0.74rem; padding-bottom: 4px; white-space: nowrap; }
-  .term-row { display: grid; grid-template-columns: 7ch 5ch 11ch 10ch 6ch 1fr; gap: 8px; padding: 2px 0; white-space: nowrap; }
-  .term-row .port { color: var(--text); }
-  .term-row .proc { color: var(--muted); }
-  .state-listen { color: var(--term-green); font-weight: 700; }
-  .state-established { color: var(--term-blue); }
-  .state-new { color: var(--term-yellow); font-weight: 700; }
-  .term-search { margin-top: 10px; color: var(--text); }
-  .term-search .prompt { color: var(--accent-dim); }
-  .typed {
-    display: inline-block;
+  .button:hover { text-decoration: none; border-color: var(--faint); }
+  .button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .button.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+  .meta { color: var(--faint); font-size: 0.88rem; margin: 0; }
+  .meta span + span::before { content: "·"; margin: 0 8px; }
+
+  .screenshot {
+    margin: 56px 0 0;
+    border: 1px solid var(--line);
+    border-radius: 12px;
     overflow: hidden;
-    white-space: nowrap;
-    border-right: 2px solid var(--accent);
-    width: 0;
-    animation: type 1.6s steps(4, end) 0.6s 1 forwards, caret 0.9s steps(1) infinite;
-    vertical-align: bottom;
+    background: #0b0f19;
+    box-shadow: 0 24px 60px -32px rgba(0, 0, 0, 0.55);
   }
-  @keyframes type { from { width: 0; } to { width: 4.2ch; } }
-  @keyframes caret { 50% { border-color: transparent; } }
-  .term-footer {
-    margin-top: 12px;
-    padding-top: 10px;
-    border-top: 1px solid var(--hairline-soft);
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    font-size: 0.76rem;
-  }
-  .chip { display: inline-flex; }
-  .chip .k { background: var(--accent); color: var(--bg); font-weight: 700; padding: 1px 6px; border-radius: 3px 0 0 3px; }
-  .chip .d { background: var(--surface-2); color: var(--muted); padding: 1px 8px 1px 6px; border-radius: 0 3px 3px 0; }
+  .screenshot img { display: block; width: 100%; height: auto; }
+  .caption { color: var(--faint); font-size: 0.88rem; margin: 12px 0 0; }
 
-  /* ---- generic sections ---- */
-  main { padding: 8px 0 0; }
-  section.section { padding: 72px 0; border-top: 1px solid var(--hairline-soft); }
-  h2 { font-size: 1.5rem; margin: 0 0 12px; }
-  .section-lede {
-    font-family: var(--serif);
-    color: var(--muted);
-    font-size: 1.05rem;
-    max-width: 62ch;
-    margin: 0 0 36px;
-  }
+  /* ---- sections ---- */
+  section { padding: 88px 0; border-top: 1px solid var(--line); }
 
-  .card-grid {
+  .features {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 18px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 40px 48px;
   }
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--hairline);
-    border-radius: 8px;
-    padding: 20px 22px;
-  }
-  .card .dot { font-family: var(--mono); font-size: 1rem; margin-right: 8px; }
-  .card h3 { margin: 0 0 8px; font-size: 1rem; }
-  .card p { margin: 0; color: var(--muted); font-size: 0.94rem; font-family: var(--serif); }
+  .features div { border-top: 2px solid var(--line); padding-top: 18px; }
+  .features p { color: var(--muted); margin: 0; font-size: 0.95rem; }
 
-  .window-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 18px;
-  }
-  .feature-window {
-    background: var(--surface);
-    border: 1px solid var(--hairline);
-    border-radius: 8px;
-    overflow: hidden;
-  }
-  .feature-window .term-titlebar { justify-content: space-between; }
-  .feature-window-body { padding: 18px 20px 20px; font-family: var(--serif); color: var(--text); font-size: 0.96rem; }
-  .feature-window-body p { margin: 0; color: var(--muted); }
-
-  /* ---- demo screenshot ---- */
-  .demo-frame {
-    background: var(--surface);
-    border: 1px solid var(--hairline);
-    border-radius: 8px;
-    overflow: hidden;
-    margin-bottom: 14px;
-  }
-  .demo-frame img { display: block; width: 100%; height: auto; }
-  .window-shot { display: block; border-bottom: 1px solid var(--hairline); }
-  .window-shot img { display: block; width: 100%; height: auto; }
-  .demo-caption { color: var(--muted); font-size: 0.92rem; font-family: var(--serif); margin: 0; }
+  .figures { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  .figures figure { margin: 0; }
+  .figures .screenshot { margin: 0 0 16px; }
+  .figures h3 { margin-top: 0; }
+  .figures p { color: var(--muted); margin: 0; font-size: 0.95rem; }
 
   /* ---- install ---- */
-  .install pre {
-    background: var(--surface);
-    border: 1px solid var(--hairline);
+  .tabs { display: flex; flex-wrap: wrap; gap: 4px 2px; border-bottom: 1px solid var(--line); margin-bottom: 24px; }
+  .tab {
+    appearance: none;
+    background: none;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    padding: 10px 14px;
+    color: var(--muted);
+    font: 500 0.92rem var(--sans);
+    cursor: pointer;
+  }
+  .tab:hover { color: var(--text); }
+  .tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .panel > p, .panel details p { color: var(--muted); max-width: 72ch; }
+  .panel > p:first-child { margin-top: 0; }
+
+  pre {
+    background: var(--bg-code);
+    border: 1px solid var(--line);
     border-radius: 8px;
-    padding: 18px 20px;
+    padding: 16px 18px;
     overflow-x: auto;
-    color: var(--text);
-    margin: 0 0 12px;
+    margin: 0 0 16px;
     font-size: 0.88rem;
     line-height: 1.7;
   }
-  .install-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
-  .install-tab {
-    padding: 7px 14px;
-    border-radius: 5px;
-    border: 1px solid var(--hairline);
-    background: transparent;
-    color: var(--muted);
-    font-size: 0.86rem;
-    cursor: pointer;
-    font-family: var(--mono);
-  }
-  .install-tab[aria-selected="true"] { color: var(--bg); border-color: var(--accent); background: var(--accent); font-weight: 700; }
-  .install-panel { display: none; }
-  .install-panel.active { display: block; }
-  .comment { color: var(--dim); }
-  .install-note { color: var(--muted); font-size: 0.88rem; font-family: var(--serif); }
+  .comment { color: var(--faint); }
 
-  .first-run {
-    border: 1px solid var(--hairline);
+  details {
+    border: 1px solid var(--line);
     border-radius: 8px;
     padding: 14px 18px;
     margin: 16px 0;
-    color: var(--text);
-    font-family: var(--serif);
   }
-  .first-run summary { cursor: pointer; color: var(--accent); font-family: var(--mono); }
-  .first-run li { margin: 12px 0; line-height: 1.7; }
-  .first-run p { line-height: 1.7; }
-  .platform-note { color: var(--muted); font-family: var(--serif); line-height: 1.7; }
+  details[open] summary { margin-bottom: 8px; }
+  summary { cursor: pointer; font-weight: 600; }
+  details li { margin: 10px 0; color: var(--muted); }
+  details li strong { color: var(--text); }
 
-  /* ---- keybinding reference ---- */
-  .table-scroll { overflow-x: auto; border: 1px solid var(--hairline); border-radius: 8px; }
-  table.keys { width: 100%; border-collapse: collapse; font-size: 0.86rem; font-family: var(--mono); min-width: 460px; }
-  .keys th, .keys td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--hairline-soft); white-space: nowrap; }
-  .keys td:last-child { white-space: normal; font-family: var(--serif); font-size: 0.92rem; color: var(--text); }
-  .keys th { color: var(--muted); font-weight: 600; background: var(--surface); }
-  .keys tr:last-child td { border-bottom: none; }
-  kbd {
-    background: var(--surface-2);
-    border: 1px solid var(--hairline);
-    border-radius: 4px;
-    padding: 1px 6px;
-    color: var(--accent);
-    font-size: 0.9em;
-  }
+  .platforms { margin-top: 48px; }
+  .platforms h3 { font-size: 1.1rem; margin-bottom: 12px; }
+
+  /* ---- tables ---- */
+  .table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 10px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-weight: 600; color: var(--muted); background: var(--bg-raised); white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  .platform-table { min-width: 720px; }
+  .platform-table td:nth-child(-n+3) { white-space: nowrap; }
+  .platform-table td:last-child { color: var(--muted); }
+  .key-table td:first-child { white-space: nowrap; width: 1%; }
 
   /* ---- footer ---- */
-  footer {
-    margin-top: 40px;
-    background: var(--surface);
-    border-top: 1px solid var(--hairline);
-    padding: 30px 0;
-  }
-  footer .wrap { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
-  footer nav { display: flex; gap: 4px; flex-wrap: wrap; }
-  footer .foot-chip {
-    font-family: var(--mono);
-    font-size: 0.82rem;
-    color: var(--muted);
-    padding: 4px 10px;
-    border-radius: 4px;
-  }
-  footer .foot-chip:hover { color: var(--accent); background: var(--surface-2); text-decoration: none; }
-  footer .tag { font-family: var(--mono); font-size: 0.8rem; color: var(--dim); }
+  footer { border-top: 1px solid var(--line); padding: 32px 0 48px; color: var(--faint); font-size: 0.9rem; }
+  footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; }
+  footer nav { display: flex; flex-wrap: wrap; gap: 20px; }
+  footer a { color: var(--muted); }
 
+  @media (max-width: 880px) {
+    .features { grid-template-columns: 1fr 1fr; }
+    .figures { grid-template-columns: 1fr; }
+  }
   @media (max-width: 640px) {
-    header.hero { padding: 52px 0 44px; }
-    section.section { padding: 52px 0; }
-    .topbar nav { gap: 14px; }
-    .topbar nav a:not(.gh) { display: none; }
-    .term-cols, .term-row { grid-template-columns: 6ch 4ch 9ch 1fr; }
-    .term-cols span:nth-child(5), .term-row .cpu { display: none; }
+    .wrap { padding: 0 16px; }
+    .site-header nav a:not(.gh) { display: none; }
+    .hero { padding: 56px 0 40px; }
+    section { padding: 64px 0; }
+    .features { grid-template-columns: 1fr; gap: 28px; }
   }
 </style>
 </head>
 <body>
 
-<div class="crt-veil" aria-hidden="true"></div>
-
-<header class="topbar">
-  <div class="topbar-inner">
-    <a class="brand" href="#"><img src="assets/logo.png" alt="" width="26" height="26">portop</a>
-    <nav>
-      <a href="#features">features</a>
-      <a href="#differentiators">beyond ss</a>
-      <a href="#demo">screenshot</a>
-      <a href="#dashboards">web &amp; cockpit</a>
-      <a href="#install">install</a>
-      <a href="#keys">keys</a>
-      <a class="gh" href="https://github.com/padovanl/portop">github ↗</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="#"><img src="assets/logo.png" alt="" width="28" height="28">portop</a>
+    <nav aria-label="Sections">
+      <a href="#features">Features</a>
+      <a href="#dashboards">Dashboards</a>
+      <a href="#install">Install</a>
+      <a href="#keys">Keys</a>
+      <a class="gh" href="https://github.com/padovanl/portop">GitHub</a>
     </nav>
   </div>
 </header>
 
-<header class="hero">
-  <div class="hero-inner">
-    <p class="eyebrow">htop, but for ports</p>
-    <h1 class="wordmark"><img class="wordmark-logo" src="assets/logo.png" alt="" width="128" height="128"><span class="port">port</span><span class="op">op</span><span class="cursor" aria-hidden="true">&nbsp;</span></h1>
-    <p class="tagline">See which <strong>process</strong> is using a port on <strong>Linux, macOS or Windows</strong> — and stop it right from your keyboard. See its <strong>systemd unit</strong> on Linux or <strong>Windows service</strong> on Windows, its <strong>Docker container</strong>, and Compose port conflicts too.</p>
-    <div class="cta-row">
-      <a class="btn primary" href="#install">Get portop</a>
-      <a class="btn secondary" href="https://github.com/padovanl/portop">View source</a>
-    </div>
-    <div class="badges">
-      <a href="https://github.com/padovanl/portop/releases/latest"><img src="https://img.shields.io/github/v/release/padovanl/portop?sort=semver&label=release&color=4cc2ff" alt="Latest release"></a>
-      <a href="https://github.com/padovanl/portop/actions/workflows/ci.yml"><img src="https://github.com/padovanl/portop/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-      <a href="https://github.com/padovanl/portop/blob/main/LICENSE"><img src="https://img.shields.io/github/license/padovanl/portop?color=4cc2ff" alt="License: MIT"></a>
-    </div>
+<main>
+  <div class="hero">
+    <div class="wrap">
+      <h1>See which process owns every port.</h1>
+      <p>portop is a live, htop-style terminal UI for the TCP and UDP sockets on your machine. Each row shows the process, its systemd unit or Windows service, and its Docker container, and a key press lets you inspect or stop it.</p>
+      <div class="actions">
+        <a class="button primary" href="#install">Install</a>
+        <a class="button" href="https://github.com/padovanl/portop">Source on GitHub</a>
+      </div>
+      <p class="meta"><span>Linux, macOS and Windows</span><span>MIT licensed</span><span><a href="https://github.com/padovanl/portop/releases/latest">Latest release</a></span></p>
 
-    <div class="term-window" role="img" aria-label="portop showing the live port table, with a search in progress">
-      <div class="term-titlebar">
-        <span class="term-dots"><span></span><span></span><span></span></span>
-        portop — ~
-      </div>
-      <div class="term-body">
-        <div class="term-header">portop — what's really using your ports? [LISTEN+ESTABLISHED]</div>
-        <div class="term-legend">green LISTEN &nbsp; blue ESTABLISHED &nbsp; ● amber = just opened</div>
-        <div class="term-cols"><span>PORT</span><span>PROTO</span><span>STATE</span><span>PROCESS</span><span>CPU</span><span>REMOTE</span></div>
-        <div class="term-row"><span class="port">:22</span><span>TCP</span><span class="state-listen">LISTEN</span><span class="proc">sshd</span><span>0.1%</span><span>-</span></div>
-        <div class="term-row"><span class="port">:5432</span><span>TCP</span><span class="state-listen">LISTEN</span><span class="proc">postgres</span><span>1.4%</span><span>-</span></div>
-        <div class="term-row"><span class="port">:443</span><span>TCP</span><span class="state-established">ESTABLISHED</span><span class="proc">nginx</span><span>0.3%</span><span>203.0.113.9:51422</span></div>
-        <div class="term-row"><span class="port">:8080</span><span>TCP</span><span class="state-new">● LISTEN</span><span class="proc">node</span><span>8.3%</span><span>-</span></div>
-        <div class="term-search"><span class="prompt">❯ </span><span class="typed">8080</span></div>
-        <div class="term-footer">
-          <span class="chip"><span class="k">f</span><span class="d">search</span></span>
-          <span class="chip"><span class="k">enter</span><span class="d">details</span></span>
-          <span class="chip"><span class="k">k</span><span class="d">kill</span></span>
-          <span class="chip"><span class="k">o</span><span class="d">open</span></span>
-          <span class="chip"><span class="k">--diff</span><span class="d">baseline drift</span></span>
-          <span class="chip"><span class="k">--compose</span><span class="d">port audit</span></span>
-          <span class="chip"><span class="k">?</span><span class="d">help</span></span>
-        </div>
-      </div>
+      <figure class="screenshot" style="margin-bottom:0">
+        <img src="assets/demo.gif" width="1902" height="1064" alt="portop filtering to a port, showing the process details, the kill confirmation and the help overlay">
+      </figure>
+      <p class="caption">A recorded session: filtering to a port, opening the process details and confirming a kill.</p>
     </div>
   </div>
-</header>
 
-<main>
-  <div class="wrap">
-
-    <section id="features" class="section">
-      <h2>Why portop</h2>
-      <p class="section-lede">The everyday basics of seeing what's on your ports — done once, done well, with the context <code>ss</code> and <code>lsof</code> leave out.</p>
-      <div class="card-grid">
-        <div class="card">
-          <h3><span class="dot state-listen">●</span>Live, color-coded table</h3>
-          <p>LISTEN, ESTABLISHED and transient states colored at a glance, with per-process CPU% sampled like top.</p>
+  <section id="features">
+    <div class="wrap">
+      <h2>Features</h2>
+      <p class="lede">The context that <code>ss</code>, <code>netstat</code> and <code>lsof</code> leave out, in one view that refreshes on its own.</p>
+      <div class="features">
+        <div>
+          <h3>Live port table</h3>
+          <p>Listening and established sockets, coloured by state, with per-process CPU sampled like <code>top</code> and port names from <code>/etc/services</code>. Columns drop out as the terminal narrows, down to 80 columns.</p>
         </div>
-        <div class="card">
-          <h3><span class="dot" style="color:var(--term-red)">✕</span>Kill, safely</h3>
-          <p><kbd>k</kbd> then confirm — graceful SIGTERM or forced SIGKILL. Never a stray keypress away.</p>
+        <div>
+          <h3>Process, service and container</h3>
+          <p>The owning systemd unit on Linux, or Windows service on Windows, and the Docker container behind each port. Read from the process's cgroup, with no D-Bus, Docker SDK or daemon of its own.</p>
         </div>
-        <div class="card">
-          <h3><span class="dot state-established">{}</span>Service &amp; Docker aware</h3>
-          <p>Every row shows the owning systemd .service unit (Linux) or Windows service, and the Docker container behind it — no extra daemons.</p>
+        <div>
+          <h3>Inspect and stop</h3>
+          <p><kbd>enter</kbd> shows the command line, executable, working directory, user, memory and start time. <kbd>k</kbd> asks for confirmation, then sends SIGTERM or SIGKILL.</p>
         </div>
-        <div class="card">
-          <h3><span class="dot state-new">●</span>New-port alerts</h3>
-          <p>Freshly opened listening ports are highlighted live, with an optional desktop notification.</p>
+        <div>
+          <h3>New-port alerts</h3>
+          <p>Ports that start listening while portop is open are highlighted, with an optional desktop notification.</p>
         </div>
-        <div class="card">
-          <h3><span class="dot" style="color:var(--accent)">±</span>Baseline drift detection</h3>
-          <p><code>--save-baseline</code> then <code>--diff</code> from a cron job — exit code 3 the moment something unexpected starts listening.</p>
+        <div>
+          <h3>Baseline drift detection</h3>
+          <p>Save what is listening with <code>--save-baseline</code>, then run <code>--diff</code> from cron or a systemd timer. It exits with code 3 when an unexpected port appears.</p>
         </div>
-        <div class="card">
-          <h3><span class="dot state-listen">↔</span>Compose port audit</h3>
-          <p><code>--compose DIR</code> checks a Docker Compose folder and reports expected, unused or conflicting published ports.</p>
+        <div>
+          <h3>Compose port audit</h3>
+          <p><code>--compose DIR</code> compares the published ports of a Docker Compose project with what is actually listening, and reports unused or conflicting ones.</p>
         </div>
-        <div class="card">
-          <h3><span class="dot state-new">◈</span>Web dashboard</h3>
-          <p><code>portop --web</code> shows socket and process details in the browser, with light and dark themes and confirmed SIGTERM/SIGKILL. Add <code>--web-auth</code> for a sign-in page.</p>
+        <div>
+          <h3>Clear about permissions</h3>
+          <p>When a row belongs to a process it cannot read, such as a root-owned <code>docker-proxy</code>, portop says so and tells you that <code>sudo</code> would resolve it.</p>
         </div>
-        <div class="card">
-          <h3><span class="dot state-established">◆</span>Cockpit add-on</h3>
-          <p>The same view under Tools → Ports in Cockpit on Linux. Signal a process after confirmation, using your Cockpit login and permissions.</p>
+        <div>
+          <h3>Scriptable</h3>
+          <p><code>--json</code> prints the same data the interface shows, ready for <code>jq</code> or your own monitoring.</p>
         </div>
-        <div class="card">
-          <h3><span class="dot state-established">◆</span>Live settings screen</h3>
-          <p><kbd>,</kbd> opens it: cycle 13 themes (Dracula, Nord, Solarized, Gruvbox, Catppuccin, Tokyo Night, Monokai, Darcula, VS Code, Ubuntu, Rosé Pine, ...) with the arrow keys as the whole UI re-skins live, rebind any of 20 actions — saved automatically, no file to touch.</p>
+        <div>
+          <h3>Themes and key bindings</h3>
+          <p>The settings screen (<kbd>,</kbd>) previews 13 themes live and lets you rebind any of 20 actions. Changes are saved automatically.</p>
         </div>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <section id="differentiators" class="section">
-      <h2>Beyond wrapping ss and lsof</h2>
-      <p class="section-lede">Neither tells you this on its own — portop does, from the same dashboard.</p>
-      <div class="window-grid">
-
-        <div class="feature-window">
-          <div class="term-titlebar"><span>Baseline drift detection</span><span class="chip"><span class="k">--diff</span></span></div>
-          <div class="feature-window-body">
-            <p>Save a snapshot of what's listening, then diff against it later — from a cron job or systemd timer. Exit code 3 the instant a port you didn't expect shows up.</p>
-          </div>
-        </div>
-
-        <div class="feature-window">
-          <div class="term-titlebar"><span>Who actually owns this port</span><span class="chip"><span class="k">enter</span></span></div>
-          <div class="feature-window-body">
-            <p>systemd unit and Docker container, resolved straight from the process's cgroup — no D-Bus, no Docker SDK, no daemon of its own.</p>
-          </div>
-        </div>
-
-        <div class="feature-window">
-          <div class="term-titlebar"><span>Compose ports vs reality</span><span class="chip"><span class="k">--compose</span></span></div>
-          <div class="feature-window-body">
-            <p>Point it at a Compose folder to see whether configured published ports are actually listening, unused, or owned by another process/container. With Docker access, it reads Compose labels so <code>docker-proxy</code> can still be tied back to the service.</p>
-          </div>
-        </div>
-
-        <div class="feature-window">
-          <div class="term-titlebar"><span>Honest about permissions</span><span class="chip"><span class="k">i</span></span></div>
-          <div class="feature-window-body">
-            <p>Can't resolve a row owned by root (docker-proxy, systemd-resolved)? portop tells you exactly why and that <code>sudo</code> would fix it, instead of a silent blank.</p>
-          </div>
-        </div>
-
-        <div class="feature-window">
-          <div class="term-titlebar"><span>Adapts to your terminal</span><span class="chip"><span class="k">80c</span></span></div>
-          <div class="feature-window-body">
-            <p>Columns drop themselves — least useful first — as the terminal narrows, so rows never wrap into a mess. Works down to 80 columns.</p>
-          </div>
-        </div>
-
-        <div class="feature-window">
-          <div class="term-titlebar"><span>Well-known port names</span><span class="chip"><span class="k">:22</span></span></div>
-          <div class="feature-window-body">
-            <p>Parsed straight from <code>/etc/services</code>: <code>:22</code> shows as <code>ssh</code>, <code>:443</code> as <code>https</code>, right in the table.</p>
-          </div>
-        </div>
-
-        <div class="feature-window">
-          <div class="term-titlebar"><span>Scriptable</span><span class="chip"><span class="k">--json</span></span></div>
-          <div class="feature-window-body">
-            <p>A clean JSON snapshot for piping into <code>jq</code>, a dashboard, or your own monitoring — same data the TUI shows, no scraping.</p>
-          </div>
-        </div>
-
+  <section id="dashboards">
+    <div class="wrap">
+      <h2>Web dashboard and Cockpit</h2>
+      <p class="lede">The same live view, for when a terminal is not at hand.</p>
+      <div class="figures">
+        <figure>
+          <a class="screenshot" href="assets/web-dashboard.gif" style="display:block"><img src="assets/web-dashboard.gif" width="960" height="600" alt="Signing in to the portop web dashboard, filtering to redis and opening its process details" loading="lazy"></a>
+          <h3>Web dashboard</h3>
+          <p><code>portop --web</code> serves a dashboard on <code>127.0.0.1:8088</code> with search, process details and confirmed SIGTERM/SIGKILL. With <code>--web-auth</code> it adds a <a href="assets/web-login.png">sign-in page</a>, can listen beyond loopback and serves HTTPS via <code>--web-tls-cert</code> and <code>--web-tls-key</code>.</p>
+        </figure>
+        <figure>
+          <a class="screenshot" href="assets/cockpit.gif" style="display:block"><img src="assets/cockpit.gif" width="960" height="600" alt="Opening Tools, Ports (portop) in Cockpit and inspecting the redis-server process" loading="lazy"></a>
+          <h3>Cockpit add-on</h3>
+          <p>On Linux, copy <code>cockpit/portop</code> to <code>~/.local/share/cockpit/portop</code> and open Tools → Ports (portop). It runs through Cockpit's bridge with your login and permissions, so there is no extra service to expose. <a href="https://github.com/padovanl/portop/blob/main/cockpit/README.md">Setup steps</a>.</p>
+        </figure>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <section id="demo" class="section">
-      <h2>In action</h2>
-      <div class="demo-frame">
-        <div class="term-titlebar"><span class="term-dots"><span></span><span></span><span></span></span>portop</div>
-        <img src="assets/demo.gif" alt="portop demo: filtering to a port, viewing process details, the kill confirmation, and the help overlay" loading="lazy">
-      </div>
-      <p class="demo-caption">Filtering to a port, checking who owns it, and the confirm-before-kill flow — a real recorded session, not staged.</p>
-    </section>
+  <section id="install">
+    <div class="wrap">
+      <h2>Install</h2>
+      <p class="lede">Packages for Debian and Ubuntu, Snap, Homebrew, winget and the Microsoft Store, plus archives for every supported architecture.</p>
 
-    <section id="dashboards" class="section">
-      <h2>Beyond the terminal</h2>
-      <p class="section-lede">The same live view of ports and processes, for when a terminal isn't at hand: in a browser, or inside Cockpit.</p>
-      <div class="window-grid">
-        <div class="feature-window">
-          <div class="term-titlebar"><span>Web dashboard</span><span class="chip"><span class="k">--web</span></span></div>
-          <a class="window-shot" href="assets/web-dashboard.gif"><img src="assets/web-dashboard.gif" width="960" height="600" alt="Signing in to the portop web dashboard, filtering to redis and opening its process details" loading="lazy"></a>
-          <div class="feature-window-body">
-            <p><code>portop --web</code> serves a dashboard on <code>127.0.0.1:8088</code>, with search, process details and confirmed SIGTERM/SIGKILL. Add <code>--web-auth</code> for a <a href="assets/web-login.png">sign-in page</a>; with it, the dashboard can listen beyond loopback and serve HTTPS with <code>--web-tls-cert</code>/<code>--web-tls-key</code>.</p>
-          </div>
-        </div>
-        <div class="feature-window">
-          <div class="term-titlebar"><span>Cockpit add-on</span><span class="chip"><span class="k">Tools → Ports</span></span></div>
-          <a class="window-shot" href="assets/cockpit.gif"><img src="assets/cockpit.gif" width="960" height="600" alt="Opening Tools, Ports (portop) in Cockpit and inspecting the redis-server process" loading="lazy"></a>
-          <div class="feature-window-body">
-            <p>On Linux, copy <code>cockpit/portop</code> to <code>~/.local/share/cockpit/portop</code> and open <strong>Tools → Ports (portop)</strong>. It runs through Cockpit's bridge with your login and permissions, so there's no extra service to expose. <a href="https://github.com/padovanl/portop/blob/main/cockpit/README.md">Setup steps</a>.</p>
-          </div>
-        </div>
+      <div class="tabs" role="tablist" aria-label="Installation method">
+        <button class="tab" role="tab" aria-selected="true" aria-controls="tab-curl" id="t-curl">Install script</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="tab-apt" id="t-apt" tabindex="-1">Debian / Ubuntu</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="tab-snap" id="t-snap" tabindex="-1">Snap</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="tab-brew" id="t-brew" tabindex="-1">Homebrew</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="tab-win" id="t-win" tabindex="-1">Windows</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="tab-mac" id="t-mac" tabindex="-1">macOS</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="tab-pkg" id="t-pkg" tabindex="-1">.deb / .rpm</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="tab-bin" id="t-bin" tabindex="-1">Archive</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="tab-src" id="t-src" tabindex="-1">Go</button>
       </div>
-    </section>
 
-    <section id="install" class="section install">
-      <h2>Installation</h2>
-      <p class="section-lede">Linux: x86-64, ARM64, ARMv7 and ARMv6. macOS: Intel and Apple Silicon. Windows: x64 and ARM64, via winget, the Microsoft Store or a zip. All release targets and limitations are listed below.</p>
-      <div class="table-scroll">
-        <table class="keys" aria-label="All supported architectures">
-          <thead><tr><th>System</th><th>Architecture</th><th>Target</th><th>Formats</th><th>Requirements</th></tr></thead>
-          <tbody>
-            <tr><td>Linux</td><td>Intel/AMD 64-bit</td><td><code>linux_amd64</code></td><td>.tar.gz, .deb, .rpm</td><td>64-bit x86 OS; amd64 baseline (v1).</td></tr>
-            <tr><td>Linux</td><td>ARM64 / AArch64 (64-bit)</td><td><code>linux_arm64</code></td><td>.tar.gz, .deb, .rpm</td><td>64-bit ARM OS; ARMv8.0 baseline.</td></tr>
-            <tr><td>Linux</td><td>ARMv7 (32-bit)</td><td><code>linux_armv7</code></td><td>.tar.gz, .deb, .rpm</td><td>32-bit ARM Linux with hardware floating point (VFPv3).</td></tr>
-            <tr><td>Linux</td><td>ARMv6 (32-bit)</td><td><code>linux_armv6</code></td><td>.tar.gz, .deb, .rpm</td><td>32-bit ARM Linux with hardware floating point (VFP); includes the CPU target used by original Pi 1 / Zero.</td></tr>
-            <tr><td>macOS</td><td>Intel (64-bit)</td><td><code>darwin_amd64</code></td><td>.tar.gz</td><td>64-bit Intel Mac; no 32-bit macOS build.</td></tr>
-            <tr><td>macOS</td><td>Apple Silicon (64-bit)</td><td><code>darwin_arm64</code></td><td>.tar.gz</td><td>Native ARM64 Mac; no Rosetta required.</td></tr>
-            <tr><td>Windows</td><td>Intel/AMD 64-bit</td><td><code>windows_amd64</code></td><td>.zip, winget, Microsoft Store</td><td>Windows 10 1809 or later.</td></tr>
-            <tr><td>Windows</td><td>ARM64</td><td><code>windows_arm64</code></td><td>.zip, winget, Microsoft Store</td><td>Windows 11 on ARM.</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="platform-note">Archive names: <code>portop_&lt;version&gt;_&lt;target&gt;.tar.gz</code> (<code>.zip</code> on Windows). Linux packages use the same target suffix with <code>.deb</code> or <code>.rpm</code>. Replace the example's <code>linux_amd64</code> with your target.</p>
-      <details class="first-run" open>
-        <summary>Compatibility and limitations</summary>
-        <ul>
-          <li><strong>Choose for your OS:</strong> a 64-bit ARM board with a 32-bit OS needs <code>armv7</code>, or <code>armv6</code> for older CPUs. ARM64 requires a 64-bit OS.</li>
-          <li><strong>ARM32:</strong> hardware floating point is required (VFP for ARMv6, VFPv3 for ARMv7). ARMv5, soft-float <code>armel</code>, big-endian ARM, 32-bit x86, 32-bit Windows and unlisted targets are not supported by these releases.</li>
-          <li><strong>Packages:</strong> ARMv6 and ARMv7 DEBs both use <code>armhf</code> metadata; choose by filename and install only one variant. ARMv6 distribution support varies. RPM labels are <code>x86_64</code>, <code>aarch64</code>, <code>armv6hl</code> and <code>armv7hl</code>. If your RPM manager does not accept the architecture, use the matching archive rather than forcing installation.</li>
-          <li><strong>OS versions:</strong> prebuilt binaries need no Go or C runtime installation. An old Linux image may still have a kernel too old for the runtime. Check <a href="https://go.dev/wiki/MinimumRequirements">Go's OS requirements</a>; CPU support is not a promise that every historical OS version works.</li>
-          <li><strong>Linux:</strong> readable <code>/proc/net</code> is required. Containers show their own network namespace. Root may be needed to identify other users' processes. Systemd and Docker enrichment depend on accessible services and metadata.</li>
-          <li><strong>Docker Compose audit:</strong> fixed <code>ports:</code> entries are checked against host listeners. Docker access lets portop confirm the Compose service behind published ports and <code>docker-proxy</code>; without it, a listening port can still be reported but the expected service may be unknown.</li>
-          <li><strong>macOS:</strong> uses system <code>lsof</code> and <code>ps</code>; scans may be slower. Some sockets are omitted without <code>sudo</code>. Systemd, Docker Desktop VM process metadata and thread counts are unavailable. Non-notarized binaries may need first-launch approval: see the macOS tab.</li>
-          <li><strong>Windows:</strong> sockets and their owning PID come from the IP Helper API, with no elevation needed. The SYSTEMD column becomes SERVICE (the Windows services hosted by the process). Docker Desktop containers are matched by published port through the <code>docker</code> CLI. Details of other users' or elevated processes need an Administrator terminal; both kill choices end the process.</li>
-          <li><strong>Validation:</strong> build/emulation checks do not replace physical ARM or native Mac testing. See the <a href="https://github.com/padovanl/portop/blob/develop/docs/platform-support.md">validation report</a> for the checks performed.</li>
-        </ul>
-      </details>
-      <div class="install-tabs" role="tablist">
-        <button class="install-tab" role="tab" aria-selected="true" data-target="tab-curl">curl</button>
-        <button class="install-tab" role="tab" aria-selected="false" data-target="tab-deb">.deb</button>
-        <button class="install-tab" role="tab" aria-selected="false" data-target="tab-rpm">.rpm</button>
-        <button class="install-tab" role="tab" aria-selected="false" data-target="tab-mac">macOS</button>
-        <button class="install-tab" role="tab" aria-selected="false" data-target="tab-win">Windows</button>
-        <button class="install-tab" role="tab" aria-selected="false" data-target="tab-bin">binary</button>
-        <button class="install-tab" role="tab" aria-selected="false" data-target="tab-src">from source</button>
-      </div>
-      <div id="tab-curl" class="install-panel active">
-        <p class="platform-note">Detects all six Linux and macOS targets above. On Linux ARM64 kernels, <code>getconf LONG_BIT</code> distinguishes a 32-bit userland; if unavailable, detection uses the kernel architecture. For custom setups, download the script and override detection:</p>
+      <div id="tab-curl" class="panel active" role="tabpanel" aria-labelledby="t-curl">
+        <p>Linux and macOS. Detects the architecture, verifies the release checksum and installs to <code>/usr/local/bin</code>, or <code>~/.local/bin</code> if that is not writable.</p>
+        <pre>curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh | sh</pre>
+        <p>To override detection, download the script and set <code>PORTOP_ARCH</code> to <code>amd64</code>, <code>arm64</code>, <code>armv7</code> or <code>armv6</code> (macOS accepts <code>amd64</code> and <code>arm64</code>). On ARM64 kernels, <code>getconf LONG_BIT</code> is used to spot a 32-bit userland.</p>
         <pre>curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh -o install.sh
 PORTOP_ARCH=armv7 sh install.sh</pre>
-        <p class="install-note">Overrides: amd64, arm64, armv6, armv7. macOS accepts amd64 and arm64 only.</p>
-        <pre><span class="comment"># detects arch, verifies the release checksum</span>
-curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh | sh</pre>
       </div>
-      <div id="tab-deb" class="install-panel">
-        <pre><span class="comment"># replace &lt;version&gt; with the latest release number, no leading "v"</span>
-curl -fLO https://github.com/padovanl/portop/releases/latest/download/portop_&lt;version&gt;_linux_amd64.deb
-sudo dpkg -i portop_&lt;version&gt;_linux_amd64.deb</pre>
+
+      <div id="tab-apt" class="panel" role="tabpanel" aria-labelledby="t-apt">
+        <p>Debian, Ubuntu and derivatives on amd64, arm64 and armhf. The signed repository at <a href="https://apt.lucapadovan.dev">apt.lucapadovan.dev</a> is rebuilt on every release, so updates arrive with <code>apt upgrade</code>.</p>
+        <pre>sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://apt.lucapadovan.dev/lucapadovan.gpg | sudo tee /etc/apt/keyrings/lucapadovan.gpg &gt;/dev/null
+echo "deb [signed-by=/etc/apt/keyrings/lucapadovan.gpg] https://apt.lucapadovan.dev stable main" \
+  | sudo tee /etc/apt/sources.list.d/lucapadovan.list
+sudo apt update &amp;&amp; sudo apt install portop</pre>
       </div>
-      <div id="tab-rpm" class="install-panel">
-        <pre><span class="comment"># download the .rpm for your architecture from Releases</span>
-sudo dnf install ./portop_&lt;version&gt;_linux_amd64.rpm
-<span class="comment"># openSUSE: sudo zypper install ./portop_&lt;version&gt;_linux_amd64.rpm</span></pre>
+
+      <div id="tab-snap" class="panel" role="tabpanel" aria-labelledby="t-snap">
+        <p>Any Linux distribution with snapd, on amd64 and arm64. Snaps update automatically. <a href="https://snapcraft.io/portop">Snap Store page</a>.</p>
+        <pre>sudo snap install portop</pre>
       </div>
-      <div id="tab-mac" class="install-panel">
-        <p class="platform-note">Apple Silicon and Intel: the installer selects the matching archive and verifies its checksum.</p>
-        <pre><span class="comment"># automatic installation</span>
-curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh | sh
-portop</pre>
-        <details class="first-run">
-          <summary>Prefer a manual download?</summary>
-          <p>Use <code>darwin_arm64</code> for Apple Silicon or <code>darwin_amd64</code> for Intel. Replace <code>&lt;version&gt;</code> with the release number.</p>
-          <pre>archive="portop_&lt;version&gt;_darwin_arm64.tar.gz" <span class="comment"># Intel: darwin_amd64</span>
-curl -fLO "https://github.com/padovanl/portop/releases/latest/download/$archive"
-tar -xzf "$archive"
-sudo mkdir -p /usr/local/bin
-sudo install -m 755 portop /usr/local/bin/portop
-portop</pre>
-        </details>
-        <details class="first-run">
-          <summary>First launch: if macOS blocks portop</summary>
-          <p>The binaries are not notarized by Apple. A browser download may trigger Gatekeeper. After checking that the binary comes from this repository's release, approve this app:</p>
-          <ol>
-            <li>Run <code>portop</code>. If macOS shows <strong>“portop” Not Opened</strong>, click <strong>Done</strong>.</li>
-            <li>Open <strong>System Settings → Privacy &amp; Security</strong>, find the message about portop, and click <strong>Open Anyway</strong> (or <strong>Allow Anyway</strong>, depending on macOS).</li>
-            <li>Run <code>portop</code> again if prompted, confirm <strong>Open Anyway</strong>, and authenticate when macOS asks.</li>
-          </ol>
-          <p class="install-note">Adapted from the <a href="https://padovanl.github.io/pkgtui/#install">pkgtui first-launch guide</a>. See <a href="https://support.apple.com/en-us/102445">Apple's instructions</a> for your macOS version.</p>
-        </details>
-        <p class="platform-note">Uses the system's <code>lsof</code> and <code>ps</code>. Run <code>sudo portop</code> to include other users' processes; some sockets may otherwise be missing. Systemd, Docker Desktop VM process metadata and thread counts are unavailable on macOS.</p>
+
+      <div id="tab-brew" class="panel" role="tabpanel" aria-labelledby="t-brew">
+        <p>macOS (Apple Silicon and Intel) and Linux, from <a href="https://formulae.brew.sh/formula/portop">homebrew-core</a>.</p>
+        <pre>brew install portop</pre>
       </div>
-      <div id="tab-win" class="install-panel">
-        <p class="platform-note">x64 and ARM64. Pick one of the three options; each puts <code>portop</code> on your <code>PATH</code>.</p>
-        <pre><span class="comment"># winget (Windows Package Manager)</span>
-winget install padovanl.portop
-portop</pre>
-        <p class="platform-note">Or get it from the <a href="https://apps.microsoft.com/search?query=portop">Microsoft Store</a> (search for <strong>portop</strong>): updates arrive automatically and <code>portop</code> works from any terminal.</p>
-        <details class="first-run">
-          <summary>Prefer the zip from the release?</summary>
-          <p>Download <code>portop_&lt;version&gt;_windows_amd64.zip</code> (or <code>windows_arm64</code>) from the <a href="https://github.com/padovanl/portop/releases/latest">latest release</a>, extract <code>portop.exe</code> and put it in a folder on your <code>PATH</code>. In PowerShell:</p>
-          <pre><span class="comment"># replace &lt;version&gt; with the latest release number, no leading "v"</span>
+
+      <div id="tab-win" class="panel" role="tabpanel" aria-labelledby="t-win">
+        <p>Windows 10 1809 or later and Windows 11, on x64 and ARM64. Each option puts <code>portop</code> on your <code>PATH</code>.</p>
+        <pre>winget install padovanl.portop</pre>
+        <p>Or install it from the <a href="https://apps.microsoft.com/detail/9MZ319F4LW70">Microsoft Store</a>, which keeps it up to date.</p>
+        <details>
+          <summary>Install from the release zip</summary>
+          <p>Download <code>portop_&lt;version&gt;_windows_amd64.zip</code> (or <code>windows_arm64</code>) from the <a href="https://github.com/padovanl/portop/releases/latest">latest release</a> and put <code>portop.exe</code> in a folder on your <code>PATH</code>. In PowerShell:</p>
+          <pre><span class="comment"># &lt;version&gt; is the release number without the leading "v"</span>
 $zip = "portop_&lt;version&gt;_windows_amd64.zip"   <span class="comment"># ARM64: windows_arm64</span>
 Invoke-WebRequest "https://github.com/padovanl/portop/releases/latest/download/$zip" -OutFile $zip
 $dir = "$env:LOCALAPPDATA\Programs\portop"
 Expand-Archive $zip -DestinationPath $dir -Force
-<span class="comment"># add it to your user PATH, then open a new terminal and run portop</span>
+<span class="comment"># add it to your user PATH, then open a new terminal</span>
 [Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$dir", "User")</pre>
         </details>
-        <p class="platform-note">Run it in Windows Terminal or any modern console. Socket owners are visible without elevation; open an Administrator terminal to see details of elevated or other users' processes.</p>
+        <p>Socket owners are visible without elevation. Open an Administrator terminal to see details of elevated or other users' processes.</p>
       </div>
-      <div id="tab-bin" class="install-panel">
+
+      <div id="tab-mac" class="panel" role="tabpanel" aria-labelledby="t-mac">
+        <p>Apple Silicon and Intel. Homebrew keeps portop up to date with <code>brew upgrade</code>; the install script also works.</p>
+        <pre>brew install portop</pre>
+        <details>
+          <summary>Install from the release archive</summary>
+          <p>Use <code>darwin_arm64</code> for Apple Silicon or <code>darwin_amd64</code> for Intel.</p>
+          <pre>archive="portop_&lt;version&gt;_darwin_arm64.tar.gz"   <span class="comment"># Intel: darwin_amd64</span>
+curl -fLO "https://github.com/padovanl/portop/releases/latest/download/$archive"
+tar -xzf "$archive"
+sudo mkdir -p /usr/local/bin
+sudo install -m 755 portop /usr/local/bin/portop</pre>
+        </details>
+        <details>
+          <summary>If macOS blocks the first launch</summary>
+          <p>The release binaries are not notarized, so a browser download may trigger Gatekeeper. After checking that the binary comes from this repository's release:</p>
+          <ol>
+            <li>Run <code>portop</code>. If macOS shows <strong>“portop” Not Opened</strong>, click <strong>Done</strong>.</li>
+            <li>Open <strong>System Settings → Privacy &amp; Security</strong>, find the message about portop and click <strong>Open Anyway</strong> (or <strong>Allow Anyway</strong>).</li>
+            <li>Run <code>portop</code> again, confirm <strong>Open Anyway</strong> and authenticate.</li>
+          </ol>
+          <p>See <a href="https://support.apple.com/en-us/102445">Apple's instructions</a> for your macOS version.</p>
+        </details>
+        <p>portop uses the system's <code>lsof</code> and <code>ps</code>. Run <code>sudo portop</code> to include other users' processes. Systemd, Docker Desktop VM process metadata and thread counts are not available on macOS.</p>
+      </div>
+
+      <div id="tab-pkg" class="panel" role="tabpanel" aria-labelledby="t-pkg">
+        <p>Single packages from the <a href="https://github.com/padovanl/portop/releases/latest">latest release</a>. They do not update on their own; on Debian and Ubuntu, prefer the APT repository. Replace <code>linux_amd64</code> with your target from the table below.</p>
+        <pre><span class="comment"># Debian, Ubuntu</span>
+curl -fLO https://github.com/padovanl/portop/releases/latest/download/portop_&lt;version&gt;_linux_amd64.deb
+sudo dpkg -i portop_&lt;version&gt;_linux_amd64.deb
+
+<span class="comment"># Fedora, RHEL (openSUSE: sudo zypper install ...)</span>
+sudo dnf install ./portop_&lt;version&gt;_linux_amd64.rpm</pre>
+      </div>
+
+      <div id="tab-bin" class="panel" role="tabpanel" aria-labelledby="t-bin">
+        <p>Static binaries with no runtime dependencies. Replace <code>linux_amd64</code> with your target.</p>
         <pre>curl -fLO https://github.com/padovanl/portop/releases/latest/download/portop_&lt;version&gt;_linux_amd64.tar.gz
 tar -xzf portop_&lt;version&gt;_linux_amd64.tar.gz
 sudo install -m 755 portop /usr/local/bin/portop</pre>
       </div>
-      <div id="tab-src" class="install-panel">
+
+      <div id="tab-src" class="panel" role="tabpanel" aria-labelledby="t-src">
+        <p>Builds from source with a recent Go toolchain. <a href="https://pkg.go.dev/github.com/padovanl/portop">Package documentation</a>.</p>
         <pre>go install github.com/padovanl/portop/cmd/portop@latest</pre>
       </div>
-      <p class="install-note">All architecture targets, Linux .deb/.rpm packages, Windows zips and checksums on the <a href="https://github.com/padovanl/portop/releases/latest">releases page</a>.</p>
-    </section>
 
-    <section id="keys" class="section">
-      <h2>Every key, one dashboard</h2>
-      <p class="section-lede">The complete keybinding reference — also in-app any time with <kbd class="mono">?</kbd>, and fully remappable via <code>config.yml</code>.</p>
+      <div class="platforms">
+        <h3>Supported platforms</h3>
+        <div class="table-scroll">
+          <table class="platform-table">
+            <thead><tr><th>System</th><th>Architecture</th><th>Target</th><th>Available as</th><th>Requirements</th></tr></thead>
+            <tbody>
+              <tr><td>Linux</td><td>x86-64</td><td><code>linux_amd64</code></td><td>APT, Snap, Homebrew, .deb, .rpm, .tar.gz</td><td>amd64 baseline (v1).</td></tr>
+              <tr><td>Linux</td><td>ARM64</td><td><code>linux_arm64</code></td><td>APT, Snap, Homebrew, .deb, .rpm, .tar.gz</td><td>64-bit OS, ARMv8.0 baseline.</td></tr>
+              <tr><td>Linux</td><td>ARMv7</td><td><code>linux_armv7</code></td><td>APT (armhf), .deb, .rpm, .tar.gz</td><td>Hardware floating point (VFPv3).</td></tr>
+              <tr><td>Linux</td><td>ARMv6</td><td><code>linux_armv6</code></td><td>APT (armhf), .deb, .rpm, .tar.gz</td><td>Hardware floating point (VFP); Raspberry Pi 1 and Zero.</td></tr>
+              <tr><td>macOS</td><td>Intel</td><td><code>darwin_amd64</code></td><td>Homebrew, .tar.gz</td><td>64-bit Intel Mac.</td></tr>
+              <tr><td>macOS</td><td>Apple Silicon</td><td><code>darwin_arm64</code></td><td>Homebrew, .tar.gz</td><td>Native ARM64, no Rosetta.</td></tr>
+              <tr><td>Windows</td><td>x64</td><td><code>windows_amd64</code></td><td>winget, Microsoft Store, .zip</td><td>Windows 10 1809 or later.</td></tr>
+              <tr><td>Windows</td><td>ARM64</td><td><code>windows_arm64</code></td><td>winget, Microsoft Store, .zip</td><td>Windows 11 on ARM.</td></tr>
+            </tbody>
+          </table>
+        </div>
 
+        <details>
+          <summary>Compatibility notes</summary>
+          <ul>
+            <li><strong>Pick the target for your OS, not just the CPU.</strong> A 64-bit ARM board running a 32-bit OS needs <code>armv7</code>, or <code>armv6</code> for older CPUs.</li>
+            <li><strong>Not supported:</strong> ARMv5, soft-float <code>armel</code>, big-endian ARM, 32-bit x86 and 32-bit Windows.</li>
+            <li><strong>ARM32 packages:</strong> the ARMv6 and ARMv7 DEBs both carry <code>armhf</code> metadata; install only one. The APT repository serves the ARMv6 build, which also runs on ARMv7. RPM labels are <code>x86_64</code>, <code>aarch64</code>, <code>armv6hl</code> and <code>armv7hl</code>.</li>
+            <li><strong>Old systems:</strong> the binaries need no Go or C runtime, but a very old kernel may be below <a href="https://go.dev/wiki/MinimumRequirements">Go's minimum requirements</a>.</li>
+            <li><strong>Linux:</strong> <code>/proc/net</code> must be readable. Inside a container portop sees that container's network namespace. Root may be needed to identify other users' processes.</li>
+            <li><strong>Compose audit:</strong> with access to Docker, portop confirms the Compose service behind published ports and <code>docker-proxy</code>; without it, the port is still reported but the expected service may be unknown.</li>
+            <li><strong>Windows:</strong> sockets and owners come from the IP Helper API. The SYSTEMD column becomes SERVICE, Docker Desktop containers are matched by published port through the <code>docker</code> CLI, and both kill choices end the process.</li>
+            <li><strong>Testing:</strong> see the <a href="https://github.com/padovanl/portop/blob/main/docs/platform-support.md">validation report</a> for what has been run on real hardware and what only under emulation.</li>
+          </ul>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section id="keys">
+    <div class="wrap">
+      <h2>Key bindings</h2>
+      <p class="lede">Also available in the app with <kbd>?</kbd>. Every binding can be changed from the settings screen or in <code>config.yml</code>.</p>
       <div class="table-scroll">
-        <table class="keys">
-          <tr><th>Key</th><th>Action</th></tr>
-          <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Move the cursor</td></tr>
-          <tr><td><kbd>PgUp</kbd> / <kbd>PgDn</kbd></td><td>Move one visible page at a time</td></tr>
-          <tr><td>Mouse</td><td>Hover/select rows, wheel-scroll, open actions, and click headings to sort</td></tr>
-          <tr><td><kbd>g</kbd> / <kbd>G</kbd></td><td>Jump to top / bottom</td></tr>
-          <tr><td><kbd>enter</kbd></td><td>Process details — cmdline, exe, cwd, user, RSS, start time</td></tr>
-          <tr><td><kbd>k</kbd></td><td>Kill process, then <kbd>y</kbd>=SIGTERM or <kbd>f</kbd>=SIGKILL</td></tr>
-          <tr><td><kbd>o</kbd></td><td>Open <code>http(s)://localhost:PORT</code> in the browser</td></tr>
-          <tr><td><kbd>f</kbd> / <kbd>/</kbd></td><td>Filter/search by port, process or PID</td></tr>
-          <tr><td><kbd>v</kbd></td><td>Toggle IPv4 / IPv6 / both</td></tr>
-          <tr><td><kbd>e</kbd></td><td>Show/hide ESTABLISHED connections</td></tr>
-          <tr><td><kbd>s</kbd></td><td>Cycle sort column</td></tr>
-          <tr><td><kbd>c</kbd></td><td>Copy selected row to clipboard</td></tr>
-          <tr><td><kbd>n</kbd></td><td>Clear the new-port highlight</td></tr>
-          <tr><td><kbd>r</kbd></td><td>Refresh now</td></tr>
-          <tr><td><kbd>,</kbd></td><td>Settings — live theme picker, rebind any key</td></tr>
-          <tr><td><kbd>?</kbd></td><td>Help</td></tr>
-          <tr><td><kbd>q</kbd></td><td>Quit</td></tr>
+        <table class="key-table">
+          <thead><tr><th>Key</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td><kbd>↑</kbd> <kbd>↓</kbd></td><td>Move the cursor</td></tr>
+            <tr><td><kbd>PgUp</kbd> <kbd>PgDn</kbd></td><td>Move one page</td></tr>
+            <tr><td><kbd>g</kbd> <kbd>G</kbd></td><td>Jump to the top or bottom</td></tr>
+            <tr><td>Mouse</td><td>Select rows, scroll, open actions and sort by clicking a heading</td></tr>
+            <tr><td><kbd>enter</kbd></td><td>Process details: command line, executable, working directory, user, memory, start time</td></tr>
+            <tr><td><kbd>k</kbd></td><td>Stop the process, then <kbd>y</kbd> for SIGTERM or <kbd>f</kbd> for SIGKILL</td></tr>
+            <tr><td><kbd>o</kbd></td><td>Open <code>http(s)://localhost:PORT</code> in the browser</td></tr>
+            <tr><td><kbd>f</kbd> <kbd>/</kbd></td><td>Filter by port, process or PID</td></tr>
+            <tr><td><kbd>v</kbd></td><td>Show IPv4, IPv6 or both</td></tr>
+            <tr><td><kbd>e</kbd></td><td>Show or hide established connections</td></tr>
+            <tr><td><kbd>s</kbd></td><td>Change the sort column</td></tr>
+            <tr><td><kbd>c</kbd></td><td>Copy the selected row</td></tr>
+            <tr><td><kbd>n</kbd></td><td>Clear the new-port highlight</td></tr>
+            <tr><td><kbd>r</kbd></td><td>Refresh now</td></tr>
+            <tr><td><kbd>,</kbd></td><td>Settings: themes and key bindings</td></tr>
+            <tr><td><kbd>?</kbd></td><td>Help</td></tr>
+            <tr><td><kbd>q</kbd></td><td>Quit</td></tr>
+          </tbody>
         </table>
       </div>
-    </section>
-
-  </div>
+    </div>
+  </section>
 </main>
 
 <footer>
   <div class="wrap">
-    <span class="tag">MIT licensed · Linux + macOS + Windows</span>
-    <nav>
-      <a class="foot-chip" href="https://github.com/padovanl/portop">GitHub</a>
-      <a class="foot-chip" href="https://github.com/padovanl/portop/releases">Releases</a>
-      <a class="foot-chip" href="https://github.com/padovanl/portop/issues">Issues</a>
-      <a class="foot-chip" href="https://github.com/padovanl/portop/blob/main/LICENSE">License</a>
+    <span>portop by <a href="https://lucapadovan.dev">Luca Padovan</a>, released under the MIT License.</span>
+    <nav aria-label="Project links">
+      <a href="https://github.com/padovanl/portop">GitHub</a>
+      <a href="https://github.com/padovanl/portop/releases">Releases</a>
+      <a href="https://github.com/padovanl/portop/issues">Issues</a>
+      <a href="https://github.com/padovanl/portop/blob/main/LICENSE">License</a>
     </nav>
   </div>
 </footer>
 
 <script>
-  document.querySelectorAll('.install-tab').forEach(function (tab) {
-    tab.addEventListener('click', function () {
-      document.querySelectorAll('.install-tab').forEach(function (t) { t.setAttribute('aria-selected', 'false'); });
-      document.querySelectorAll('.install-panel').forEach(function (p) { p.classList.remove('active'); });
-      tab.setAttribute('aria-selected', 'true');
-      document.getElementById(tab.dataset.target).classList.add('active');
+  (function () {
+    var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+    function select(tab) {
+      tabs.forEach(function (t) {
+        var on = t === tab;
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+        t.tabIndex = on ? 0 : -1;
+        document.getElementById(t.getAttribute('aria-controls')).classList.toggle('active', on);
+      });
+    }
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () { select(tab); });
+      tab.addEventListener('keydown', function (e) {
+        var next = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : null;
+        if (next === null) return;
+        var t = tabs[(next + tabs.length) % tabs.length];
+        select(t);
+        t.focus();
+      });
     });
-  });
+  })();
 </script>
 
 </body>
