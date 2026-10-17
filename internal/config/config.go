@@ -20,6 +20,7 @@ type Config struct {
 	ResolveDNS      *bool               `yaml:"resolve_dns,omitempty"`
 	ResolveSystemd  *bool               `yaml:"resolve_systemd,omitempty"`
 	ResolveDocker   *bool               `yaml:"resolve_docker,omitempty"`
+	ResolveFirewall *bool               `yaml:"resolve_firewall,omitempty"`
 	WatchNew        *bool               `yaml:"watch_new,omitempty"`
 	Theme           string              `yaml:"theme,omitempty"`
 	Keybindings     map[string][]string `yaml:"keybindings,omitempty"`
@@ -79,6 +80,7 @@ const defaultConfigTemplate = `# portop config.yml
 # resolve_dns: true         # reverse DNS on ESTABLISHED remote hosts
 # resolve_systemd: true     # associate the owning systemd unit
 # resolve_docker: true      # associate the owning Docker container
+# resolve_firewall: true    # read the host firewall for exposed ports
 # watch_new: false          # desktop notification on a new LISTEN port
 
 # Color theme: default | dracula | nord | solarized | gruvbox | catppuccin

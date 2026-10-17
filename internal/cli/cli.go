@@ -85,6 +85,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	noDNS := fs.Bool("no-dns", false, "disable reverse DNS lookups on ESTABLISHED connections")
 	noSystemd := fs.Bool("no-systemd", false, "disable systemd unit association")
 	noDocker := fs.Bool("no-docker", false, "disable Docker container association")
+	noFirewall := fs.Bool("no-firewall", false, "do not read the host firewall for exposed ports")
 	watchNew := fs.Bool("watch-new", false, "send a desktop notification when a new listening port appears")
 	interval := fs.Duration("interval", 2*time.Second, "TUI refresh interval")
 	showVersion := fs.Bool("version", false, "print the version and exit")
@@ -173,6 +174,9 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	if !explicit["no-docker"] && fileCfg.ResolveDocker != nil && !*fileCfg.ResolveDocker {
 		*noDocker = true
 	}
+	if !explicit["no-firewall"] && fileCfg.ResolveFirewall != nil && !*fileCfg.ResolveFirewall {
+		*noFirewall = true
+	}
 	if !explicit["watch-new"] && fileCfg.WatchNew != nil {
 		*watchNew = *fileCfg.WatchNew
 	}
@@ -248,9 +252,10 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	filter := strings.Join(positional, " ")
 
 	opts := app.Options{
-		ResolveSystemd: !*noSystemd,
-		ResolveDocker:  !*noDocker,
-		ResolveDNS:     !*noDNS,
+		ResolveSystemd:  !*noSystemd,
+		ResolveDocker:   !*noDocker,
+		ResolveDNS:      !*noDNS,
+		ResolveFirewall: !*noFirewall,
 	}
 
 	blPath := *baselinePath
@@ -291,6 +296,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		ResolveDNS:      opts.ResolveDNS,
 		ResolveSystemd:  opts.ResolveSystemd,
 		ResolveDocker:   opts.ResolveDocker,
+		ResolveFirewall: opts.ResolveFirewall,
 		NotifyOnNewPort: *watchNew,
 		ConfigPath:      cfgPath,
 		Theme:           themeName,
@@ -533,6 +539,7 @@ type jsonRow struct {
 	Process       string  `json:"process,omitempty"`
 	User          string  `json:"user,omitempty"`
 	Workers       []int   `json:"workers,omitempty"`
+	Firewall      string  `json:"firewall,omitempty"`
 	Scope         string  `json:"scope"`
 	CPUPercent    float64 `json:"cpu_percent"`
 	SystemdUnit   string  `json:"systemd_unit,omitempty"`
@@ -550,6 +557,7 @@ func toJSONRow(r app.Row) jsonRow {
 		Process:      r.ProcessName,
 		User:         r.Username,
 		Workers:      r.Workers,
+		Firewall:     r.Firewall,
 		Scope:        r.Scope(),
 		CPUPercent:   r.CPUPercent,
 		SystemdUnit:  r.SystemdUnit,

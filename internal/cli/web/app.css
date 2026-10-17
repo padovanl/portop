@@ -219,3 +219,7 @@ h3 { margin: 18px 0 10px; color: var(--cyan); font-size: .7rem; letter-spacing: 
 .scope.address { border-color: var(--warn); color: var(--warn); background: var(--warn-bg); }
 .scope.loopback { border-color: var(--listen-border); color: var(--listen-text); background: var(--listen-bg); }
 .state.unconn { border-color: var(--listen-border); color: var(--listen-text); background: var(--listen-bg); }
+.firewall { display: inline-block; margin-left: 4px; padding: 1px 5px; border: 1px solid var(--state-border); border-radius: 4px; font-size: .6rem; vertical-align: middle; color: var(--muted); }
+.firewall.allowed { border-color: var(--danger-border); color: var(--danger-text); }
+.firewall.restricted { border-color: var(--warn); color: var(--warn); }
+.firewall.blocked { border-color: var(--listen-border); color: var(--listen-text); }

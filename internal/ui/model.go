@@ -100,6 +100,7 @@ type Config struct {
 	ResolveDNS      bool
 	ResolveSystemd  bool
 	ResolveDocker   bool
+	ResolveFirewall bool
 	NotifyOnNewPort bool
 
 	// ConfigPath is where the settings screen (",") persists live theme
@@ -257,9 +258,10 @@ func (m *Model) startCollect() tea.Cmd {
 func (m Model) collectCmd() tea.Cmd {
 	collector := m.collector
 	opts := app.Options{
-		ResolveSystemd: m.cfg.ResolveSystemd,
-		ResolveDocker:  m.cfg.ResolveDocker,
-		ResolveDNS:     m.cfg.ResolveDNS,
+		ResolveSystemd:  m.cfg.ResolveSystemd,
+		ResolveDocker:   m.cfg.ResolveDocker,
+		ResolveDNS:      m.cfg.ResolveDNS,
+		ResolveFirewall: m.cfg.ResolveFirewall,
 	}
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

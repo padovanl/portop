@@ -415,3 +415,19 @@ func ifaceStyle(r app.Row) lipgloss.Style {
 		return styleWarn
 	}
 }
+
+// firewallStyle colors the firewall's verdict on an exposed port: red when
+// anyone can connect, amber when only some sources can, green when it is
+// blocked.
+func firewallStyle(verdict string) lipgloss.Style {
+	switch verdict {
+	case "allowed":
+		return styleDanger
+	case "restricted":
+		return styleWarn
+	case "blocked":
+		return styleOk
+	default:
+		return styleFaint
+	}
+}

@@ -66,9 +66,9 @@ func writeMetrics(w io.Writer, rows []app.Row, took time.Duration) {
 		return listeners[i].LocalAddr.String() < listeners[j].LocalAddr.String()
 	})
 	for _, r := range listeners {
-		fmt.Fprintf(w, "portop_listening_port_info{protocol=%s,port=%s,address=%s,scope=%s,process=%s,pid=%s,user=%s,container=%s} 1\n",
+		fmt.Fprintf(w, "portop_listening_port_info{protocol=%s,port=%s,address=%s,scope=%s,firewall=%s,process=%s,pid=%s,user=%s,container=%s} 1\n",
 			label(strings.ToLower(string(r.Protocol))), label(strconv.Itoa(int(r.LocalPort))), label(r.LocalAddr.String()),
-			label(r.Scope()), label(r.ProcessName), label(pidLabel(r.PID)), label(r.Username), label(r.ContainerName))
+			label(r.Scope()), label(r.Firewall), label(r.ProcessName), label(pidLabel(r.PID)), label(r.Username), label(r.ContainerName))
 	}
 
 	fmt.Fprintln(w, "# HELP portop_scrape_duration_seconds Time taken to scan the host for this response.")

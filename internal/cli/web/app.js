@@ -86,6 +86,7 @@
             const tr = document.createElement("tr");
             const local = cell(tr, ":" + row.local_port, "primary port");
             if (isListening(row)) local.append(scopeBadge(row.scope));
+            if (row.firewall) local.append(firewallBadge(row.firewall));
             subline(local, row.local_address + " · " + row.protocol + (row.ipv6 ? "6" : "4"));
             const remote = cell(tr, endpoint(row.remote_address, row.remote_port), row.remote_port ? "" : "muted");
             if (row.remote_host) subline(remote, row.remote_host);
@@ -129,6 +130,15 @@
         return badge;
     }
 
+    const firewallLabels = { allowed: "firewall: open", restricted: "firewall: some sources", blocked: "firewall: blocked" };
+
+    function firewallBadge(verdict) {
+        const badge = document.createElement("span");
+        badge.className = "firewall " + (firewallLabels[verdict] ? verdict : "");
+        badge.textContent = firewallLabels[verdict] || "firewall: " + verdict;
+        return badge;
+    }
+
     function showSocket(row) {
         const fields = byId("socket-fields");
         fields.replaceChildren();
@@ -139,6 +149,7 @@
         field(fields, "Protocol", row.protocol + (row.ipv6 ? " · IPv6" : " · IPv4"));
         field(fields, "State", row.state);
         field(fields, "Exposure", scopeLabels[row.scope] || row.scope);
+        field(fields, "Firewall", row.firewall ? firewallLabels[row.firewall] || row.firewall : "");
         field(fields, "Process", row.process);
         field(fields, "User", row.user);
         field(fields, "Workers", row.workers && row.workers.length ? row.workers.join(", ") : "");

@@ -14,6 +14,7 @@ import (
 
 	"github.com/padovanl/portop/internal/dnscache"
 	"github.com/padovanl/portop/internal/docker"
+	"github.com/padovanl/portop/internal/firewall"
 	"github.com/padovanl/portop/internal/scanner"
 	"github.com/padovanl/portop/internal/systemdinfo"
 )
@@ -32,6 +33,7 @@ type Row struct {
 	ProcessName   string
 	Username      string // owner of the socket; empty if unknown
 	Workers       []int  // other processes holding the same socket (a server's workers)
+	Firewall      string // the host firewall's verdict for an exposed listener; "" if unknown or loopback
 	CPUPercent    float64
 	SystemdUnit   string
 	ContainerName string
@@ -136,6 +138,17 @@ func NewCollector() *Collector {
 	}
 }
 
+// applyFirewall records the firewall's verdict on every listener the
+// network can reach; for loopback the firewall does not matter.
+func applyFirewall(rows []Row, policy firewall.Policy) {
+	for i := range rows {
+		r := &rows[i]
+		if r.Listening() && r.Scope() != ScopeLoopback {
+			r.Firewall = string(policy.Verdict(strings.ToLower(string(r.Protocol)), r.LocalPort))
+		}
+	}
+}
+
 // containerName names the container pid runs in: through the Docker
 // (or Podman) API when it knows the container, else from the kubelet's
 // records for Kubernetes pods run by containerd or CRI-O.
@@ -187,9 +200,10 @@ const defaultDNSTimeout = 800 * time.Millisecond
 
 // Options controls the metadata resolved during a scan.
 type Options struct {
-	ResolveSystemd bool
-	ResolveDocker  bool
-	ResolveDNS     bool
+	ResolveSystemd  bool
+	ResolveDocker   bool
+	ResolveDNS      bool
+	ResolveFirewall bool
 }
 
 // Collect scans current sockets, resolves owning processes, and enriches
@@ -250,6 +264,10 @@ func (c *Collector) Collect(ctx context.Context, opts Options) ([]Row, error) {
 		}
 
 		rows = append(rows, row)
+	}
+
+	if opts.ResolveFirewall {
+		applyFirewall(rows, firewall.Current())
 	}
 
 	if opts.ResolveDocker && portBasedContainers && c.docker.Available() {

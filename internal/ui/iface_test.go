@@ -59,3 +59,18 @@ func TestProcessCellCountsWorkers(t *testing.T) {
 		t.Fatalf("workerList = %q", got)
 	}
 }
+
+func TestFirewallCell(t *testing.T) {
+	exposed := app.Row{Protocol: scanner.TCP, LocalAddr: net.ParseIP("0.0.0.0"), LocalPort: 80, State: scanner.StateListen}
+	if got := cellValue(exposed, "FIREWALL"); got != "?" {
+		t.Errorf("exposed, firewall unreadable = %q, want ?", got)
+	}
+	exposed.Firewall = "blocked"
+	if got := cellValue(exposed, "FIREWALL"); got != "blocked" {
+		t.Errorf("verdict = %q", got)
+	}
+	local := app.Row{Protocol: scanner.TCP, LocalAddr: net.ParseIP("127.0.0.1"), LocalPort: 5432, State: scanner.StateListen}
+	if got := cellValue(local, "FIREWALL"); got != "-" {
+		t.Errorf("loopback = %q, want -", got)
+	}
+}

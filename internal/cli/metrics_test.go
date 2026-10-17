@@ -16,7 +16,7 @@ import (
 
 func metricRows() []app.Row {
 	return []app.Row{
-		{Protocol: scanner.TCP, LocalAddr: net.ParseIP("0.0.0.0"), LocalPort: 80, State: scanner.StateListen, PID: 10, ProcessName: `ng"inx`, Username: "www"},
+		{Protocol: scanner.TCP, LocalAddr: net.ParseIP("0.0.0.0"), LocalPort: 80, State: scanner.StateListen, PID: 10, ProcessName: `ng"inx`, Username: "www", Firewall: "blocked"},
 		{Protocol: scanner.TCP, LocalAddr: net.ParseIP("127.0.0.1"), LocalPort: 5432, State: scanner.StateListen, PID: 20, ProcessName: "postgres"},
 		{Protocol: scanner.UDP, LocalAddr: net.ParseIP("0.0.0.0"), LocalPort: 53, State: scanner.StateUnconn},
 		{Protocol: scanner.TCP, LocalAddr: net.ParseIP("10.0.0.2"), LocalPort: 51000, RemotePort: 443, State: scanner.StateEstablished, PID: 30},
@@ -34,8 +34,8 @@ func TestWriteMetrics(t *testing.T) {
 		`portop_listening_ports{protocol="tcp",scope="loopback"} 1`,
 		`portop_listening_ports{protocol="udp",scope="all"} 1`,
 		`portop_listening_ports{protocol="udp",scope="address"} 0`,
-		`portop_listening_port_info{protocol="tcp",port="80",address="0.0.0.0",scope="all",process="ng\"inx",pid="10",user="www",container=""} 1`,
-		`portop_listening_port_info{protocol="udp",port="53",address="0.0.0.0",scope="all",process="",pid="",user="",container=""} 1`,
+		`portop_listening_port_info{protocol="tcp",port="80",address="0.0.0.0",scope="all",firewall="blocked",process="ng\"inx",pid="10",user="www",container=""} 1`,
+		`portop_listening_port_info{protocol="udp",port="53",address="0.0.0.0",scope="all",firewall="",process="",pid="",user="",container=""} 1`,
 		"portop_scrape_duration_seconds 0.001500",
 	} {
 		if !strings.Contains(out, want+"\n") {

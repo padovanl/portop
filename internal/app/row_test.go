@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/padovanl/portop/internal/docker"
+	"github.com/padovanl/portop/internal/firewall"
 	"github.com/padovanl/portop/internal/scanner"
 )
 
@@ -224,5 +225,22 @@ func TestContainerNameForKubernetesPod(t *testing.T) {
 
 	if got := NewCollector().containerName(context.Background(), 77); got != "prod/api-6c9d/server" {
 		t.Fatalf("containerName = %q, want prod/api-6c9d/server", got)
+	}
+}
+
+type fakePolicy map[uint16]firewall.Verdict
+
+func (p fakePolicy) Verdict(_ string, port uint16) firewall.Verdict { return p[port] }
+
+// Only listeners the network can reach get a firewall verdict.
+func TestApplyFirewall(t *testing.T) {
+	rows := []Row{
+		{Protocol: scanner.TCP, LocalAddr: net.ParseIP("0.0.0.0"), LocalPort: 80, State: scanner.StateListen},
+		{Protocol: scanner.TCP, LocalAddr: net.ParseIP("127.0.0.1"), LocalPort: 81, State: scanner.StateListen},
+		{Protocol: scanner.TCP, LocalAddr: net.ParseIP("0.0.0.0"), LocalPort: 82, RemotePort: 9, State: scanner.StateEstablished},
+	}
+	applyFirewall(rows, fakePolicy{80: firewall.Blocked, 81: firewall.Allowed, 82: firewall.Allowed})
+	if rows[0].Firewall != "blocked" || rows[1].Firewall != "" || rows[2].Firewall != "" {
+		t.Fatalf("verdicts = %q %q %q", rows[0].Firewall, rows[1].Firewall, rows[2].Firewall)
 	}
 }

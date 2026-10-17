@@ -107,7 +107,7 @@ func columnsFor(showEstablished bool, width int) []column {
 		{"PID", 7},
 		{"CPU", 6},
 	}
-	optional := []column{{"IFACE", 16}, {"USER", 12}, {"CONTAINER", 16}, {"SYSTEMD", 16}}
+	optional := []column{{"IFACE", 16}, {"FIREWALL", 11}, {"USER", 12}, {"CONTAINER", 16}, {"SYSTEMD", 16}}
 	if showEstablished {
 		optional = append([]column{{"REMOTE", 30}}, optional...)
 	}
@@ -307,6 +307,15 @@ func cellValue(r app.Row, colTitle string) string {
 			return "-"
 		}
 		return r.Username
+	case "FIREWALL":
+		switch {
+		case r.Firewall != "":
+			return r.Firewall
+		case r.Listening() && r.Scope() != app.ScopeLoopback:
+			return "?" // reachable from the network, firewall unreadable
+		default:
+			return "-"
+		}
 	case "SYSTEMD":
 		if r.SystemdUnit == "" {
 			return "-"
@@ -347,6 +356,8 @@ func coloredRow(r app.Row, cols []column) string {
 			fmt.Fprint(&b, cpuStyle(r.CPUPercent).Render(padded))
 		case "IFACE":
 			fmt.Fprint(&b, ifaceStyle(r).Render(padded))
+		case "FIREWALL":
+			fmt.Fprint(&b, firewallStyle(r.Firewall).Render(padded))
 		default:
 			fmt.Fprint(&b, padded)
 		}
