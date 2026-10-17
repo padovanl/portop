@@ -8,228 +8,409 @@
 <meta property="og:title" content="portop">
 <meta property="og:image" content="https://padovanl.github.io/portop/assets/logo.png">
 <meta property="og:description" content="An htop-style terminal UI for TCP/UDP ports: the process, systemd unit or Windows service and Docker container behind each one, with baseline drift detection and a web dashboard.">
-<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0b1020">
 <link rel="icon" href="assets/logo.png">
 <style>
-  /* Accent colours come from the portop logo. */
+  /* Colours come from the portop logo: night blue, azure and mint. */
   :root {
-    --bg: #0c111d;
-    --bg-raised: #121a2b;
-    --bg-code: #0f1626;
-    --text: #e4e9f2;
-    --muted: #9aa5ba;
-    --faint: #6b7790;
-    --line: #232d42;
-    --accent: #4cc2ff;
-    --accent-strong: #7fd4ff;
-    --on-accent: #06121f;
-    --green: #34d399;
+    color-scheme: dark;
+    --bg: #0b1020;
+    --panel: #121a2e;
+    --panel-2: #172038;
+    --code: #0d1426;
+    --text: #e8eef9;
+    --muted: #9ba8c4;
+    --faint: #67749a;
+    --line: #ffffff14;
+    --line-strong: #ffffff24;
+    --azure: #4cc2ff;
+    --azure-soft: #4cc2ff1f;
+    --mint: #34e3a4;
+    --mint-soft: #34e3a41c;
+    --amber: #ffb454;
 
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
     --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
   }
-  @media (prefers-color-scheme: light) {
-    :root {
-      --bg: #ffffff;
-      --bg-raised: #f5f7fa;
-      --bg-code: #f3f5f8;
-      --text: #141b2a;
-      --muted: #536077;
-      --faint: #7a8599;
-      --line: #e1e6ee;
-      --accent: #0a6db4;
-      --accent-strong: #08578f;
-      --on-accent: #ffffff;
-      --green: #0f8a5f;
-    }
-  }
 
   * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; scroll-padding-top: 72px; }
-  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  html { scroll-behavior: smooth; scroll-padding-top: 76px; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { transition: none !important; }
+  }
 
   body {
     margin: 0;
-    background: var(--bg);
     color: var(--text);
-    font: 16px/1.6 var(--sans);
+    font: 16px/1.65 var(--sans);
     -webkit-font-smoothing: antialiased;
+    background:
+      radial-gradient(900px 520px at 85% -8%, #4cc2ff22, transparent 70%),
+      radial-gradient(700px 480px at -10% 30%, #34e3a412, transparent 70%),
+      var(--bg);
+    background-repeat: no-repeat;
   }
+  ::selection { background: var(--azure); color: var(--bg); }
 
-  a { color: var(--accent); text-decoration: none; }
+  a { color: var(--azure); text-decoration: none; }
   a:hover { text-decoration: underline; text-underline-offset: 3px; }
   a:focus-visible, button:focus-visible, summary:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-    border-radius: 4px;
+    outline: 2px solid var(--azure);
+    outline-offset: 3px;
+    border-radius: 6px;
   }
 
-  code, pre, kbd { font-family: var(--mono); font-size: 0.9em; }
+  code, pre, kbd { font-family: var(--mono); }
   :not(pre) > code {
-    background: var(--bg-raised);
+    font-size: 0.86em;
+    background: #ffffff0a;
     border: 1px solid var(--line);
-    border-radius: 4px;
-    padding: 0.05em 0.35em;
+    border-radius: 5px;
+    padding: 0.08em 0.38em;
   }
   kbd {
     display: inline-block;
-    min-width: 1.6em;
+    min-width: 1.9em;
     text-align: center;
-    background: var(--bg-raised);
-    border: 1px solid var(--line);
-    border-bottom-width: 2px;
-    border-radius: 4px;
-    padding: 0 0.4em;
-    font-size: 0.82em;
+    background: var(--panel-2);
+    border: 1px solid var(--line-strong);
+    border-bottom-width: 3px;
+    border-radius: 6px;
+    padding: 0.05em 0.45em;
+    font-size: 0.8em;
     line-height: 1.6;
+    color: var(--text);
   }
 
-  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 
-  h1, h2, h3 { line-height: 1.25; text-wrap: balance; }
-  h2 { font-size: 1.6rem; font-weight: 650; letter-spacing: -0.01em; margin: 0 0 8px; }
-  h3 { font-size: 1rem; font-weight: 600; margin: 0 0 6px; }
-  .lede { color: var(--muted); max-width: 62ch; margin: 0 0 40px; font-size: 1.05rem; }
+  h1, h2, h3 { line-height: 1.2; text-wrap: balance; }
+  h2 { font-size: clamp(1.8rem, 3.2vw, 2.4rem); font-weight: 700; letter-spacing: -0.025em; margin: 0 0 12px; }
+  h3 { font-size: 1.05rem; font-weight: 650; margin: 0 0 8px; }
+  .eyebrow {
+    display: inline-block;
+    font: 600 0.78rem var(--mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--mint);
+    margin: 0 0 14px;
+  }
+  .lede { color: var(--muted); max-width: 62ch; margin: 0 0 44px; font-size: 1.08rem; }
 
   /* ---- header ---- */
   .site-header {
     position: sticky;
     top: 0;
     z-index: 10;
-    background: color-mix(in srgb, var(--bg) 88%, transparent);
-    backdrop-filter: saturate(160%) blur(10px);
+    background: #0b1020cc;
+    backdrop-filter: saturate(160%) blur(12px);
     border-bottom: 1px solid var(--line);
   }
-  .site-header .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; }
-  .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--text); font-weight: 650; font-size: 1.05rem; }
+  .site-header .wrap { display: flex; align-items: center; justify-content: space-between; height: 62px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--text); font-weight: 700; font-size: 1.08rem; }
   .brand:hover { text-decoration: none; }
-  .brand img { border-radius: 6px; display: block; }
-  .site-header nav { display: flex; gap: 26px; font-size: 0.92rem; }
+  .brand img { border-radius: 7px; display: block; }
+  .site-header nav { display: flex; gap: 26px; font-size: 0.92rem; align-items: center; }
   .site-header nav a { color: var(--muted); }
   .site-header nav a:hover { color: var(--text); text-decoration: none; }
+  .site-header nav a.gh {
+    color: var(--text);
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    padding: 6px 14px;
+  }
+  .site-header nav a.gh:hover { border-color: var(--azure); }
 
   /* ---- hero ---- */
-  .hero { padding: 88px 0 56px; }
-  .hero h1 { font-size: clamp(2.2rem, 5vw, 3.4rem); font-weight: 700; letter-spacing: -0.025em; margin: 0 0 20px; max-width: 18ch; }
-  .hero p { color: var(--muted); font-size: 1.15rem; max-width: 60ch; margin: 0 0 32px; }
-  .actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 20px; }
+  .hero { padding: 84px 0 40px; text-align: center; }
+  .hero-logo { width: 84px; height: 84px; border-radius: 20px; display: block; margin: 0 auto 28px; box-shadow: 0 18px 50px -12px #4cc2ff66; }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    background: #ffffff06;
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-bottom: 26px;
+  }
+  .pill strong { color: var(--mint); font-weight: 600; }
+  .hero h1 {
+    font-size: clamp(2.5rem, 6.4vw, 4.4rem);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1.05;
+    margin: 0 auto 22px;
+    max-width: 22ch;
+  }
+  .gradient {
+    background: linear-gradient(90deg, var(--azure), var(--mint), #6aa8ff, var(--azure));
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: shimmer 9s linear infinite;
+  }
+  @keyframes shimmer { to { background-position: 300% 0; } }
+  /* Inline, so the gradient of the headline paints the rotating words too. */
+  .rotator, .rotator .word { display: inline; }
+  .rotator .word { animation: word-in .6s ease-out; }
+  @keyframes word-in { from { opacity: 0; filter: blur(8px); } to { opacity: 1; filter: none; } }
+  @media (prefers-reduced-motion: reduce) { .gradient, .rotator .word { animation: none; } }
+  .hero .sub { color: var(--muted); font-size: 1.18rem; max-width: 60ch; margin: 0 auto 34px; }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-bottom: 30px; }
   .button {
     display: inline-flex;
     align-items: center;
-    padding: 10px 18px;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 0.95rem;
-    border: 1px solid var(--line);
-    color: var(--text);
-  }
-  .button:hover { text-decoration: none; border-color: var(--faint); }
-  .button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-  .button.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
-  .meta { color: var(--faint); font-size: 0.88rem; margin: 0; }
-  .meta span + span::before { content: "·"; margin: 0 8px; }
-
-  .screenshot {
-    margin: 56px 0 0;
-    border: 1px solid var(--line);
+    gap: 8px;
+    padding: 12px 22px;
     border-radius: 12px;
-    overflow: hidden;
-    background: #0b0f19;
-    box-shadow: 0 24px 60px -32px rgba(0, 0, 0, 0.55);
+    font-weight: 650;
+    font-size: 0.98rem;
+    border: 1px solid var(--line-strong);
+    color: var(--text);
+    background: #ffffff06;
+    transition: transform .2s, background .2s, border-color .2s, box-shadow .2s;
   }
-  .screenshot img { display: block; width: 100%; height: auto; }
-  .caption { color: var(--faint); font-size: 0.88rem; margin: 12px 0 0; }
+  .button:hover { text-decoration: none; transform: translateY(-2px); border-color: #ffffff40; }
+  .button.primary {
+    background: linear-gradient(100deg, var(--azure), #6fd6ff);
+    border-color: transparent;
+    color: #04131f;
+    box-shadow: 0 10px 30px -10px #4cc2ffaa;
+  }
+  .button.primary:hover { box-shadow: 0 14px 34px -10px #4cc2ffcc; }
+
+  .quick {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    max-width: 100%;
+    padding: 10px 10px 10px 18px;
+    background: var(--code);
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
+    font: 0.9rem var(--mono);
+    margin-bottom: 22px;
+  }
+  .quick code { background: none; border: 0; padding: 0; font-size: 1em; white-space: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .quick .prompt { color: var(--mint); user-select: none; }
+
+  .platforms { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; color: var(--muted); font-size: 0.9rem; }
+  .platforms span { padding: 4px 12px; border-radius: 999px; background: #ffffff08; border: 1px solid var(--line); }
+
+  .window {
+    margin: 64px auto 0;
+    max-width: 1060px;
+    border: 1px solid var(--line-strong);
+    border-radius: 14px;
+    overflow: hidden;
+    background: #0a0e19;
+    box-shadow: 0 40px 100px -40px #4cc2ff55, 0 0 0 1px #00000060;
+    text-align: left;
+  }
+  .window-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 14px;
+    background: var(--panel-2);
+    border-bottom: 1px solid var(--line);
+    font: 0.78rem var(--mono);
+    color: var(--faint);
+  }
+  .window-bar i { width: 11px; height: 11px; border-radius: 50%; display: block; background: #ff5f57; }
+  .window-bar i:nth-child(2) { background: #febc2e; }
+  .window-bar i:nth-child(3) { background: #28c840; margin-right: 8px; }
+  .window img { display: block; width: 100%; height: auto; }
+  .caption { color: var(--faint); font-size: 0.88rem; margin: 14px 0 0; text-align: center; }
+
+  /* ---- terminal mock-up in the hero ---- */
+  .term-body { padding: 14px 0 12px; font: 0.8rem/1.75 var(--mono); color: #cfd8ea; overflow-x: auto; }
+  .term-body > div { padding: 0 18px; white-space: nowrap; }
+  .t-title .tag { background: var(--azure); color: #04131f; font-weight: 700; padding: 1px 7px; border-radius: 3px; margin-right: 10px; }
+  .t-title .q { color: var(--faint); margin-right: 14px; }
+  .t-title .flags { color: var(--azure); }
+  .t-row, .t-head { display: grid; grid-template-columns: 2ch 11ch 6ch 13ch 16ch 6ch 6ch 11ch minmax(24ch, 1fr); gap: 0 10px; }
+  .t-head { color: var(--azure); font-weight: 700; margin-top: 8px; padding-bottom: 6px !important; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+  .t-row .p { color: var(--text); }
+  .t-row .d { color: var(--faint); }
+  .listen { color: var(--mint); font-weight: 700; }
+  .estab { color: #6aa8ff; }
+  .fresh { color: var(--amber); font-weight: 700; }
+  .t-row.sel { background: #4cc2ff1c; box-shadow: inset 3px 0 0 var(--azure); }
+  .t-foot { margin-top: 8px; padding-top: 8px !important; border-top: 1px solid var(--line); color: var(--faint); }
+  .t-foot b { color: var(--azure); font-weight: 700; }
+  .t-foot span + span::before { content: "·"; margin: 0 9px; color: #ffffff30; }
+
+  .demo-window { margin-top: 0; }
 
   /* ---- sections ---- */
-  section { padding: 88px 0; border-top: 1px solid var(--line); }
+  section { padding: 96px 0; }
+  section + section { border-top: 1px solid var(--line); }
 
-  .features {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 40px 48px;
+  .features { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+  .feature {
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 24px 24px 26px;
+    transition: transform .25s, border-color .25s;
   }
-  .features div { border-top: 2px solid var(--line); padding-top: 18px; }
-  .features p { color: var(--muted); margin: 0; font-size: 0.95rem; }
+  .feature:hover { transform: translateY(-3px); border-color: #4cc2ff55; }
+  .icon {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--azure-soft);
+    border: 1px solid #4cc2ff30;
+    font-size: 1.3rem;
+    margin-bottom: 16px;
+  }
+  .feature:nth-child(3n+2) .icon { background: var(--mint-soft); border-color: #34e3a430; }
+  .feature:nth-child(3n) .icon { background: #ffb4541a; border-color: #ffb45430; }
+  .feature p { color: var(--muted); margin: 0; font-size: 0.95rem; }
 
-  .figures { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
-  .figures figure { margin: 0; }
-  .figures .screenshot { margin: 0 0 16px; }
-  .figures h3 { margin-top: 0; }
-  .figures p { color: var(--muted); margin: 0; font-size: 0.95rem; }
+  .figures { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .figure {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .figure .shot { display: block; border-bottom: 1px solid var(--line); background: #0a0e19; }
+  .figure img { display: block; width: 100%; height: auto; }
+  .figure-body { padding: 22px 24px 24px; }
+  .figure-body h3 { display: flex; align-items: center; gap: 10px; }
+  .figure-body p { color: var(--muted); margin: 0; font-size: 0.95rem; }
+  .flag { font: 600 0.75rem var(--mono); color: var(--azure); background: var(--azure-soft); border-radius: 6px; padding: 2px 8px; }
 
   /* ---- install ---- */
-  .tabs { display: flex; flex-wrap: wrap; gap: 4px 2px; border-bottom: 1px solid var(--line); margin-bottom: 24px; }
+  .install-box {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 22px 24px 8px;
+  }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 22px; }
   .tab {
     appearance: none;
-    background: none;
-    border: 0;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-    padding: 10px 14px;
+    border: 1px solid var(--line);
+    background: transparent;
+    border-radius: 999px;
+    padding: 7px 15px;
     color: var(--muted);
-    font: 500 0.92rem var(--sans);
+    font: 500 0.9rem var(--sans);
     cursor: pointer;
+    transition: color .2s, background .2s, border-color .2s;
   }
-  .tab:hover { color: var(--text); }
-  .tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+  .tab:hover { color: var(--text); border-color: var(--line-strong); }
+  .tab[aria-selected="true"] { color: #04131f; background: var(--azure); border-color: var(--azure); font-weight: 650; }
   .panel { display: none; }
   .panel.active { display: block; }
-  .panel > p, .panel details p { color: var(--muted); max-width: 72ch; }
+  .panel > p, .panel details p { color: var(--muted); max-width: 76ch; }
   .panel > p:first-child { margin-top: 0; }
 
+  .code { position: relative; margin: 0 0 16px; }
   pre {
-    background: var(--bg-code);
+    background: var(--code);
     border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 16px 18px;
+    border-radius: 12px;
+    padding: 16px 92px 16px 18px;
     overflow-x: auto;
     margin: 0 0 16px;
-    font-size: 0.88rem;
-    line-height: 1.7;
+    font-size: 0.86rem;
+    line-height: 1.75;
   }
+  .code pre { margin: 0; }
   .comment { color: var(--faint); }
+  .copy {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    background: var(--panel-2);
+    color: var(--muted);
+    font: 500 0.8rem var(--sans);
+    padding: 4px 11px;
+    cursor: pointer;
+  }
+  .copy:hover { color: var(--text); }
+  .quick .copy { position: static; }
 
   details {
     border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 14px 18px;
+    border-radius: 12px;
+    padding: 12px 18px;
     margin: 16px 0;
+    background: #ffffff03;
   }
   details[open] summary { margin-bottom: 8px; }
   summary { cursor: pointer; font-weight: 600; }
   details li { margin: 10px 0; color: var(--muted); }
   details li strong { color: var(--text); }
 
-  .platforms { margin-top: 48px; }
-  .platforms h3 { font-size: 1.1rem; margin-bottom: 12px; }
+  .platform-table-wrap { margin-top: 40px; }
+  .platform-table-wrap h3 { font-size: 1.15rem; margin-bottom: 14px; }
 
   /* ---- tables ---- */
-  .table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+  .table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
   table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
-  th, td { text-align: left; padding: 10px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { font-weight: 600; color: var(--muted); background: var(--bg-raised); white-space: nowrap; }
+  th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-weight: 600; color: var(--muted); background: var(--panel-2); white-space: nowrap; }
   tr:last-child td { border-bottom: 0; }
   .platform-table { min-width: 720px; }
   .platform-table td:nth-child(-n+3) { white-space: nowrap; }
   .platform-table td:last-child { color: var(--muted); }
-  .key-table td:first-child { white-space: nowrap; width: 1%; }
+
+  /* ---- keys ---- */
+  .keys { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .key {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    font-size: 0.92rem;
+    color: var(--muted);
+  }
+  .key > span:first-child { flex: 0 0 auto; min-width: 74px; }
 
   /* ---- footer ---- */
-  footer { border-top: 1px solid var(--line); padding: 32px 0 48px; color: var(--faint); font-size: 0.9rem; }
-  footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; }
+  footer { border-top: 1px solid var(--line); padding: 34px 0 52px; color: var(--faint); font-size: 0.9rem; }
+  footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; }
+  footer .brand { font-size: 0.95rem; }
   footer nav { display: flex; flex-wrap: wrap; gap: 20px; }
-  footer a { color: var(--muted); }
+  footer nav a { color: var(--muted); }
 
-  @media (max-width: 880px) {
-    .features { grid-template-columns: 1fr 1fr; }
+  @media (max-width: 920px) {
+    .features, .keys { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .figures { grid-template-columns: 1fr; }
   }
   @media (max-width: 640px) {
     .wrap { padding: 0 16px; }
+    .site-header nav { gap: 14px; }
     .site-header nav a:not(.gh) { display: none; }
-    .hero { padding: 56px 0 40px; }
+    .hero { padding: 52px 0 24px; }
+    .hero .sub { font-size: 1.05rem; }
+    .quick { display: flex; }
+    .window { margin-top: 44px; }
     section { padding: 64px 0; }
-    .features { grid-template-columns: 1fr; gap: 28px; }
+    .features, .keys { grid-template-columns: minmax(0, 1fr); }
+    .install-box { padding: 16px 14px 4px; }
+    pre { padding-right: 18px; }
+    .code pre { padding-top: 46px; }
   }
 </style>
 </head>
@@ -243,7 +424,7 @@
       <a href="#dashboards">Dashboards</a>
       <a href="#install">Install</a>
       <a href="#keys">Keys</a>
-      <a class="gh" href="https://github.com/padovanl/portop">GitHub</a>
+      <a class="gh" href="https://github.com/padovanl/portop">GitHub ↗</a>
     </nav>
   </div>
 </header>
@@ -251,59 +432,88 @@
 <main>
   <div class="hero">
     <div class="wrap">
-      <h1>See which process owns every port.</h1>
-      <p>portop is a live, htop-style terminal UI for the TCP and UDP sockets on your machine. Each row shows the process, its systemd unit or Windows service, and its Docker container, and a key press lets you inspect or stop it.</p>
+      <img class="hero-logo" src="assets/logo.png" alt="" width="84" height="84">
+      <span class="pill"><strong>Open source</strong> · htop, but for ports</span>
+      <h1 aria-label="See what's really using every port">See what's really using<br><span class="gradient" aria-hidden="true"><span class="rotator" data-rotate="every port.|port 8080.|port 5432.|port 443.|port 22.">every port.</span></span></h1>
+      <p class="sub">A live terminal UI for the TCP and UDP sockets on your machine. Each row shows the process, its systemd unit or Windows service and its Docker container, and one key lets you inspect or stop it.</p>
       <div class="actions">
-        <a class="button primary" href="#install">Install</a>
-        <a class="button" href="https://github.com/padovanl/portop">Source on GitHub</a>
+        <a class="button primary" href="#install">Install portop</a>
+        <a class="button" href="https://github.com/padovanl/portop">⭐ Star on GitHub</a>
       </div>
-      <p class="meta"><span>Linux, macOS and Windows</span><span>MIT licensed</span><span><a href="https://github.com/padovanl/portop/releases/latest">Latest release</a></span></p>
+      <div class="quick">
+        <code id="quick-cmd"><span class="prompt">$ </span>curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh | sh</code>
+        <button class="copy" type="button" data-copy="quick-cmd" hidden>Copy</button>
+      </div>
+      <div class="platforms"><span>🐧 Linux</span><span>🍎 macOS</span><span>🪟 Windows</span></div>
 
-      <figure class="screenshot" style="margin-bottom:0">
-        <img src="assets/demo.gif" width="1902" height="1064" alt="portop filtering to a port, showing the process details, the kill confirmation and the help overlay">
+      <figure class="window" style="padding:0" role="img" aria-label="portop's port table: listening and established sockets with their process, PID, CPU, container and systemd unit">
+        <div class="window-bar"><i></i><i></i><i></i>portop — ~</div>
+        <div class="term-body">
+          <div class="t-title"><span class="tag">portop</span><span class="q">what's really using your ports?</span><span class="flags">[LISTEN+ESTABLISHED] [IPv4+IPv6] [sort: port]</span></div>
+          <div class="t-head"><span></span><span>PORT</span><span>PROTO</span><span>STATE</span><span>PROCESS</span><span>PID</span><span>CPU</span><span>CONTAINER</span><span>SYSTEMD</span></div>
+          <div class="t-row"><span></span><span class="p">:22 ssh</span><span>TCP</span><span class="listen">LISTEN</span><span>sshd</span><span>812</span><span>0.0%</span><span class="d">-</span><span>ssh.service</span></div>
+          <div class="t-row"><span></span><span class="p">:53 domain</span><span>UDP</span><span class="listen">LISTEN</span><span>systemd-resolve</span><span>640</span><span>0.1%</span><span class="d">-</span><span>systemd-resolved.service</span></div>
+          <div class="t-row"><span></span><span class="p">:443 https</span><span>TCP</span><span class="listen">LISTEN</span><span>nginx</span><span>1290</span><span>0.3%</span><span>web-proxy</span><span class="d">-</span></div>
+          <div class="t-row"><span></span><span class="p">:443 https</span><span>TCP</span><span class="estab">ESTABLISHED</span><span>nginx</span><span>1290</span><span>0.3%</span><span>web-proxy</span><span class="d">-</span></div>
+          <div class="t-row"><span></span><span class="p">:5432</span><span>TCP</span><span class="listen">LISTEN</span><span>postgres</span><span>2210</span><span>1.2%</span><span>db</span><span class="d">-</span></div>
+          <div class="t-row"><span></span><span class="p">:6379</span><span>TCP</span><span class="listen">LISTEN</span><span>redis-server</span><span>2305</span><span>0.4%</span><span>cache</span><span class="d">-</span></div>
+          <div class="t-row sel"><span>▸</span><span class="p">:8080</span><span>TCP</span><span class="fresh">● LISTEN</span><span>node</span><span>7320</span><span>8.3%</span><span class="d">-</span><span>api-dev.service</span></div>
+          <div class="t-row"><span></span><span class="p">:9090</span><span>TCP</span><span class="listen">LISTEN</span><span>prometheus</span><span>3011</span><span>0.6%</span><span>monitoring</span><span class="d">-</span></div>
+          <div class="t-foot"><span><b>enter</b> details</span><span><b>k</b> kill</span><span><b>o</b> open</span><span><b>f</b> search</span><span><b>s</b> sort</span><span><b>,</b> settings</span><span><b>?</b> help</span><span><b>q</b> quit</span></div>
+        </div>
       </figure>
-      <p class="caption">A recorded session: filtering to a port, opening the process details and confirming a kill.</p>
+      <p class="caption">Green is listening, blue is established, amber is a port that just opened.</p>
     </div>
   </div>
 
   <section id="features">
     <div class="wrap">
-      <h2>Features</h2>
-      <p class="lede">The context that <code>ss</code>, <code>netstat</code> and <code>lsof</code> leave out, in one view that refreshes on its own.</p>
+      <span class="eyebrow">Features</span>
+      <h2>Everything <code style="font-size:0.8em">ss</code> leaves out</h2>
+      <p class="lede">The context that <code>ss</code>, <code>netstat</code> and <code>lsof</code> don't give you, in one view that refreshes on its own.</p>
       <div class="features">
-        <div>
+        <div class="feature">
+          <div class="icon" aria-hidden="true">📡</div>
           <h3>Live port table</h3>
-          <p>Listening and established sockets, coloured by state, with per-process CPU sampled like <code>top</code> and port names from <code>/etc/services</code>. Columns drop out as the terminal narrows, down to 80 columns.</p>
+          <p>Listening and established sockets, coloured by state, with per-process CPU sampled like <code>top</code> and port names from <code>/etc/services</code>. Columns drop out as the terminal narrows.</p>
         </div>
-        <div>
+        <div class="feature">
+          <div class="icon" aria-hidden="true">🐳</div>
           <h3>Process, service and container</h3>
-          <p>The owning systemd unit on Linux, or Windows service on Windows, and the Docker container behind each port. Read from the process's cgroup, with no D-Bus, Docker SDK or daemon of its own.</p>
+          <p>The systemd unit on Linux, or Windows service on Windows, and the Docker container behind each port. Read from the process's cgroup, with no daemon of its own.</p>
         </div>
-        <div>
+        <div class="feature">
+          <div class="icon" aria-hidden="true">🛑</div>
           <h3>Inspect and stop</h3>
-          <p><kbd>enter</kbd> shows the command line, executable, working directory, user, memory and start time. <kbd>k</kbd> asks for confirmation, then sends SIGTERM or SIGKILL.</p>
+          <p><kbd>enter</kbd> shows command line, executable, working directory, user, memory and start time. <kbd>k</kbd> asks for confirmation, then sends SIGTERM or SIGKILL.</p>
         </div>
-        <div>
+        <div class="feature">
+          <div class="icon" aria-hidden="true">🔔</div>
           <h3>New-port alerts</h3>
           <p>Ports that start listening while portop is open are highlighted, with an optional desktop notification.</p>
         </div>
-        <div>
+        <div class="feature">
+          <div class="icon" aria-hidden="true">📈</div>
           <h3>Baseline drift detection</h3>
           <p>Save what is listening with <code>--save-baseline</code>, then run <code>--diff</code> from cron or a systemd timer. It exits with code 3 when an unexpected port appears.</p>
         </div>
-        <div>
+        <div class="feature">
+          <div class="icon" aria-hidden="true">🧩</div>
           <h3>Compose port audit</h3>
           <p><code>--compose DIR</code> compares the published ports of a Docker Compose project with what is actually listening, and reports unused or conflicting ones.</p>
         </div>
-        <div>
+        <div class="feature">
+          <div class="icon" aria-hidden="true">🔐</div>
           <h3>Clear about permissions</h3>
           <p>When a row belongs to a process it cannot read, such as a root-owned <code>docker-proxy</code>, portop says so and tells you that <code>sudo</code> would resolve it.</p>
         </div>
-        <div>
+        <div class="feature">
+          <div class="icon" aria-hidden="true">🧾</div>
           <h3>Scriptable</h3>
           <p><code>--json</code> prints the same data the interface shows, ready for <code>jq</code> or your own monitoring.</p>
         </div>
-        <div>
+        <div class="feature">
+          <div class="icon" aria-hidden="true">🎨</div>
           <h3>Themes and key bindings</h3>
           <p>The settings screen (<kbd>,</kbd>) previews 13 themes live and lets you rebind any of 20 actions. Changes are saved automatically.</p>
         </div>
@@ -311,148 +521,168 @@
     </div>
   </section>
 
+  <section id="demo">
+    <div class="wrap">
+      <span class="eyebrow">In action</span>
+      <h2>A real session</h2>
+      <p class="lede">Filtering to a port, opening the process details and confirming a kill, recorded as it happened.</p>
+      <figure class="window demo-window" style="padding:0">
+        <div class="window-bar"><i></i><i></i><i></i>portop</div>
+        <img src="assets/demo.gif" width="1902" height="1064" alt="portop filtering to a port, showing the process details, the kill confirmation and the help overlay" loading="lazy">
+      </figure>
+    </div>
+  </section>
+
   <section id="dashboards">
     <div class="wrap">
+      <span class="eyebrow">Beyond the terminal</span>
       <h2>Web dashboard and Cockpit</h2>
-      <p class="lede">The same live view, for when a terminal is not at hand.</p>
+      <p class="lede">The same live view of ports and processes, for when a terminal is not at hand.</p>
       <div class="figures">
-        <figure>
-          <a class="screenshot" href="assets/web-dashboard.gif" style="display:block"><img src="assets/web-dashboard.gif" width="960" height="600" alt="Signing in to the portop web dashboard, filtering to redis and opening its process details" loading="lazy"></a>
-          <h3>Web dashboard</h3>
-          <p><code>portop --web</code> serves a dashboard on <code>127.0.0.1:8088</code> with search, process details and confirmed SIGTERM/SIGKILL. With <code>--web-auth</code> it adds a <a href="assets/web-login.png">sign-in page</a>, can listen beyond loopback and serves HTTPS via <code>--web-tls-cert</code> and <code>--web-tls-key</code>.</p>
-        </figure>
-        <figure>
-          <a class="screenshot" href="assets/cockpit.gif" style="display:block"><img src="assets/cockpit.gif" width="960" height="600" alt="Opening Tools, Ports (portop) in Cockpit and inspecting the redis-server process" loading="lazy"></a>
-          <h3>Cockpit add-on</h3>
-          <p>On Linux, copy <code>cockpit/portop</code> to <code>~/.local/share/cockpit/portop</code> and open Tools → Ports (portop). It runs through Cockpit's bridge with your login and permissions, so there is no extra service to expose. <a href="https://github.com/padovanl/portop/blob/main/cockpit/README.md">Setup steps</a>.</p>
-        </figure>
+        <article class="figure">
+          <a class="shot" href="assets/web-dashboard.gif"><img src="assets/web-dashboard.gif" width="960" height="600" alt="Signing in to the portop web dashboard, filtering to redis and opening its process details" loading="lazy"></a>
+          <div class="figure-body">
+            <h3>Web dashboard <span class="flag">--web</span></h3>
+            <p><code>portop --web</code> serves a dashboard on <code>127.0.0.1:8088</code> with search, process details and confirmed SIGTERM/SIGKILL. With <code>--web-auth</code> it adds a <a href="assets/web-login.png">sign-in page</a>, can listen beyond loopback and serves HTTPS via <code>--web-tls-cert</code> and <code>--web-tls-key</code>.</p>
+          </div>
+        </article>
+        <article class="figure">
+          <a class="shot" href="assets/cockpit.gif"><img src="assets/cockpit.gif" width="960" height="600" alt="Opening Tools, Ports (portop) in Cockpit and inspecting the redis-server process" loading="lazy"></a>
+          <div class="figure-body">
+            <h3>Cockpit add-on <span class="flag">Tools → Ports</span></h3>
+            <p>On Linux, copy <code>cockpit/portop</code> to <code>~/.local/share/cockpit/portop</code> and open Tools → Ports (portop). It runs through Cockpit's bridge with your login and permissions, so there is no extra service to expose. <a href="https://github.com/padovanl/portop/blob/main/cockpit/README.md">Setup steps</a>.</p>
+          </div>
+        </article>
       </div>
     </div>
   </section>
 
   <section id="install">
     <div class="wrap">
-      <h2>Install</h2>
+      <span class="eyebrow">Install</span>
+      <h2>Get portop</h2>
       <p class="lede">Packages for Debian and Ubuntu, Snap, Homebrew, winget and the Microsoft Store, plus archives for every supported architecture.</p>
 
-      <div class="tabs" role="tablist" aria-label="Installation method">
-        <button class="tab" role="tab" aria-selected="true" aria-controls="tab-curl" id="t-curl">Install script</button>
-        <button class="tab" role="tab" aria-selected="false" aria-controls="tab-apt" id="t-apt" tabindex="-1">Debian / Ubuntu</button>
-        <button class="tab" role="tab" aria-selected="false" aria-controls="tab-snap" id="t-snap" tabindex="-1">Snap</button>
-        <button class="tab" role="tab" aria-selected="false" aria-controls="tab-brew" id="t-brew" tabindex="-1">Homebrew</button>
-        <button class="tab" role="tab" aria-selected="false" aria-controls="tab-win" id="t-win" tabindex="-1">Windows</button>
-        <button class="tab" role="tab" aria-selected="false" aria-controls="tab-mac" id="t-mac" tabindex="-1">macOS</button>
-        <button class="tab" role="tab" aria-selected="false" aria-controls="tab-pkg" id="t-pkg" tabindex="-1">.deb / .rpm</button>
-        <button class="tab" role="tab" aria-selected="false" aria-controls="tab-bin" id="t-bin" tabindex="-1">Archive</button>
-        <button class="tab" role="tab" aria-selected="false" aria-controls="tab-src" id="t-src" tabindex="-1">Go</button>
-      </div>
+      <div class="install-box">
+        <div class="tabs" role="tablist" aria-label="Installation method">
+          <button class="tab" role="tab" aria-selected="true" aria-controls="tab-curl" id="t-curl">Install script</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="tab-apt" id="t-apt" tabindex="-1">Debian / Ubuntu</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="tab-snap" id="t-snap" tabindex="-1">Snap</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="tab-brew" id="t-brew" tabindex="-1">Homebrew</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="tab-win" id="t-win" tabindex="-1">Windows</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="tab-mac" id="t-mac" tabindex="-1">macOS</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="tab-pkg" id="t-pkg" tabindex="-1">.deb / .rpm</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="tab-bin" id="t-bin" tabindex="-1">Archive</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="tab-src" id="t-src" tabindex="-1">Go</button>
+        </div>
 
-      <div id="tab-curl" class="panel active" role="tabpanel" aria-labelledby="t-curl">
-        <p>Linux and macOS. Detects the architecture, verifies the release checksum and installs to <code>/usr/local/bin</code>, or <code>~/.local/bin</code> if that is not writable.</p>
-        <pre>curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh | sh</pre>
-        <p>To override detection, download the script and set <code>PORTOP_ARCH</code> to <code>amd64</code>, <code>arm64</code>, <code>armv7</code> or <code>armv6</code> (macOS accepts <code>amd64</code> and <code>arm64</code>). On ARM64 kernels, <code>getconf LONG_BIT</code> is used to spot a 32-bit userland.</p>
-        <pre>curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh -o install.sh
-PORTOP_ARCH=armv7 sh install.sh</pre>
-      </div>
+        <div id="tab-curl" class="panel active" role="tabpanel" aria-labelledby="t-curl">
+          <p>Linux and macOS. Detects the architecture, verifies the release checksum and installs to <code>/usr/local/bin</code>, or <code>~/.local/bin</code> if that is not writable.</p>
+          <div class="code"><pre id="c-curl">curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh | sh</pre></div>
+          <p>To override detection, download the script and set <code>PORTOP_ARCH</code> to <code>amd64</code>, <code>arm64</code>, <code>armv7</code> or <code>armv6</code> (macOS accepts <code>amd64</code> and <code>arm64</code>). On ARM64 kernels, <code>getconf LONG_BIT</code> is used to spot a 32-bit userland.</p>
+          <div class="code"><pre id="c-curl-arch">curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh -o install.sh
+PORTOP_ARCH=armv7 sh install.sh</pre></div>
+        </div>
 
-      <div id="tab-apt" class="panel" role="tabpanel" aria-labelledby="t-apt">
-        <p>Debian, Ubuntu and derivatives on amd64, arm64 and armhf. The signed repository at <a href="https://apt.lucapadovan.dev">apt.lucapadovan.dev</a> is rebuilt on every release, so updates arrive with <code>apt upgrade</code>.</p>
-        <pre>sudo install -d -m 0755 /etc/apt/keyrings
+        <div id="tab-apt" class="panel" role="tabpanel" aria-labelledby="t-apt">
+          <p>Debian, Ubuntu and derivatives on amd64, arm64 and armhf. The signed repository at <a href="https://apt.lucapadovan.dev">apt.lucapadovan.dev</a> is rebuilt on every release, so updates arrive with <code>apt upgrade</code>.</p>
+          <div class="code"><pre id="c-apt">sudo install -d -m 0755 /etc/apt/keyrings
 curl -fsSL https://apt.lucapadovan.dev/lucapadovan.gpg | sudo tee /etc/apt/keyrings/lucapadovan.gpg &gt;/dev/null
 echo "deb [signed-by=/etc/apt/keyrings/lucapadovan.gpg] https://apt.lucapadovan.dev stable main" \
   | sudo tee /etc/apt/sources.list.d/lucapadovan.list
-sudo apt update &amp;&amp; sudo apt install portop</pre>
-      </div>
+sudo apt update &amp;&amp; sudo apt install portop</pre></div>
+        </div>
 
-      <div id="tab-snap" class="panel" role="tabpanel" aria-labelledby="t-snap">
-        <p>Any Linux distribution with snapd, on amd64 and arm64. Snaps update automatically. <a href="https://snapcraft.io/portop">Snap Store page</a>.</p>
-        <pre>sudo snap install portop</pre>
-      </div>
+        <div id="tab-snap" class="panel" role="tabpanel" aria-labelledby="t-snap">
+          <p>Any Linux distribution with snapd, on amd64 and arm64. Snaps update automatically. <a href="https://snapcraft.io/portop">Snap Store page</a>.</p>
+          <div class="code"><pre id="c-snap">sudo snap install portop</pre></div>
+        </div>
 
-      <div id="tab-brew" class="panel" role="tabpanel" aria-labelledby="t-brew">
-        <p>macOS (Apple Silicon and Intel) and Linux, from <a href="https://formulae.brew.sh/formula/portop">homebrew-core</a>.</p>
-        <pre>brew install portop</pre>
-      </div>
+        <div id="tab-brew" class="panel" role="tabpanel" aria-labelledby="t-brew">
+          <p>macOS (Apple Silicon and Intel) and Linux, from <a href="https://formulae.brew.sh/formula/portop">homebrew-core</a>.</p>
+          <div class="code"><pre id="c-brew">brew install portop</pre></div>
+        </div>
 
-      <div id="tab-win" class="panel" role="tabpanel" aria-labelledby="t-win">
-        <p>Windows 10 1809 or later and Windows 11, on x64 and ARM64. Each option puts <code>portop</code> on your <code>PATH</code>.</p>
-        <pre>winget install padovanl.portop</pre>
-        <p>Or install it from the <a href="https://apps.microsoft.com/detail/9MZ319F4LW70">Microsoft Store</a>, which keeps it up to date.</p>
-        <details>
-          <summary>Install from the release zip</summary>
-          <p>Download <code>portop_&lt;version&gt;_windows_amd64.zip</code> (or <code>windows_arm64</code>) from the <a href="https://github.com/padovanl/portop/releases/latest">latest release</a> and put <code>portop.exe</code> in a folder on your <code>PATH</code>. In PowerShell:</p>
-          <pre><span class="comment"># &lt;version&gt; is the release number without the leading "v"</span>
+        <div id="tab-win" class="panel" role="tabpanel" aria-labelledby="t-win">
+          <p>Windows 10 1809 or later and Windows 11, on x64 and ARM64. Each option puts <code>portop</code> on your <code>PATH</code>.</p>
+          <div class="code"><pre id="c-winget">winget install padovanl.portop</pre></div>
+          <p>Or install it from the <a href="https://apps.microsoft.com/detail/9MZ319F4LW70">Microsoft Store</a>, which keeps it up to date.</p>
+          <details>
+            <summary>Install from the release zip</summary>
+            <p>Download <code>portop_&lt;version&gt;_windows_amd64.zip</code> (or <code>windows_arm64</code>) from the <a href="https://github.com/padovanl/portop/releases/latest">latest release</a> and put <code>portop.exe</code> in a folder on your <code>PATH</code>. In PowerShell:</p>
+            <pre><span class="comment"># &lt;version&gt; is the release number without the leading "v"</span>
 $zip = "portop_&lt;version&gt;_windows_amd64.zip"   <span class="comment"># ARM64: windows_arm64</span>
 Invoke-WebRequest "https://github.com/padovanl/portop/releases/latest/download/$zip" -OutFile $zip
 $dir = "$env:LOCALAPPDATA\Programs\portop"
 Expand-Archive $zip -DestinationPath $dir -Force
 <span class="comment"># add it to your user PATH, then open a new terminal</span>
 [Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$dir", "User")</pre>
-        </details>
-        <p>Socket owners are visible without elevation. Open an Administrator terminal to see details of elevated or other users' processes.</p>
-      </div>
+          </details>
+          <p>Socket owners are visible without elevation. Open an Administrator terminal to see details of elevated or other users' processes.</p>
+        </div>
 
-      <div id="tab-mac" class="panel" role="tabpanel" aria-labelledby="t-mac">
-        <p>Apple Silicon and Intel. Homebrew keeps portop up to date with <code>brew upgrade</code>; the install script also works.</p>
-        <pre>brew install portop</pre>
-        <details>
-          <summary>Install from the release archive</summary>
-          <p>Use <code>darwin_arm64</code> for Apple Silicon or <code>darwin_amd64</code> for Intel.</p>
-          <pre>archive="portop_&lt;version&gt;_darwin_arm64.tar.gz"   <span class="comment"># Intel: darwin_amd64</span>
+        <div id="tab-mac" class="panel" role="tabpanel" aria-labelledby="t-mac">
+          <p>Apple Silicon and Intel. Homebrew keeps portop up to date with <code>brew upgrade</code>; the install script also works.</p>
+          <div class="code"><pre id="c-mac">brew install portop</pre></div>
+          <details>
+            <summary>Install from the release archive</summary>
+            <p>Use <code>darwin_arm64</code> for Apple Silicon or <code>darwin_amd64</code> for Intel.</p>
+            <pre>archive="portop_&lt;version&gt;_darwin_arm64.tar.gz"   <span class="comment"># Intel: darwin_amd64</span>
 curl -fLO "https://github.com/padovanl/portop/releases/latest/download/$archive"
 tar -xzf "$archive"
 sudo mkdir -p /usr/local/bin
 sudo install -m 755 portop /usr/local/bin/portop</pre>
-        </details>
-        <details>
-          <summary>If macOS blocks the first launch</summary>
-          <p>The release binaries are not notarized, so a browser download may trigger Gatekeeper. After checking that the binary comes from this repository's release:</p>
-          <ol>
-            <li>Run <code>portop</code>. If macOS shows <strong>“portop” Not Opened</strong>, click <strong>Done</strong>.</li>
-            <li>Open <strong>System Settings → Privacy &amp; Security</strong>, find the message about portop and click <strong>Open Anyway</strong> (or <strong>Allow Anyway</strong>).</li>
-            <li>Run <code>portop</code> again, confirm <strong>Open Anyway</strong> and authenticate.</li>
-          </ol>
-          <p>See <a href="https://support.apple.com/en-us/102445">Apple's instructions</a> for your macOS version.</p>
-        </details>
-        <p>portop uses the system's <code>lsof</code> and <code>ps</code>. Run <code>sudo portop</code> to include other users' processes. Systemd, Docker Desktop VM process metadata and thread counts are not available on macOS.</p>
-      </div>
+          </details>
+          <details>
+            <summary>If macOS blocks the first launch</summary>
+            <p>The release binaries are not notarized, so a browser download may trigger Gatekeeper. After checking that the binary comes from this repository's release:</p>
+            <ol>
+              <li>Run <code>portop</code>. If macOS shows <strong>“portop” Not Opened</strong>, click <strong>Done</strong>.</li>
+              <li>Open <strong>System Settings → Privacy &amp; Security</strong>, find the message about portop and click <strong>Open Anyway</strong> (or <strong>Allow Anyway</strong>).</li>
+              <li>Run <code>portop</code> again, confirm <strong>Open Anyway</strong> and authenticate.</li>
+            </ol>
+            <p>See <a href="https://support.apple.com/en-us/102445">Apple's instructions</a> for your macOS version.</p>
+          </details>
+          <p>portop uses the system's <code>lsof</code> and <code>ps</code>. Run <code>sudo portop</code> to include other users' processes. Systemd, Docker Desktop VM process metadata and thread counts are not available on macOS.</p>
+        </div>
 
-      <div id="tab-pkg" class="panel" role="tabpanel" aria-labelledby="t-pkg">
-        <p>Single packages from the <a href="https://github.com/padovanl/portop/releases/latest">latest release</a>. They do not update on their own; on Debian and Ubuntu, prefer the APT repository. Replace <code>linux_amd64</code> with your target from the table below.</p>
-        <pre><span class="comment"># Debian, Ubuntu</span>
+        <div id="tab-pkg" class="panel" role="tabpanel" aria-labelledby="t-pkg">
+          <p>Single packages from the <a href="https://github.com/padovanl/portop/releases/latest">latest release</a>. They do not update on their own; on Debian and Ubuntu, prefer the APT repository. Replace <code>linux_amd64</code> with your target from the table below.</p>
+          <pre><span class="comment"># Debian, Ubuntu</span>
 curl -fLO https://github.com/padovanl/portop/releases/latest/download/portop_&lt;version&gt;_linux_amd64.deb
 sudo dpkg -i portop_&lt;version&gt;_linux_amd64.deb
 
 <span class="comment"># Fedora, RHEL (openSUSE: sudo zypper install ...)</span>
 sudo dnf install ./portop_&lt;version&gt;_linux_amd64.rpm</pre>
-      </div>
+        </div>
 
-      <div id="tab-bin" class="panel" role="tabpanel" aria-labelledby="t-bin">
-        <p>Static binaries with no runtime dependencies. Replace <code>linux_amd64</code> with your target.</p>
-        <pre>curl -fLO https://github.com/padovanl/portop/releases/latest/download/portop_&lt;version&gt;_linux_amd64.tar.gz
+        <div id="tab-bin" class="panel" role="tabpanel" aria-labelledby="t-bin">
+          <p>Static binaries with no runtime dependencies. Replace <code>linux_amd64</code> with your target.</p>
+          <pre>curl -fLO https://github.com/padovanl/portop/releases/latest/download/portop_&lt;version&gt;_linux_amd64.tar.gz
 tar -xzf portop_&lt;version&gt;_linux_amd64.tar.gz
 sudo install -m 755 portop /usr/local/bin/portop</pre>
+        </div>
+
+        <div id="tab-src" class="panel" role="tabpanel" aria-labelledby="t-src">
+          <p>Builds from source with a recent Go toolchain. <a href="https://pkg.go.dev/github.com/padovanl/portop">Package documentation</a>.</p>
+          <div class="code"><pre id="c-go">go install github.com/padovanl/portop/cmd/portop@latest</pre></div>
+        </div>
       </div>
 
-      <div id="tab-src" class="panel" role="tabpanel" aria-labelledby="t-src">
-        <p>Builds from source with a recent Go toolchain. <a href="https://pkg.go.dev/github.com/padovanl/portop">Package documentation</a>.</p>
-        <pre>go install github.com/padovanl/portop/cmd/portop@latest</pre>
-      </div>
-
-      <div class="platforms">
+      <div class="platform-table-wrap">
         <h3>Supported platforms</h3>
         <div class="table-scroll">
           <table class="platform-table">
             <thead><tr><th>System</th><th>Architecture</th><th>Target</th><th>Available as</th><th>Requirements</th></tr></thead>
             <tbody>
-              <tr><td>Linux</td><td>x86-64</td><td><code>linux_amd64</code></td><td>APT, Snap, Homebrew, .deb, .rpm, .tar.gz</td><td>amd64 baseline (v1).</td></tr>
-              <tr><td>Linux</td><td>ARM64</td><td><code>linux_arm64</code></td><td>APT, Snap, Homebrew, .deb, .rpm, .tar.gz</td><td>64-bit OS, ARMv8.0 baseline.</td></tr>
-              <tr><td>Linux</td><td>ARMv7</td><td><code>linux_armv7</code></td><td>APT (armhf), .deb, .rpm, .tar.gz</td><td>Hardware floating point (VFPv3).</td></tr>
-              <tr><td>Linux</td><td>ARMv6</td><td><code>linux_armv6</code></td><td>APT (armhf), .deb, .rpm, .tar.gz</td><td>Hardware floating point (VFP); Raspberry Pi 1 and Zero.</td></tr>
-              <tr><td>macOS</td><td>Intel</td><td><code>darwin_amd64</code></td><td>Homebrew, .tar.gz</td><td>64-bit Intel Mac.</td></tr>
-              <tr><td>macOS</td><td>Apple Silicon</td><td><code>darwin_arm64</code></td><td>Homebrew, .tar.gz</td><td>Native ARM64, no Rosetta.</td></tr>
-              <tr><td>Windows</td><td>x64</td><td><code>windows_amd64</code></td><td>winget, Microsoft Store, .zip</td><td>Windows 10 1809 or later.</td></tr>
-              <tr><td>Windows</td><td>ARM64</td><td><code>windows_arm64</code></td><td>winget, Microsoft Store, .zip</td><td>Windows 11 on ARM.</td></tr>
+              <tr><td>🐧 Linux</td><td>x86-64</td><td><code>linux_amd64</code></td><td>APT, Snap, Homebrew, .deb, .rpm, .tar.gz</td><td>amd64 baseline (v1).</td></tr>
+              <tr><td>🐧 Linux</td><td>ARM64</td><td><code>linux_arm64</code></td><td>APT, Snap, Homebrew, .deb, .rpm, .tar.gz</td><td>64-bit OS, ARMv8.0 baseline.</td></tr>
+              <tr><td>🐧 Linux</td><td>ARMv7</td><td><code>linux_armv7</code></td><td>APT (armhf), .deb, .rpm, .tar.gz</td><td>Hardware floating point (VFPv3).</td></tr>
+              <tr><td>🐧 Linux</td><td>ARMv6</td><td><code>linux_armv6</code></td><td>APT (armhf), .deb, .rpm, .tar.gz</td><td>Hardware floating point (VFP); Raspberry Pi 1 and Zero.</td></tr>
+              <tr><td>🍎 macOS</td><td>Intel</td><td><code>darwin_amd64</code></td><td>Homebrew, .tar.gz</td><td>64-bit Intel Mac.</td></tr>
+              <tr><td>🍎 macOS</td><td>Apple Silicon</td><td><code>darwin_arm64</code></td><td>Homebrew, .tar.gz</td><td>Native ARM64, no Rosetta.</td></tr>
+              <tr><td>🪟 Windows</td><td>x64</td><td><code>windows_amd64</code></td><td>winget, Microsoft Store, .zip</td><td>Windows 10 1809 or later.</td></tr>
+              <tr><td>🪟 Windows</td><td>ARM64</td><td><code>windows_arm64</code></td><td>winget, Microsoft Store, .zip</td><td>Windows 11 on ARM.</td></tr>
             </tbody>
           </table>
         </div>
@@ -476,31 +706,27 @@ sudo install -m 755 portop /usr/local/bin/portop</pre>
 
   <section id="keys">
     <div class="wrap">
+      <span class="eyebrow">Keyboard</span>
       <h2>Key bindings</h2>
-      <p class="lede">Also available in the app with <kbd>?</kbd>. Every binding can be changed from the settings screen or in <code>config.yml</code>.</p>
-      <div class="table-scroll">
-        <table class="key-table">
-          <thead><tr><th>Key</th><th>Action</th></tr></thead>
-          <tbody>
-            <tr><td><kbd>↑</kbd> <kbd>↓</kbd></td><td>Move the cursor</td></tr>
-            <tr><td><kbd>PgUp</kbd> <kbd>PgDn</kbd></td><td>Move one page</td></tr>
-            <tr><td><kbd>g</kbd> <kbd>G</kbd></td><td>Jump to the top or bottom</td></tr>
-            <tr><td>Mouse</td><td>Select rows, scroll, open actions and sort by clicking a heading</td></tr>
-            <tr><td><kbd>enter</kbd></td><td>Process details: command line, executable, working directory, user, memory, start time</td></tr>
-            <tr><td><kbd>k</kbd></td><td>Stop the process, then <kbd>y</kbd> for SIGTERM or <kbd>f</kbd> for SIGKILL</td></tr>
-            <tr><td><kbd>o</kbd></td><td>Open <code>http(s)://localhost:PORT</code> in the browser</td></tr>
-            <tr><td><kbd>f</kbd> <kbd>/</kbd></td><td>Filter by port, process or PID</td></tr>
-            <tr><td><kbd>v</kbd></td><td>Show IPv4, IPv6 or both</td></tr>
-            <tr><td><kbd>e</kbd></td><td>Show or hide established connections</td></tr>
-            <tr><td><kbd>s</kbd></td><td>Change the sort column</td></tr>
-            <tr><td><kbd>c</kbd></td><td>Copy the selected row</td></tr>
-            <tr><td><kbd>n</kbd></td><td>Clear the new-port highlight</td></tr>
-            <tr><td><kbd>r</kbd></td><td>Refresh now</td></tr>
-            <tr><td><kbd>,</kbd></td><td>Settings: themes and key bindings</td></tr>
-            <tr><td><kbd>?</kbd></td><td>Help</td></tr>
-            <tr><td><kbd>q</kbd></td><td>Quit</td></tr>
-          </tbody>
-        </table>
+      <p class="lede">Also in the app with <kbd>?</kbd>. Every binding can be changed from the settings screen or in <code>config.yml</code>.</p>
+      <div class="keys">
+        <div class="key"><span><kbd>↑</kbd> <kbd>↓</kbd></span>Move the cursor</div>
+        <div class="key"><span><kbd>PgUp</kbd> <kbd>PgDn</kbd></span>Move one page</div>
+        <div class="key"><span><kbd>g</kbd> <kbd>G</kbd></span>Jump to top or bottom</div>
+        <div class="key"><span><kbd>enter</kbd></span>Process details</div>
+        <div class="key"><span><kbd>k</kbd></span>Stop the process, after confirming</div>
+        <div class="key"><span><kbd>o</kbd></span>Open localhost:PORT in the browser</div>
+        <div class="key"><span><kbd>f</kbd> <kbd>/</kbd></span>Filter by port, process or PID</div>
+        <div class="key"><span><kbd>v</kbd></span>IPv4, IPv6 or both</div>
+        <div class="key"><span><kbd>e</kbd></span>Show or hide established</div>
+        <div class="key"><span><kbd>s</kbd></span>Change the sort column</div>
+        <div class="key"><span><kbd>c</kbd></span>Copy the selected row</div>
+        <div class="key"><span><kbd>n</kbd></span>Clear the new-port highlight</div>
+        <div class="key"><span><kbd>r</kbd></span>Refresh now</div>
+        <div class="key"><span><kbd>,</kbd></span>Settings: themes and keys</div>
+        <div class="key"><span><kbd>?</kbd></span>Help</div>
+        <div class="key"><span><kbd>q</kbd></span>Quit</div>
+        <div class="key"><span>🖱️ Mouse</span>Select, scroll and sort by heading</div>
       </div>
     </div>
   </section>
@@ -508,7 +734,7 @@ sudo install -m 755 portop /usr/local/bin/portop</pre>
 
 <footer>
   <div class="wrap">
-    <span>portop by <a href="https://lucapadovan.dev">Luca Padovan</a>, released under the MIT License.</span>
+    <span><a class="brand" href="#"><img src="assets/logo.png" alt="" width="22" height="22">portop</a>&nbsp; by <a href="https://lucapadovan.dev">Luca Padovan</a> · MIT License</span>
     <nav aria-label="Project links">
       <a href="https://github.com/padovanl/portop">GitHub</a>
       <a href="https://github.com/padovanl/portop/releases">Releases</a>
@@ -537,6 +763,41 @@ sudo install -m 755 portop /usr/local/bin/portop</pre>
         var t = tabs[(next + tabs.length) % tabs.length];
         select(t);
         t.focus();
+      });
+    });
+
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.querySelectorAll('[data-rotate]').forEach(function (el) {
+        var words = el.dataset.rotate.split('|');
+        var i = 0;
+        setInterval(function () {
+          i = (i + 1) % words.length;
+          var word = document.createElement('span');
+          word.className = 'word';
+          word.textContent = words[i];
+          el.replaceChildren(word);
+        }, 2600);
+      });
+    }
+
+    if (!navigator.clipboard) return;
+    document.querySelectorAll('.code').forEach(function (box) {
+      var pre = box.querySelector('pre');
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'copy';
+      button.dataset.copy = pre.id;
+      box.appendChild(button);
+    });
+    document.querySelectorAll('.copy').forEach(function (button) {
+      button.hidden = false;
+      button.textContent = 'Copy';
+      button.addEventListener('click', function () {
+        var text = document.getElementById(button.dataset.copy).textContent.replace(/^\$ /, '');
+        navigator.clipboard.writeText(text).then(function () {
+          button.textContent = 'Copied';
+          setTimeout(function () { button.textContent = 'Copy'; }, 1500);
+        });
       });
     });
   })();
