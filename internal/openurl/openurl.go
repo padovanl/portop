@@ -4,19 +4,35 @@ package openurl
 
 import (
 	"fmt"
+	"net"
 	"os/exec"
 	"runtime"
+	"strconv"
 )
 
 // URLForPort builds the URL portop's "o" (open) action points the
 // browser at for a local listening port: https for the conventional TLS
 // ports, http otherwise.
 func URLForPort(port uint16) string {
-	scheme := "http"
-	if port == 443 || port == 8443 {
-		scheme = "https"
+	return fmt.Sprintf("%s://localhost:%d", scheme(port), port)
+}
+
+// URLForListener is URLForPort for a socket bound to addr. A service bound
+// to one interface (192.168.1.5:8080, or a container network address) does
+// not answer on localhost, so the URL uses that address; wildcard and
+// loopback binds keep localhost.
+func URLForListener(addr net.IP, port uint16) string {
+	if addr == nil || addr.IsUnspecified() || addr.IsLoopback() {
+		return URLForPort(port)
 	}
-	return fmt.Sprintf("%s://localhost:%d", scheme, port)
+	return scheme(port) + "://" + net.JoinHostPort(addr.String(), strconv.Itoa(int(port)))
+}
+
+func scheme(port uint16) string {
+	if port == 443 || port == 8443 {
+		return "https"
+	}
+	return "http"
 }
 
 // Open launches the given URL in the default browser. The command is

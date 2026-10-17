@@ -73,7 +73,7 @@ func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, keys.Open):
 		if row, ok := m.selected(); ok {
-			url := openurl.URLForPort(row.LocalPort)
+			url := openurl.URLForListener(row.LocalAddr, row.LocalPort)
 			if err := openurl.Open(url); err != nil {
 				m.setStatus("could not open "+url+": "+err.Error(), true)
 			} else {

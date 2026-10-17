@@ -144,7 +144,7 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			m.openKillConfirm(row)
 		}
 	case tea.MouseButtonMiddle:
-		url := openurl.URLForPort(row.LocalPort)
+		url := openurl.URLForListener(row.LocalAddr, row.LocalPort)
 		if err := openurl.Open(url); err != nil {
 			m.setStatus("could not open "+url+": "+err.Error(), true)
 		} else {

@@ -190,7 +190,7 @@ func (m Model) renderHelp() string {
 		{keys.Bottom, "jump to bottom"},
 		{keys.Enter, "process details"},
 		{keys.Kill, platformLabels.killHelp},
-		{keys.Open, "open http(s)://localhost:PORT in the browser"},
+		{keys.Open, "open http(s)://HOST:PORT in the browser"},
 		{keys.Filter, "filter/search by port, process or PID"},
 		{keys.Protocol, "toggle IPv4 / IPv6 / both"},
 		{keys.Established, "show/hide ESTABLISHED connections"},

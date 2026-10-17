@@ -60,7 +60,8 @@ Windows.
 - **Kill, with confirmation**: `k` then `y` (SIGTERM) or `f` (SIGKILL) —
   never a stray keypress away from killing the wrong thing.
 - **Open in the browser**: `o` launches `http(s)://localhost:PORT` for the
-  selected row.
+  selected row, or the bound address when the service listens on a single
+  interface.
 - **Instant filter/search**: `f`, then start typing — matches port, process
   name or PID as you type.
 - **Copy to clipboard**: `c` on the selected row.
@@ -406,7 +407,7 @@ reflects whatever's actually bound, including your overrides.
 | `g` `G`   | jump to top / bottom                             |
 | `enter`   | process details                                  |
 | `k`       | kill process (then `y`=SIGTERM, `f`=SIGKILL)     |
-| `o`       | open `http(s)://localhost:PORT` in the browser   |
+| `o`       | open `http(s)://HOST:PORT` in the browser        |
 | `f` `/`   | filter/search by port, process or PID            |
 | `v`       | toggle IPv4 / IPv6 / both                        |
 | `e`       | show/hide `ESTABLISHED` connections              |
