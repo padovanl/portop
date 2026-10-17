@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 
 	"go.yaml.in/yaml/v3"
+
+	"github.com/padovanl/portop/internal/userfile"
 )
 
 // Config mirrors config.yml. Pointer fields are tri-state (unset / true
@@ -52,23 +54,17 @@ func Load(path string) (Config, error) {
 
 // Save writes cfg as YAML, creating parent directories as needed.
 func Save(path string, cfg Config) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
 	data, err := yaml.Marshal(cfg)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o644)
+	return userfile.Write(path, data)
 }
 
 // WriteDefault writes a fully-commented example config.yml to path,
 // creating parent directories as needed. Used by `portop --init-config`.
 func WriteDefault(path string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	return os.WriteFile(path, []byte(defaultConfigTemplate), 0o644)
+	return userfile.Write(path, []byte(defaultConfigTemplate))
 }
 
 const defaultConfigTemplate = `# portop config.yml

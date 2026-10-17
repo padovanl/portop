@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/padovanl/portop/internal/app"
+	"github.com/padovanl/portop/internal/userfile"
 )
 
 // Entry is one listening socket as recorded in a baseline snapshot.
@@ -108,14 +109,11 @@ func DefaultPath() (string, error) {
 
 // Save writes entries to path, creating parent directories as needed.
 func Save(path string, entries []Entry) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
 	data, err := json.MarshalIndent(file{SavedAt: time.Now(), Entries: entries}, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o644)
+	return userfile.Write(path, data)
 }
 
 // Load reads back a previously saved baseline.
