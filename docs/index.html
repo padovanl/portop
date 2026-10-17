@@ -574,17 +574,17 @@
 
     <section id="install" class="section install">
       <h2>Installation</h2>
-      <p class="section-lede">Linux: x86-64, ARM64, ARMv7 and ARMv6. macOS: Intel and Apple Silicon. Windows: x64 and ARM64, via winget, the Microsoft Store or a zip. All release targets and limitations are listed below.</p>
+      <p class="section-lede">Linux: x86-64, ARM64, ARMv7 and ARMv6, via the APT repository, the Snap Store, Homebrew or a package. macOS: Intel and Apple Silicon, via Homebrew. Windows: x64 and ARM64, via winget, the Microsoft Store or a zip. All release targets and limitations are listed below.</p>
       <div class="table-scroll">
         <table class="keys" aria-label="All supported architectures">
           <thead><tr><th>System</th><th>Architecture</th><th>Target</th><th>Formats</th><th>Requirements</th></tr></thead>
           <tbody>
-            <tr><td>Linux</td><td>Intel/AMD 64-bit</td><td><code>linux_amd64</code></td><td>.tar.gz, .deb, .rpm</td><td>64-bit x86 OS; amd64 baseline (v1).</td></tr>
-            <tr><td>Linux</td><td>ARM64 / AArch64 (64-bit)</td><td><code>linux_arm64</code></td><td>.tar.gz, .deb, .rpm</td><td>64-bit ARM OS; ARMv8.0 baseline.</td></tr>
-            <tr><td>Linux</td><td>ARMv7 (32-bit)</td><td><code>linux_armv7</code></td><td>.tar.gz, .deb, .rpm</td><td>32-bit ARM Linux with hardware floating point (VFPv3).</td></tr>
-            <tr><td>Linux</td><td>ARMv6 (32-bit)</td><td><code>linux_armv6</code></td><td>.tar.gz, .deb, .rpm</td><td>32-bit ARM Linux with hardware floating point (VFP); includes the CPU target used by original Pi 1 / Zero.</td></tr>
-            <tr><td>macOS</td><td>Intel (64-bit)</td><td><code>darwin_amd64</code></td><td>.tar.gz</td><td>64-bit Intel Mac; no 32-bit macOS build.</td></tr>
-            <tr><td>macOS</td><td>Apple Silicon (64-bit)</td><td><code>darwin_arm64</code></td><td>.tar.gz</td><td>Native ARM64 Mac; no Rosetta required.</td></tr>
+            <tr><td>Linux</td><td>Intel/AMD 64-bit</td><td><code>linux_amd64</code></td><td>APT, Snap, Homebrew, .tar.gz, .deb, .rpm</td><td>64-bit x86 OS; amd64 baseline (v1).</td></tr>
+            <tr><td>Linux</td><td>ARM64 / AArch64 (64-bit)</td><td><code>linux_arm64</code></td><td>APT, Snap, Homebrew, .tar.gz, .deb, .rpm</td><td>64-bit ARM OS; ARMv8.0 baseline.</td></tr>
+            <tr><td>Linux</td><td>ARMv7 (32-bit)</td><td><code>linux_armv7</code></td><td>APT (armhf), .tar.gz, .deb, .rpm</td><td>32-bit ARM Linux with hardware floating point (VFPv3).</td></tr>
+            <tr><td>Linux</td><td>ARMv6 (32-bit)</td><td><code>linux_armv6</code></td><td>APT (armhf), .tar.gz, .deb, .rpm</td><td>32-bit ARM Linux with hardware floating point (VFP); includes the CPU target used by original Pi 1 / Zero.</td></tr>
+            <tr><td>macOS</td><td>Intel (64-bit)</td><td><code>darwin_amd64</code></td><td>Homebrew, .tar.gz</td><td>64-bit Intel Mac; no 32-bit macOS build.</td></tr>
+            <tr><td>macOS</td><td>Apple Silicon (64-bit)</td><td><code>darwin_arm64</code></td><td>Homebrew, .tar.gz</td><td>Native ARM64 Mac; no Rosetta required.</td></tr>
             <tr><td>Windows</td><td>Intel/AMD 64-bit</td><td><code>windows_amd64</code></td><td>.zip, winget, Microsoft Store</td><td>Windows 10 1809 or later.</td></tr>
             <tr><td>Windows</td><td>ARM64</td><td><code>windows_arm64</code></td><td>.zip, winget, Microsoft Store</td><td>Windows 11 on ARM.</td></tr>
           </tbody>
@@ -596,7 +596,7 @@
         <ul>
           <li><strong>Choose for your OS:</strong> a 64-bit ARM board with a 32-bit OS needs <code>armv7</code>, or <code>armv6</code> for older CPUs. ARM64 requires a 64-bit OS.</li>
           <li><strong>ARM32:</strong> hardware floating point is required (VFP for ARMv6, VFPv3 for ARMv7). ARMv5, soft-float <code>armel</code>, big-endian ARM, 32-bit x86, 32-bit Windows and unlisted targets are not supported by these releases.</li>
-          <li><strong>Packages:</strong> ARMv6 and ARMv7 DEBs both use <code>armhf</code> metadata; choose by filename and install only one variant. ARMv6 distribution support varies. RPM labels are <code>x86_64</code>, <code>aarch64</code>, <code>armv6hl</code> and <code>armv7hl</code>. If your RPM manager does not accept the architecture, use the matching archive rather than forcing installation.</li>
+          <li><strong>Packages:</strong> ARMv6 and ARMv7 DEBs both use <code>armhf</code> metadata; choose by filename and install only one variant. The APT repository serves the ARMv6 build as <code>armhf</code>, which also runs on ARMv7. ARMv6 distribution support varies. RPM labels are <code>x86_64</code>, <code>aarch64</code>, <code>armv6hl</code> and <code>armv7hl</code>. If your RPM manager does not accept the architecture, use the matching archive rather than forcing installation.</li>
           <li><strong>OS versions:</strong> prebuilt binaries need no Go or C runtime installation. An old Linux image may still have a kernel too old for the runtime. Check <a href="https://go.dev/wiki/MinimumRequirements">Go's OS requirements</a>; CPU support is not a promise that every historical OS version works.</li>
           <li><strong>Linux:</strong> readable <code>/proc/net</code> is required. Containers show their own network namespace. Root may be needed to identify other users' processes. Systemd and Docker enrichment depend on accessible services and metadata.</li>
           <li><strong>Docker Compose audit:</strong> fixed <code>ports:</code> entries are checked against host listeners. Docker access lets portop confirm the Compose service behind published ports and <code>docker-proxy</code>; without it, a listening port can still be reported but the expected service may be unknown.</li>
@@ -607,6 +607,9 @@
       </details>
       <div class="install-tabs" role="tablist">
         <button class="install-tab" role="tab" aria-selected="true" data-target="tab-curl">curl</button>
+        <button class="install-tab" role="tab" aria-selected="false" data-target="tab-apt">apt</button>
+        <button class="install-tab" role="tab" aria-selected="false" data-target="tab-snap">snap</button>
+        <button class="install-tab" role="tab" aria-selected="false" data-target="tab-brew">Homebrew</button>
         <button class="install-tab" role="tab" aria-selected="false" data-target="tab-deb">.deb</button>
         <button class="install-tab" role="tab" aria-selected="false" data-target="tab-rpm">.rpm</button>
         <button class="install-tab" role="tab" aria-selected="false" data-target="tab-mac">macOS</button>
@@ -622,7 +625,24 @@ PORTOP_ARCH=armv7 sh install.sh</pre>
         <pre><span class="comment"># detects arch, verifies the release checksum</span>
 curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh | sh</pre>
       </div>
+      <div id="tab-apt" class="install-panel">
+        <p class="platform-note">Debian, Ubuntu and derivatives on amd64, arm64 and armhf. The signed repository at <a href="https://apt.lucapadovan.dev">apt.lucapadovan.dev</a> is rebuilt on every release, so updates arrive with <code>apt upgrade</code>.</p>
+        <pre>sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://apt.lucapadovan.dev/lucapadovan.gpg | sudo tee /etc/apt/keyrings/lucapadovan.gpg &gt;/dev/null
+echo "deb [signed-by=/etc/apt/keyrings/lucapadovan.gpg] https://apt.lucapadovan.dev stable main" \
+  | sudo tee /etc/apt/sources.list.d/lucapadovan.list
+sudo apt update &amp;&amp; sudo apt install portop</pre>
+      </div>
+      <div id="tab-snap" class="install-panel">
+        <p class="platform-note">Any Linux distribution with snapd, on amd64 and arm64. Snaps update automatically.</p>
+        <pre>sudo snap install portop</pre>
+      </div>
+      <div id="tab-brew" class="install-panel">
+        <p class="platform-note">macOS (Apple Silicon and Intel) and Linux, from homebrew-core.</p>
+        <pre>brew install portop</pre>
+      </div>
       <div id="tab-deb" class="install-panel">
+        <p class="platform-note">A single package without updates; prefer the apt tab to receive new releases.</p>
         <pre><span class="comment"># replace &lt;version&gt; with the latest release number, no leading "v"</span>
 curl -fLO https://github.com/padovanl/portop/releases/latest/download/portop_&lt;version&gt;_linux_amd64.deb
 sudo dpkg -i portop_&lt;version&gt;_linux_amd64.deb</pre>
@@ -633,8 +653,11 @@ sudo dnf install ./portop_&lt;version&gt;_linux_amd64.rpm
 <span class="comment"># openSUSE: sudo zypper install ./portop_&lt;version&gt;_linux_amd64.rpm</span></pre>
       </div>
       <div id="tab-mac" class="install-panel">
-        <p class="platform-note">Apple Silicon and Intel: the installer selects the matching archive and verifies its checksum.</p>
-        <pre><span class="comment"># automatic installation</span>
+        <p class="platform-note">Apple Silicon and Intel. With Homebrew, updates arrive with <code>brew upgrade</code>; the installer instead selects the matching archive and verifies its checksum.</p>
+        <pre><span class="comment"># Homebrew</span>
+brew install portop
+
+<span class="comment"># or the installer</span>
 curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh | sh
 portop</pre>
         <details class="first-run">
@@ -686,7 +709,7 @@ sudo install -m 755 portop /usr/local/bin/portop</pre>
       <div id="tab-src" class="install-panel">
         <pre>go install github.com/padovanl/portop/cmd/portop@latest</pre>
       </div>
-      <p class="install-note">All architecture targets, Linux .deb/.rpm packages, Windows zips and checksums on the <a href="https://github.com/padovanl/portop/releases/latest">releases page</a>.</p>
+      <p class="install-note">All architecture targets, Linux .deb/.rpm packages, Windows zips and checksums on the <a href="https://github.com/padovanl/portop/releases/latest">releases page</a>. Package managers: <a href="https://apt.lucapadovan.dev">APT</a>, <a href="https://snapcraft.io/portop">Snap Store</a>, <a href="https://formulae.brew.sh/formula/portop">Homebrew</a>, winget and the Microsoft Store.</p>
     </section>
 
     <section id="keys" class="section">
