@@ -56,8 +56,8 @@ nfpms:
     homepage: https://github.com/padovanl/portop
     maintainer: Luca Padovan <padovan.93@gmail.com>
     description: >-
-      TUI in stile htop per vedere quali processi stanno davvero usando
-      le porte TCP/UDP del sistema.
+      htop-style terminal UI that shows which process, systemd unit and
+      Docker container are using each TCP/UDP port, and lets you stop it.
     license: MIT
     formats:
       - deb
