@@ -41,6 +41,11 @@ Usage:
                            (exit code 3 if something changed — handy in
                            a cron job or systemd timer)
   portop --compose DIR     audit published ports from a Docker Compose folder
+  portop --wait 5432       wait until something listens on a port (exit 1
+                           after --timeout, default 30s; 53/udp for UDP)
+  portop --free 8080       stop whatever listens on a port and wait until
+                           it is released (--force for SIGKILL, --yes to
+                           skip the confirmation)
   portop --web             serve a local dashboard at http://127.0.0.1:8088
   portop --web --web-port 9090  choose the dashboard port
   portop --web --web-auth       require sign-in (password printed if not set)
@@ -92,7 +97,11 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	inspectPID := fs.Int("inspect-pid", 0, "print process details as JSON")
 	signalPID := fs.Int("signal-pid", 0, "signal a process after checking its start time")
 	expectedStart := fs.String("expected-start", "", "start time from --inspect-pid")
-	forceSignal := fs.Bool("force", false, "use SIGKILL with --signal-pid instead of SIGTERM")
+	forceSignal := fs.Bool("force", false, "use SIGKILL with --signal-pid or --free instead of SIGTERM")
+	waitPort := fs.String("wait", "", "wait until something listens on PORT[/udp]")
+	freePort := fs.String("free", "", "stop whatever listens on PORT[/udp]")
+	timeout := fs.Duration("timeout", 0, "how long --wait (default 30s) or --free (default 5s) waits; 0 uses the default")
+	assumeYes := fs.Bool("yes", false, "do not ask for confirmation with --free")
 
 	// The stdlib flag package stops parsing at the first non-flag
 	// argument, which would break "portop 8080 --json" (flag package
@@ -219,6 +228,21 @@ func Run(args []string, stdout, stderr io.Writer) int {
 			return 1
 		}
 		return 0
+	}
+
+	if *waitPort != "" {
+		wait := *timeout
+		if wait <= 0 {
+			wait = 30 * time.Second
+		}
+		return runWait(stdout, stderr, *waitPort, wait, systemPortEnv())
+	}
+	if *freePort != "" {
+		wait := *timeout
+		if wait <= 0 {
+			wait = 5 * time.Second
+		}
+		return runFree(stdout, stderr, *freePort, *forceSignal, *assumeYes, wait, systemPortEnv())
 	}
 
 	filter := strings.Join(positional, " ")
