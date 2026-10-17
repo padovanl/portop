@@ -3,6 +3,8 @@ package app
 import (
 	"context"
 	"net"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/padovanl/portop/internal/docker"
@@ -198,5 +200,29 @@ func TestUsernameOfOwnerlessSocket(t *testing.T) {
 	}
 	if got := c.username(scanner.Connection{User: `HOST\alice`}); got != `HOST\alice` {
 		t.Fatalf("username from the OS = %q", got)
+	}
+}
+
+// On a Kubernetes node without Docker, a pod's process is named from the
+// kubelet's records.
+func TestContainerNameForKubernetesPod(t *testing.T) {
+	const id = "3f2a9c1b7e5d4a6f8b0c2d4e6f8a0b1c3d5e7f9a1b3c5d7e9f0a2b4c6d8e0f1a"
+	procRoot, logDir := t.TempDir(), t.TempDir()
+	if err := os.MkdirAll(filepath.Join(procRoot, "77"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cgroup := "0::/kubepods.slice/kubepods-pod1.slice/cri-containerd-" + id + ".scope\n"
+	if err := os.WriteFile(filepath.Join(procRoot, "77", "cgroup"), []byte(cgroup), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(logDir, "api-6c9d_prod_server-"+id+".log"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	oldProc, oldLogs, oldSock := docker.ProcRoot, docker.KubeLogDir, docker.SocketPath
+	docker.ProcRoot, docker.KubeLogDir, docker.SocketPath = procRoot, logDir, filepath.Join(procRoot, "no-docker.sock")
+	t.Cleanup(func() { docker.ProcRoot, docker.KubeLogDir, docker.SocketPath = oldProc, oldLogs, oldSock })
+
+	if got := NewCollector().containerName(context.Background(), 77); got != "prod/api-6c9d/server" {
+		t.Fatalf("containerName = %q, want prod/api-6c9d/server", got)
 	}
 }

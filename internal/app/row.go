@@ -136,6 +136,22 @@ func NewCollector() *Collector {
 	}
 }
 
+// containerName names the container pid runs in: through the Docker
+// (or Podman) API when it knows the container, else from the kubelet's
+// records for Kubernetes pods run by containerd or CRI-O.
+func (c *Collector) containerName(ctx context.Context, pid int) string {
+	cid := docker.ContainerIDForPID(pid)
+	if cid == "" {
+		return ""
+	}
+	if c.docker.Available() {
+		if name := c.docker.ContainerName(ctx, cid); name != "" {
+			return name
+		}
+	}
+	return docker.KubernetesName(cid)
+}
+
 // workers lists the holders of conn's socket other than its main process.
 func workers(conn scanner.Connection) []int {
 	var out []int
@@ -222,10 +238,8 @@ func (c *Collector) Collect(ctx context.Context, opts Options) ([]Row, error) {
 			if opts.ResolveSystemd {
 				row.SystemdUnit = systemdinfo.UnitForPID(conn.PID)
 			}
-			if opts.ResolveDocker && c.docker.Available() {
-				if cid := docker.ContainerIDForPID(conn.PID); cid != "" {
-					row.ContainerName = c.docker.ContainerName(ctx, cid)
-				}
+			if opts.ResolveDocker {
+				row.ContainerName = c.containerName(ctx, conn.PID)
 			}
 		}
 

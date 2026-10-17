@@ -29,6 +29,9 @@ func TestFindSocket(t *testing.T) {
 		{"system socket", map[string]string{"HOME": "/Users/a"}, only("/var/run/docker.sock", "/Users/a/.docker/run/docker.sock"), "/var/run/docker.sock"},
 		{"rootless Docker", map[string]string{"XDG_RUNTIME_DIR": "/run/user/1000"}, only("/run/user/1000/docker.sock"), "/run/user/1000/docker.sock"},
 		{"Docker Desktop on macOS", map[string]string{"HOME": "/Users/a"}, only("/Users/a/.docker/run/docker.sock"), "/Users/a/.docker/run/docker.sock"},
+		{"rootful Podman", map[string]string{}, only("/run/podman/podman.sock"), "/run/podman/podman.sock"},
+		{"rootless Podman", map[string]string{"XDG_RUNTIME_DIR": "/run/user/1000"}, only("/run/user/1000/podman/podman.sock"), "/run/user/1000/podman/podman.sock"},
+		{"Docker before Podman", map[string]string{}, only("/var/run/docker.sock", "/run/podman/podman.sock"), "/var/run/docker.sock"},
 		{"nothing found", map[string]string{"HOME": "/Users/a"}, only(), "/var/run/docker.sock"},
 	}
 	for _, c := range cases {
