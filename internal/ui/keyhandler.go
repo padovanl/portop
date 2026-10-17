@@ -9,6 +9,7 @@ import (
 
 	"github.com/padovanl/portop/internal/app"
 	"github.com/padovanl/portop/internal/openurl"
+	"github.com/padovanl/portop/internal/terminaltext"
 )
 
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -83,7 +84,7 @@ func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, keys.Copy):
 		if row, ok := m.selected(); ok {
-			text := row.ProcessName + " :" + strconv.Itoa(int(row.LocalPort)) + " (PID " + strconv.Itoa(row.PID) + ")"
+			text := copyText(row)
 			if err := clipboard.WriteAll(text); err != nil {
 				m.setStatus("clipboard unavailable: "+err.Error(), true)
 			} else {
@@ -123,6 +124,14 @@ func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.settingsCapturing = false
 	}
 	return m, nil
+}
+
+// copyText is what the copy action puts on the clipboard. The process name
+// is chosen by whoever started the process and can hold a newline or an
+// escape sequence; pasted raw into a shell, the part after a newline would
+// run as a command.
+func copyText(row app.Row) string {
+	return terminaltext.Sanitize(row.ProcessName) + " :" + strconv.Itoa(int(row.LocalPort)) + " (PID " + strconv.Itoa(row.PID) + ")"
 }
 
 func (m Model) handleFilterKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
