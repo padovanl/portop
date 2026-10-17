@@ -86,11 +86,13 @@ func extendedTable(proc *windows.LazyProc, af, class uint32) ([]byte, error) {
 }
 
 // processNames maps every running PID to its image name (e.g. "nginx.exe")
-// from a single Toolhelp snapshot. PIDs 0 and 4 are the idle and kernel
-// "System" processes, which own sockets of kernel-mode drivers (http.sys,
-// SMB) and are named here so those rows are not left blank.
+// from a single Toolhelp snapshot. PID 4 is the kernel "System" process,
+// which owns sockets of kernel-mode drivers (http.sys, SMB) and is named
+// here so those rows are not left blank. PID 0 is not an owner: the table
+// reports it for TIME_WAIT connections no process holds any more, so it
+// stays unnamed rather than showing up as "System Idle Process".
 func processNames() map[uint32]string {
-	names := map[uint32]string{0: "System Idle Process", 4: "System"}
+	names := map[uint32]string{4: "System"}
 	snap, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
 	if err != nil {
 		return names
@@ -100,7 +102,9 @@ func processNames() map[uint32]string {
 	var entry windows.ProcessEntry32
 	entry.Size = uint32(unsafe.Sizeof(entry))
 	for err = windows.Process32First(snap, &entry); err == nil; err = windows.Process32Next(snap, &entry) {
-		names[entry.ProcessID] = displayName(windows.UTF16ToString(entry.ExeFile[:]))
+		if entry.ProcessID != 0 {
+			names[entry.ProcessID] = displayName(windows.UTF16ToString(entry.ExeFile[:]))
+		}
 	}
 	return names
 }
