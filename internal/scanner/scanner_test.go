@@ -94,3 +94,16 @@ func TestScanMissingIPv6TablesIsNotAnError(t *testing.T) {
 		t.Fatalf("Scan should tolerate missing tcp6/udp6, got: %v", err)
 	}
 }
+
+func TestCPUTrackerRetainDropsGonePIDs(t *testing.T) {
+	tr := NewCPUTracker()
+	tr.prev[10] = cpuSample{ticks: 5}
+	tr.prev[20] = cpuSample{ticks: 7}
+	tr.Retain(map[int]float64{20: 0})
+	if _, ok := tr.prev[10]; ok {
+		t.Fatal("pid 10 is gone but its sample was kept")
+	}
+	if _, ok := tr.prev[20]; !ok {
+		t.Fatal("pid 20 is still live but its sample was dropped")
+	}
+}
