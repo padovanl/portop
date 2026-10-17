@@ -125,8 +125,8 @@ func TestListenFlagExcludesEstablished(t *testing.T) {
 		t.Fatalf("invalid JSON: %v\n%s", err, out)
 	}
 	for _, r := range rows {
-		if r.State != "LISTEN" {
-			t.Errorf("--listen leaked a non-LISTEN row: %+v", r)
+		if r.State != "LISTEN" && !(r.Protocol == "UDP" && r.State == "UNCONN") {
+			t.Errorf("--listen leaked a non-listening row: %+v", r)
 		}
 	}
 }

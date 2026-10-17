@@ -231,7 +231,7 @@ func (m *Model) refilter() {
 
 	out := make([]app.Row, 0, len(m.rows))
 	for _, r := range m.rows {
-		if !m.showEstablished && r.State != "LISTEN" {
+		if !m.showEstablished && !r.Listening() {
 			continue
 		}
 		if m.ipFilter == ipv4Only && r.IPv6 {

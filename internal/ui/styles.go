@@ -380,7 +380,7 @@ func cpuStyle(pct float64) lipgloss.Style {
 // states are distinguishable at a glance.
 func stateStyle(state string) lipgloss.Style {
 	switch state {
-	case "LISTEN":
+	case "LISTEN", "UNCONN": // a bound UDP socket is how UDP listens
 		return styleStateListen
 	case "ESTABLISHED":
 		return styleStateEstablished
