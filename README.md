@@ -16,7 +16,7 @@
 [![Homebrew](https://img.shields.io/homebrew/v/portop?logo=homebrew)](https://formulae.brew.sh/formula/portop)
 [![APT](https://img.shields.io/endpoint?url=https%3A%2F%2Fapt.lucapadovan.dev%2Fbadges%2Fportop.json&logo=debian)](#apt-repository-debianubuntu-and-derivatives)
 [![Microsoft Store](https://img.shields.io/badge/microsoft_store-available-0078D4)](https://apps.microsoft.com/detail/9MZ319F4LW70)
-[![winget](https://img.shields.io/winget/v/padovanl.portop?label=winget&color=0078D4)](https://github.com/microsoft/winget-pkgs/tree/master/manifests/p/padovanl/portop)
+[![winget](https://img.shields.io/badge/winget-in_review-lightgrey)](https://github.com/microsoft/winget-pkgs/pull/453604)
 
 </div>
 
