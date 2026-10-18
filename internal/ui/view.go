@@ -127,8 +127,13 @@ func (m Model) renderDetail() string {
 		b.WriteString(styleMuted.Render("loading..."))
 	} else {
 		info := m.detailInfo
+		// Labels get a fixed column wide enough for the longest one, and a
+		// long value (a command line) wraps inside its own column.
+		const labelWidth = 13
+		valueWidth := max(m.modalWidth()-4-2-labelWidth, 10) // border, padding
 		field := func(label, val string) {
-			fmt.Fprintf(&b, "%s %s\n", styleTag.Render(padTrunc(label, 11)), terminaltext.Sanitize(val))
+			value := lipgloss.NewStyle().Width(valueWidth).Render(terminaltext.Sanitize(val))
+			b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, styleTag.Render(padTrunc(label, labelWidth)), value) + "\n")
 		}
 		field("PID:", strconv.Itoa(info.PID))
 		if len(row.Workers) > 0 {

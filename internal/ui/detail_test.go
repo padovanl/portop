@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/padovanl/portop/internal/procinfo"
 )
@@ -39,5 +40,29 @@ func TestDetailViewDropsStaleResults(t *testing.T) {
 	m = model.(Model)
 	if m.detailInfo != nil {
 		t.Fatalf("stale details were shown: %+v", m.detailInfo)
+	}
+}
+
+// Labels are never cut short, and a long command line wraps in the value
+// column instead of running back under the labels.
+func TestDetailFieldsLayout(t *testing.T) {
+	m := mouseTestModel()
+	m.width = 100
+	m.openDetail(m.filtered[0])
+	long := "python3 " + strings.Repeat("/very/long/path", 12) + " --flag value"
+	model, _ := m.Update(detailResultMsg{pid: m.filtered[0].PID, info: procinfo.Info{
+		PID: m.filtered[0].PID, Cmdline: long, Exe: "/usr/bin/python3", OpenFiles: 4}})
+	view := ansi.Strip(model.(Model).renderDetail())
+	for _, label := range []string{"Executable:", "Open files:", "Cmdline:"} {
+		if !strings.Contains(view, label) {
+			t.Errorf("label %q missing or truncated:\n%s", label, view)
+		}
+	}
+	for _, line := range strings.Split(view, "\n") {
+		if strings.Contains(line, "/very/long/path") && !strings.Contains(line, "Cmdline:") {
+			if i := strings.Index(line, "/very"); i < 15 {
+				t.Errorf("wrapped command line starts at column %d, under the labels:\n%s", i, line)
+			}
+		}
 	}
 }
