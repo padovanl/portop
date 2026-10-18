@@ -6,31 +6,36 @@ import (
 	"strings"
 )
 
-// parseNettop reads `nettop -L 1 -n -x -m tcp -J bytes_in,bytes_out`:
-// CSV rows of "time,name,bytes_in,bytes_out,", where a connection's name
-// is "tcp4 10.0.0.2:51000<->1.2.3.4:443" (IPv6 ports follow a '.').
+// parseNettop reads `nettop -L 1 -n -x -m tcp -J bytes_in,bytes_out`: CSV
+// rows of "name,bytes_in,bytes_out," (some versions put a time column
+// first), where a connection's name is "tcp4 10.0.0.2:51000<->1.2.3.4:443"
+// and an IPv6 port follows a '.' ("tcp6 ::1.8080<->::1.51000").
 func parseNettop(out string) map[Key]Counter {
 	counters := map[Key]Counter{}
 	for _, line := range strings.Split(out, "\n") {
 		fields := strings.Split(line, ",")
-		if len(fields) < 4 {
+		at := -1
+		for i, f := range fields {
+			if strings.HasPrefix(f, "tcp4 ") || strings.HasPrefix(f, "tcp6 ") {
+				at = i
+				break
+			}
+		}
+		if at < 0 || at+2 >= len(fields) {
 			continue
 		}
-		name := strings.TrimSpace(fields[1])
+		name := strings.TrimSpace(fields[at])
 		v6 := strings.HasPrefix(name, "tcp6 ")
-		if !v6 && !strings.HasPrefix(name, "tcp4 ") {
-			continue
-		}
 		local, remote, ok := strings.Cut(name[5:], "<->")
 		if !ok {
 			continue
 		}
 		lip, lport, ok1 := nettopEndpoint(local, v6)
 		rip, rport, ok2 := nettopEndpoint(remote, v6)
-		rx, err1 := strconv.ParseUint(strings.TrimSpace(fields[2]), 10, 64)
-		tx, err2 := strconv.ParseUint(strings.TrimSpace(fields[3]), 10, 64)
+		rx, err1 := strconv.ParseUint(strings.TrimSpace(fields[at+1]), 10, 64)
+		tx, err2 := strconv.ParseUint(strings.TrimSpace(fields[at+2]), 10, 64)
 		if !ok1 || !ok2 || err1 != nil || err2 != nil {
-			continue
+			continue // listeners ("*:22<->*:*") and rows without counters
 		}
 		counters[KeyFor(lip, lport, rip, rport)] = Counter{RX: rx, TX: tx}
 	}
