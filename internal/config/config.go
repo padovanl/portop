@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 
 	"go.yaml.in/yaml/v3"
+
+	"github.com/padovanl/portop/internal/userfile"
 )
 
 // Config mirrors config.yml. Pointer fields are tri-state (unset / true
@@ -18,6 +20,8 @@ type Config struct {
 	ResolveDNS      *bool               `yaml:"resolve_dns,omitempty"`
 	ResolveSystemd  *bool               `yaml:"resolve_systemd,omitempty"`
 	ResolveDocker   *bool               `yaml:"resolve_docker,omitempty"`
+	ResolveFirewall *bool               `yaml:"resolve_firewall,omitempty"`
+	ResolveTraffic  *bool               `yaml:"resolve_traffic,omitempty"`
 	WatchNew        *bool               `yaml:"watch_new,omitempty"`
 	Theme           string              `yaml:"theme,omitempty"`
 	Keybindings     map[string][]string `yaml:"keybindings,omitempty"`
@@ -52,23 +56,17 @@ func Load(path string) (Config, error) {
 
 // Save writes cfg as YAML, creating parent directories as needed.
 func Save(path string, cfg Config) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
 	data, err := yaml.Marshal(cfg)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o644)
+	return userfile.Write(path, data)
 }
 
 // WriteDefault writes a fully-commented example config.yml to path,
 // creating parent directories as needed. Used by `portop --init-config`.
 func WriteDefault(path string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	return os.WriteFile(path, []byte(defaultConfigTemplate), 0o644)
+	return userfile.Write(path, []byte(defaultConfigTemplate))
 }
 
 const defaultConfigTemplate = `# portop config.yml
@@ -83,6 +81,8 @@ const defaultConfigTemplate = `# portop config.yml
 # resolve_dns: true         # reverse DNS on ESTABLISHED remote hosts
 # resolve_systemd: true     # associate the owning systemd unit
 # resolve_docker: true      # associate the owning Docker container
+# resolve_firewall: true    # read the host firewall for exposed ports
+# resolve_traffic: true     # per-connection throughput (Linux, macOS)
 # watch_new: false          # desktop notification on a new LISTEN port
 
 # Color theme: default | dracula | nord | solarized | gruvbox | catppuccin

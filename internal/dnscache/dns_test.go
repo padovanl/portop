@@ -3,6 +3,8 @@ package dnscache
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 )
@@ -71,4 +73,51 @@ func waitUntil(t *testing.T, cond func() bool) {
 		time.Sleep(5 * time.Millisecond)
 	}
 	t.Fatal("condition not met before deadline")
+}
+
+// A name is refreshed after entryTTL, and the old one is still shown
+// while the refresh runs.
+func TestLookupRefreshesExpiredNames(t *testing.T) {
+	r := New(time.Second)
+	var mu sync.Mutex
+	now := time.Unix(1700000000, 0)
+	r.now = func() time.Time { mu.Lock(); defer mu.Unlock(); return now }
+	names := []string{"old.example.", "new.example."}
+	calls := 0
+	r.lookup = func(context.Context, string) ([]string, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		calls++
+		return names[min(calls, len(names))-1:][:1], nil
+	}
+
+	r.Lookup("1.2.3.4")
+	waitUntil(t, func() bool { name, ok := r.Lookup("1.2.3.4"); return ok && name == "old.example" })
+
+	mu.Lock()
+	now = now.Add(entryTTL)
+	mu.Unlock()
+	if name, ok := r.Lookup("1.2.3.4"); !ok || name != "old.example" {
+		t.Fatalf("expired entry: %q %v, want the old name while refreshing", name, ok)
+	}
+	waitUntil(t, func() bool { name, _ := r.Lookup("1.2.3.4"); return name == "new.example" })
+}
+
+// The cache stays bounded however many addresses go through it.
+func TestLookupCacheIsBounded(t *testing.T) {
+	r := New(time.Second)
+	r.lookup = func(context.Context, string) ([]string, error) { return nil, errors.New("no such host") }
+	r.mu.Lock()
+	for i := 0; i < maxEntries; i++ {
+		r.entries[fmt.Sprintf("10.0.%d.%d", i>>8, i&255)] = entry{at: r.now()}
+	}
+	r.mu.Unlock()
+
+	r.Lookup("192.0.2.1")
+	r.mu.Lock()
+	n := len(r.entries)
+	r.mu.Unlock()
+	if n > maxEntries {
+		t.Fatalf("cache holds %d entries, want at most %d", n, maxEntries)
+	}
 }

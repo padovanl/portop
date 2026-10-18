@@ -6,13 +6,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/padovanl/portop/internal/app"
-	"github.com/padovanl/portop/internal/scanner"
 	"github.com/padovanl/portop/internal/services"
 	"github.com/padovanl/portop/internal/terminaltext"
 )
 
-func defaultSortDescending(mode sortMode) bool { return mode == sortByCPU }
+func defaultSortDescending(mode sortMode) bool { return mode == sortByCPU || mode == sortByTraffic }
 
 func sortRowsDirection(rows []app.Row, mode sortMode, descending bool) {
 	sort.SliceStable(rows, func(i, j int) bool {
@@ -34,6 +36,13 @@ func sortRowsDirection(rows []app.Row, mode sortMode, descending bool) {
 			cmp = strings.Compare(strings.ToLower(rows[i].ContainerName), strings.ToLower(rows[j].ContainerName))
 		case sortBySystemd:
 			cmp = strings.Compare(strings.ToLower(rows[i].SystemdUnit), strings.ToLower(rows[j].SystemdUnit))
+		case sortByIface:
+			// Most exposed first: every interface, one address, loopback.
+			cmp = compareInt(exposureRank(rows[i]), exposureRank(rows[j]))
+		case sortByUser:
+			cmp = strings.Compare(strings.ToLower(rows[i].Username), strings.ToLower(rows[j].Username))
+		case sortByTraffic:
+			cmp = compareFloat(rows[i].RXRate+rows[i].TXRate, rows[j].RXRate+rows[j].TXRate)
 		default: // sortByPort
 			cmp = compareInt(int(rows[i].LocalPort), int(rows[j].LocalPort))
 		}
@@ -48,6 +57,35 @@ func sortRowsDirection(rows []app.Row, mode sortMode, descending bool) {
 		}
 		return cmp < 0
 	})
+}
+
+// formatRate shortens bytes per second: 512, 1.2K, 34M, 1.1G.
+func formatRate(bps float64) string {
+	switch {
+	case bps < 1000:
+		return strconv.Itoa(int(bps + 0.5))
+	case bps < 10_000:
+		return strconv.FormatFloat(bps/1000, 'f', 1, 64) + "K"
+	case bps < 1_000_000:
+		return strconv.Itoa(int(bps/1000+0.5)) + "K"
+	case bps < 10_000_000:
+		return strconv.FormatFloat(bps/1_000_000, 'f', 1, 64) + "M"
+	case bps < 1_000_000_000:
+		return strconv.Itoa(int(bps/1_000_000+0.5)) + "M"
+	default:
+		return strconv.FormatFloat(bps/1_000_000_000, 'f', 1, 64) + "G"
+	}
+}
+
+func exposureRank(r app.Row) int {
+	switch r.Scope() {
+	case app.ScopeAll:
+		return 0
+	case app.ScopeAddress:
+		return 1
+	default:
+		return 2
+	}
 }
 
 func compareInt(a, b int) int {
@@ -90,9 +128,9 @@ func columnsFor(showEstablished bool, width int) []column {
 		{"PID", 7},
 		{"CPU", 6},
 	}
-	optional := []column{{"CONTAINER", 16}, {"SYSTEMD", 16}}
+	optional := []column{{"IFACE", 16}, {"FIREWALL", 11}, {"USER", 12}, {"CONTAINER", 16}, {"SYSTEMD", 16}}
 	if showEstablished {
-		optional = append([]column{{"REMOTE", 30}}, optional...)
+		optional = append([]column{{"REMOTE", 30}, {"IFACE", 16}, {"FIREWALL", 11}, {"TRAFFIC", 15}}, optional[2:]...)
 	}
 
 	budget := innerWidth(width) - markerWidth
@@ -160,10 +198,9 @@ func (m Model) renderTable() string {
 			line := newMarker() + plainRow(r, cols)
 			b.WriteString(styleRowNew.Render(line))
 		case isZebra:
-			line := strings.Repeat(" ", markerWidth) + coloredRow(r, cols)
-			b.WriteString(styleRowZebra.Render(line))
+			b.WriteString(styleRowZebra.Render(strings.Repeat(" ", markerWidth)) + coloredRow(r, cols, true))
 		default:
-			b.WriteString(strings.Repeat(" ", markerWidth) + coloredRow(r, cols))
+			b.WriteString(strings.Repeat(" ", markerWidth) + coloredRow(r, cols, false))
 		}
 		b.WriteByte('\n')
 	}
@@ -235,6 +272,12 @@ func sortModeForColumn(title string) (sortMode, bool) {
 		return sortByRemote, true
 	case "CONTAINER":
 		return sortByContainer, true
+	case "IFACE":
+		return sortByIface, true
+	case "TRAFFIC":
+		return sortByTraffic, true
+	case "USER":
+		return sortByUser, true
 	case "SYSTEMD":
 		return sortBySystemd, true
 	default:
@@ -247,7 +290,7 @@ func cellValue(r app.Row, colTitle string) string {
 	switch colTitle {
 	case "PORT":
 		v := ":" + strconv.Itoa(int(r.LocalPort))
-		if r.State == scanner.StateListen {
+		if r.Listening() {
 			if name, ok := services.Lookup(r.LocalPort, string(r.Protocol)); ok {
 				v += " " + name
 			}
@@ -265,6 +308,10 @@ func cellValue(r app.Row, colTitle string) string {
 		if r.ProcessName == "" {
 			return "-"
 		}
+		if n := len(r.Workers); n > 0 {
+			// Keep the count visible when a long name is truncated.
+			return r.ProcessName + " +" + strconv.Itoa(n)
+		}
 		return r.ProcessName
 	case "PID":
 		if r.PID == 0 {
@@ -275,6 +322,27 @@ func cellValue(r app.Row, colTitle string) string {
 		return fmt.Sprintf("%.1f%%", r.CPUPercent)
 	case "REMOTE":
 		return remoteDisplay(r)
+	case "IFACE":
+		return r.LocalAddr.String()
+	case "USER":
+		if r.Username == "" {
+			return "-"
+		}
+		return r.Username
+	case "TRAFFIC":
+		if !r.RateKnown {
+			return "-"
+		}
+		return "↓" + formatRate(r.RXRate) + " ↑" + formatRate(r.TXRate)
+	case "FIREWALL":
+		switch {
+		case r.Firewall != "":
+			return r.Firewall
+		case r.Listening() && r.Scope() != app.ScopeLoopback:
+			return "?" // reachable from the network, firewall unreadable
+		default:
+			return "-"
+		}
 	case "SYSTEMD":
 		if r.SystemdUnit == "" {
 			return "-"
@@ -300,22 +368,37 @@ func plainRow(r app.Row, cols []column) string {
 }
 
 // coloredRow renders a row with semantic per-cell coloring: state,
-// protocol and CPU load each get their own color so the table reads at
-// a glance without following the cursor.
-func coloredRow(r app.Row, cols []column) string {
+// protocol, CPU load, exposure and firewall each get their own color so
+// the table reads at a glance without following the cursor. A zebra row
+// sets its background on every cell: each colored cell ends with a reset,
+// which would otherwise cut the stripe short after the first one.
+func coloredRow(r app.Row, cols []column, zebra bool) string {
 	var b strings.Builder
 	for _, c := range cols {
 		padded := padTrunc(terminaltext.Sanitize(cellValue(r, c.title)), c.width)
+		st := lipgloss.NewStyle()
 		switch c.title {
 		case "STATE":
-			fmt.Fprint(&b, stateStyle(string(r.State)).Render(padded))
+			st = stateStyle(string(r.State))
 		case "PROTO":
-			fmt.Fprint(&b, protoStyle(string(r.Protocol)).Render(padded))
+			st = protoStyle(string(r.Protocol))
 		case "CPU":
-			fmt.Fprint(&b, cpuStyle(r.CPUPercent).Render(padded))
-		default:
-			fmt.Fprint(&b, padded)
+			st = cpuStyle(r.CPUPercent)
+		case "IFACE":
+			st = ifaceStyle(r)
+		case "PORT":
+			// Exposure shows on the port itself, so it is visible however
+			// narrow the terminal and IFACE is dropped.
+			if r.Listening() {
+				st = ifaceStyle(r)
+			}
+		case "FIREWALL":
+			st = firewallStyle(r.Firewall)
 		}
+		if zebra {
+			st = st.Background(colorZebra)
+		}
+		fmt.Fprint(&b, st.Render(padded))
 	}
 	return b.String()
 }
@@ -331,17 +414,19 @@ func remoteDisplay(r app.Row) string {
 	return host + ":" + strconv.Itoa(int(r.RemotePort))
 }
 
+// padTrunc fits s into exactly width terminal cells, keeping a one-cell
+// gap before the next column. Widths are counted in cells, not runes: a
+// CJK or emoji character takes two, and counting it as one pushed every
+// following column out of line.
 func padTrunc(s string, width int) string {
-	runes := []rune(s)
-	if len(runes) > width-1 {
+	if ansi.StringWidth(s) > width-1 {
 		if width-2 > 0 {
-			runes = append(runes[:width-2], '…')
+			s = ansi.Truncate(s, width-1, "…")
 		} else {
-			runes = runes[:width]
+			s = ansi.Truncate(s, width, "")
 		}
 	}
-	s = string(runes)
-	if pad := width - len([]rune(s)); pad > 0 {
+	if pad := width - ansi.StringWidth(s); pad > 0 {
 		s += strings.Repeat(" ", pad)
 	}
 	return s

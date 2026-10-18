@@ -1,0 +1,25 @@
+<h1>Firewall</h1>
+<p class="lede">For every listening port the network can reach, portop asks the host firewall whether incoming traffic gets through.</p>
+
+<h2 id="verdicts">Verdicts</h2>
+<table>
+  <thead><tr><th>Verdict</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>allowed</code></td><td>Anyone can connect, or no firewall is running</td></tr>
+    <tr><td><code>restricted</code></td><td>Only some sources may connect</td></tr>
+    <tr><td><code>blocked</code></td><td>Incoming connections are refused</td></tr>
+    <tr><td><code>?</code></td><td>portop cannot tell</td></tr>
+  </tbody>
+</table>
+<p>Loopback ports show <code>-</code>: the firewall does not matter for them.</p>
+
+<h2 id="sources">What each system reports</h2>
+<table>
+  <thead><tr><th>System</th><th>Read from</th><th>Unknown when</th></tr></thead>
+  <tbody>
+    <tr><td>Linux</td><td>ufw rules and default policy; firewalld's default zone (ports, services, target); an empty nftables ruleset means no firewall</td><td>portop is not root (the tools refuse), or nftables input rules or firewalld rich rules apply</td></tr>
+    <tr><td>macOS</td><td>The application firewall's global state</td><td>It is on but not blocking everything, since it decides per application</td></tr>
+    <tr><td>Windows</td><td>Windows Firewall profiles</td><td>Any active profile is on, since rules are per program and slow to enumerate</td></tr>
+  </tbody>
+</table>
+<p>Rules are read at most every 30 seconds. Turn the check off with <code>--no-firewall</code> or <code>resolve_firewall: false</code>.</p>

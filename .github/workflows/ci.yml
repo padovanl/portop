@@ -19,6 +19,8 @@ jobs:
         with:
           go-version-file: go.mod
       - run: python3 scripts/test-install.py
+      # The documentation pages are generated from docs-src/ and committed.
+      - run: python3 scripts/build-docs.py --check
       - run: go vet ./...
       # Same toolchain as the release builds (go.mod), for every target OS.
       - name: govulncheck
@@ -46,7 +48,16 @@ jobs:
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: go.mod
-      - run: go test -race -p 1 -count=1 ./...
+      # Failing tests become annotations, readable on the run page
+      # without opening (or having access to) the raw logs.
+      - name: Unit tests
+        shell: bash
+        run: |
+          set -o pipefail
+          go test -race -p 1 -count=1 ./... 2>&1 | tee test.log || {
+            grep -E '^(--- FAIL|    [^ ].*_test\.go:[0-9]+)' test.log | head -20 | sed 's/^ */::error::/'
+            exit 1
+          }
 
   e2e:
     name: e2e tests
@@ -112,6 +123,8 @@ jobs:
   macos:
     name: macOS tests (${{ matrix.os }})
     strategy:
+      # One macOS failing must not cancel the other: they differ (ARM, Intel).
+      fail-fast: false
       matrix:
         os: [macos-15, macos-15-intel]
     runs-on: ${{ matrix.os }}
@@ -123,7 +136,16 @@ jobs:
         with:
           go-version-file: go.mod
       - run: go vet ./...
-      - run: go test -race -p 1 -count=1 ./...
+      # Failing tests become annotations, readable on the run page
+      # without opening (or having access to) the raw logs.
+      - name: Unit tests
+        shell: bash
+        run: |
+          set -o pipefail
+          go test -race -p 1 -count=1 ./... 2>&1 | tee test.log || {
+            grep -E '^(--- FAIL|    [^ ].*_test\.go:[0-9]+)' test.log | head -20 | sed 's/^ */::error::/'
+            exit 1
+          }
       - run: go test -tags=e2e -count=1 ./e2e/...
 
   windows:
@@ -135,5 +157,14 @@ jobs:
         with:
           go-version-file: go.mod
       - run: go vet ./...
-      - run: go test -p 1 -count=1 ./...
+      # Failing tests become annotations, readable on the run page
+      # without opening (or having access to) the raw logs.
+      - name: Unit tests
+        shell: bash
+        run: |
+          set -o pipefail
+          go test -p 1 -count=1 ./... 2>&1 | tee test.log || {
+            grep -E '^(--- FAIL|    [^ ].*_test\.go:[0-9]+)' test.log | head -20 | sed 's/^ */::error::/'
+            exit 1
+          }
       - run: go test -tags=e2e -count=1 ./e2e/...

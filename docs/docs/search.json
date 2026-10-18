@@ -1,0 +1,541 @@
+[
+ {
+  "page": "index",
+  "title": "Introduction",
+  "section": "",
+  "anchor": "",
+  "text": "portop shows every TCP and UDP socket on a machine together with the process, service and container behind it and who can reach it, and lets you inspect or stop the owner. It runs on Linux, macOS and Windows, in the terminal, in a browser, or inside Cockpit."
+ },
+ {
+  "page": "index",
+  "title": "Introduction",
+  "section": "What it answers",
+  "anchor": "what-it-answers",
+  "text": "What is using this port? The owning process, its systemd unit or Windows service, its Docker, Podman or Kubernetes container, and the user it runs as. Who can reach it? Whether the port is bound to every interface, one address or loopback only, and what the host firewall does with it. What changed? "
+ },
+ {
+  "page": "index",
+  "title": "Introduction",
+  "section": "Where it runs",
+  "anchor": "where-it-runs",
+  "text": "The terminal UI , an htop-style table that refreshes every two seconds. The command line , for JSON snapshots, --wait , --free , baselines and Compose audits. A web dashboard with sign-in, TLS and Prometheus metrics, and a Cockpit add-on ."
+ },
+ {
+  "page": "index",
+  "title": "Introduction",
+  "section": "Next steps",
+  "anchor": "next-steps",
+  "text": "Install portop , read First run and permissions , then see Platform support for what each operating system provides."
+ },
+ {
+  "page": "installation",
+  "title": "Installation",
+  "section": "",
+  "anchor": "",
+  "text": "portop is a single static binary. Package managers keep it up to date; the release archives work anywhere."
+ },
+ {
+  "page": "installation",
+  "title": "Installation",
+  "section": "Package managers",
+  "anchor": "package-managers",
+  "text": "System Command Updates Debian, Ubuntu APT repository apt upgrade Linux with snapd sudo snap install portop automatic macOS, Linux brew install portop brew upgrade Windows winget install padovanl.portop winget upgrade Windows Microsoft Store automatic"
+ },
+ {
+  "page": "installation",
+  "title": "Installation",
+  "section": "APT repository",
+  "anchor": "apt",
+  "text": "sudo install -d -m 0755 /etc/apt/keyrings curl -fsSL https://apt.lucapadovan.dev/lucapadovan.gpg | sudo tee /etc/apt/keyrings/lucapadovan.gpg >/dev/null echo \"deb [signed-by=/etc/apt/keyrings/lucapadovan.gpg] https://apt.lucapadovan.dev stable main\" \\ | sudo tee /etc/apt/sources.list.d/lucapadovan.l"
+ },
+ {
+  "page": "installation",
+  "title": "Installation",
+  "section": "Install script",
+  "anchor": "install-script",
+  "text": "curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh | sh Linux and macOS. The script detects the architecture, verifies the release checksum and installs to /usr/local/bin , or ~/.local/bin when that is not writable. Set PORTOP_VERSION to pin a release, PORTOP_ARCH ( amd64 ,"
+ },
+ {
+  "page": "installation",
+  "title": "Installation",
+  "section": "Release archives",
+  "anchor": "archives",
+  "text": "Every release has .tar.gz archives ( .zip on Windows) and, for Linux, .deb and .rpm packages: Target Runs on linux_amd64 64-bit x86 Linux linux_arm64 64-bit ARM Linux (ARMv8.0) linux_armv7 32-bit ARM Linux with hardware floating point (VFPv3) linux_armv6 32-bit ARM Linux with VFP, including Raspberr"
+ },
+ {
+  "page": "installation",
+  "title": "Installation",
+  "section": "From source",
+  "anchor": "from-source",
+  "text": "go install github.com/padovanl/portop/cmd/portop@latest"
+ },
+ {
+  "page": "installation",
+  "title": "Installation",
+  "section": "macOS first launch",
+  "anchor": "macos-first-launch",
+  "text": "Release binaries are not notarized. If macOS blocks a binary downloaded with a browser, run portop once, open System Settings → Privacy & Security and choose Open Anyway . Homebrew and the install script are not affected."
+ },
+ {
+  "page": "first-run",
+  "title": "First run and permissions",
+  "section": "",
+  "anchor": "",
+  "text": "portop needs no configuration. What it can see depends on the user it runs as."
+ },
+ {
+  "page": "first-run",
+  "title": "First run and permissions",
+  "section": "Start",
+  "anchor": "start",
+  "text": "portop # every listening and established socket portop 8080 # filtered on a port portop --listen # listening sockets only The table refreshes every two seconds. Press ? for help and q to quit."
+ },
+ {
+  "page": "first-run",
+  "title": "First run and permissions",
+  "section": "Permissions",
+  "anchor": "permissions",
+  "text": "System Without privileges With privileges Linux Other users' sockets appear without a process; the status bar counts them, for example (3 hidden — try sudo) . sudo portop resolves every row and lets portop read the firewall. macOS lsof omits other users' sockets entirely. sudo portop lists them. Win"
+ },
+ {
+  "page": "first-run",
+  "title": "First run and permissions",
+  "section": "Terminal",
+  "anchor": "terminal",
+  "text": "Use a terminal with 256 colors or true color. In a minimal SSH or container session where TERM=xterm , set TERM=xterm-256color or COLORTERM=truecolor ."
+ },
+ {
+  "page": "the-table",
+  "title": "The table",
+  "section": "",
+  "anchor": "",
+  "text": "One row per socket. Optional columns appear as the terminal gets wider; click a heading, or press s , to sort by it."
+ },
+ {
+  "page": "the-table",
+  "title": "The table",
+  "section": "Columns",
+  "anchor": "columns",
+  "text": "Column Shows PORT Local port and its service name ( :22 ssh ), colored by exposure on listening rows. PROTO TCP or UDP ; 6 marks IPv6. STATE The TCP state. A bound, unconnected UDP socket is UNCONN and counts as listening. PROCESS The owning process; nginx +3 when three workers share the socket. PID"
+ },
+ {
+  "page": "the-table",
+  "title": "The table",
+  "section": "Exposure",
+  "anchor": "exposure",
+  "text": "A listening port is colored by who can reach it, at any terminal width: Color Bound to Reachable from Red 0.0.0.0 , :: Every network the host is on, unless a firewall blocks it Amber One address That interface's network (a LAN or container network) Green 127.0.0.1 , ::1 This machine only Sorting by "
+ },
+ {
+  "page": "the-table",
+  "title": "The table",
+  "section": "Keys",
+  "anchor": "keys",
+  "text": "Key Action ↑ ↓ PgUp PgDn g G Move by row or page, to the top or bottom enter Process details k Stop the process: then y for SIGTERM or f for SIGKILL o Open the port in the browser, at the bound address for single-interface listeners f , / Filter; every word must match the port, PID, process, user, u"
+ },
+ {
+  "page": "the-table",
+  "title": "The table",
+  "section": "Mouse",
+  "anchor": "mouse",
+  "text": "Click to select, double-click for details, right-click for the kill confirmation, middle-click to open the port, scroll with the wheel, click a heading to sort and click it again to reverse."
+ },
+ {
+  "page": "the-table",
+  "title": "The table",
+  "section": "Details",
+  "anchor": "details",
+  "text": "enter shows the command line, executable, working directory, user, memory, threads, open files, start time and, for a shared socket, its workers."
+ },
+ {
+  "page": "the-table",
+  "title": "The table",
+  "section": "Stopping a process",
+  "anchor": "stopping",
+  "text": "k records the process's start time when the confirmation opens and checks it again just before sending the signal. If the process exited and its PID was reused in the meantime, the signal is refused. On Windows both choices end the process."
+ },
+ {
+  "page": "command-line",
+  "title": "Command line",
+  "section": "",
+  "anchor": "",
+  "text": "Without flags portop opens the table. Every other mode prints and exits, so it fits in scripts, cron jobs and CI."
+ },
+ {
+  "page": "command-line",
+  "title": "Command line",
+  "section": "Flags",
+  "anchor": "flags",
+  "text": "Flag Meaning portop [WORDS] Open the table filtered on the words: portop 8080 , portop nginx 443 --listen Listening sockets only: TCP LISTEN and bound UDP --json Print one snapshot as JSON and exit --wait PORT[/udp] Wait until something listens on the port ( scripting ) --free PORT[/udp] Stop whatev"
+ },
+ {
+  "page": "command-line",
+  "title": "Command line",
+  "section": "JSON output",
+  "anchor": "json",
+  "text": "portop --json --listen | jq '.[] | select(.scope == \"all\") | {port: .local_port, process, firewall}' Each row is an object with these fields; fields marked optional are left out when unknown. Field Type Meaning protocol string TCP or UDP local_address , local_port string, number Bind address and por"
+ },
+ {
+  "page": "command-line",
+  "title": "Command line",
+  "section": "Exit codes",
+  "anchor": "exit-codes",
+  "text": "Code Meaning 0 Success; --diff found no change; --compose found every fixed port as expected 1 Error; --wait timed out; --free could not free the port 2 Invalid flags 3 --diff found changes; --compose found an unused or conflicting port"
+ },
+ {
+  "page": "scripting",
+  "title": "Scripting",
+  "section": "",
+  "anchor": "",
+  "text": "--wait and --free handle the two port chores of development and CI: waiting for a service, and getting a port back."
+ },
+ {
+  "page": "scripting",
+  "title": "Scripting",
+  "section": "Wait for a port",
+  "anchor": "wait",
+  "text": "portop --wait 5432 --timeout 1m && ./migrate Exits 0 as soon as something listens on the port, or 1 when the timeout (default 30s) passes. Add /udp for a UDP port: --wait 53/udp ."
+ },
+ {
+  "page": "scripting",
+  "title": "Scripting",
+  "section": "Free a port",
+  "anchor": "free",
+  "text": "portop --free 3000 # SIGTERM, then wait up to 5s for the port portop --free 3000 --force # SIGKILL to every process holding it portop --free 53/udp --yes # no confirmation --free lists what it will stop and, on a terminal, asks for confirmation. It records each process's start time before asking and"
+ },
+ {
+  "page": "scripting",
+  "title": "Scripting",
+  "section": "JSON recipes",
+  "anchor": "json-recipes",
+  "text": "# ports reachable from the network portop --json --listen | jq -r '.[] | select(.scope != \"loopback\") | \"\\(.local_port)/\\(.protocol) \\(.process // \"?\")\"' # who listens on 8080 portop --json --listen 8080 | jq '.[0] | {pid, process, user, container}'"
+ },
+ {
+  "page": "configuration",
+  "title": "Configuration",
+  "section": "",
+  "anchor": "",
+  "text": "Everything is optional. Command-line flags win over the file."
+ },
+ {
+  "page": "configuration",
+  "title": "Configuration",
+  "section": "Settings screen",
+  "anchor": "settings-screen",
+  "text": "Press , in the table to preview the 13 themes live and rebind any of the 20 actions. Changes are saved to the configuration file at once."
+ },
+ {
+  "page": "configuration",
+  "title": "Configuration",
+  "section": "config.yml",
+  "anchor": "file",
+  "text": "portop --init-config writes a commented file in the OS configuration directory: ~/.config/portop/config.yml on Linux, ~/Library/Application Support/portop/config.yml on macOS, %AppData%\\portop\\config.yml on Windows. --config uses another. theme: tokyo-night # default, dracula, nord, solarized, gruvb"
+ },
+ {
+  "page": "baseline",
+  "title": "Baseline drift",
+  "section": "",
+  "anchor": "",
+  "text": "Record which ports a host is supposed to listen on, then let a timer tell you when that changes."
+ },
+ {
+  "page": "baseline",
+  "title": "Baseline drift",
+  "section": "Usage",
+  "anchor": "usage",
+  "text": "portop --save-baseline # record what listens now portop --diff # exit 3 if anything changed portop --diff --json # the same, for scripts The baseline is a small JSON file in the OS config directory; --baseline-path chooses another."
+ },
+ {
+  "page": "baseline",
+  "title": "Baseline drift",
+  "section": "What is compared",
+  "anchor": "what-is-compared",
+  "text": "Each listening TCP and UDP port is recorded with its scope : loopback, every interface or one address. A service listening on IPv4 and IPv6 is one entry. --diff reports: ports listening now that were not in the baseline; ports in the baseline that no longer listen; ports whose scope changed, for exa"
+ },
+ {
+  "page": "baseline",
+  "title": "Baseline drift",
+  "section": "Run it from a systemd timer",
+  "anchor": "systemd-timer",
+  "text": "# /etc/systemd/system/portop-diff.service [Unit] Description=Compare listening ports with the baseline [Service] Type=oneshot ExecStart=/usr/bin/portop --diff --baseline-path /var/lib/portop/baseline.json # /etc/systemd/system/portop-diff.timer [Timer] OnCalendar=hourly [Install] WantedBy=timers.tar"
+ },
+ {
+  "page": "compose",
+  "title": "Compose audit",
+  "section": "",
+  "anchor": "",
+  "text": "Check a Docker Compose project's published ports against what actually listens on the host."
+ },
+ {
+  "page": "compose",
+  "title": "Compose audit",
+  "section": "Usage",
+  "anchor": "usage",
+  "text": "portop --compose ~/stacks/shop portop --compose ~/stacks/shop --json"
+ },
+ {
+  "page": "compose",
+  "title": "Compose audit",
+  "section": "Files and variables",
+  "anchor": "files",
+  "text": "portop reads the files Docker Compose would load: the first of compose.yaml , compose.yml , docker-compose.yml and docker-compose.yaml , plus the first override found. ${VARIABLE} , ${VARIABLE:-default} and the other Compose forms are substituted from the .env file next to them and the environment, "
+ },
+ {
+  "page": "compose",
+  "title": "Compose audit",
+  "section": "Statuses",
+  "anchor": "statuses",
+  "text": "Status Meaning expected The port is held by the matching service or container conflict Something else listens on it unused Nothing listens on it dynamic Compose picks the host port at runtime The command exits 3 when a port is unused or in conflict. With access to Docker, portop reads Docker's publi"
+ },
+ {
+  "page": "notifications",
+  "title": "New-port alerts",
+  "section": "",
+  "anchor": "",
+  "text": "A port that starts listening while portop runs is marked in the table; --watch-new also raises a desktop notification."
+ },
+ {
+  "page": "notifications",
+  "title": "New-port alerts",
+  "section": "Marks",
+  "anchor": "marks",
+  "text": "New listening ports are highlighted until you press n . The first scan after start-up marks nothing."
+ },
+ {
+  "page": "notifications",
+  "title": "New-port alerts",
+  "section": "Desktop notifications",
+  "anchor": "notifications",
+  "text": "System Shown with Linux notify-send , when installed macOS Notification Center Windows A toast shown as portop with its icon; Microsoft Store installs show it as Windows PowerShell Without a notifier nothing happens; the table still marks the port. Enable it permanently with watch_new: true ."
+ },
+ {
+  "page": "containers",
+  "title": "Containers and workers",
+  "section": "",
+  "anchor": "",
+  "text": "portop names the container behind a port and tells a server's master process from its workers."
+ },
+ {
+  "page": "containers",
+  "title": "Containers and workers",
+  "section": "Docker and Podman",
+  "anchor": "docker-podman",
+  "text": "On Linux the container ID comes from the process's cgroup and the name from the Engine API. The socket is found the way the docker CLI finds it: a unix:// DOCKER_HOST , /var/run/docker.sock , rootless Docker in $XDG_RUNTIME_DIR , Docker Desktop's ~/.docker/run/docker.sock , then Podman's /run/podman"
+ },
+ {
+  "page": "containers",
+  "title": "Containers and workers",
+  "section": "Kubernetes",
+  "anchor": "kubernetes",
+  "text": "On a node running containerd or CRI-O, a pod's process is shown as namespace/pod/container . The names come from the kubelet's log links in /var/log/containers , so no API access or crictl is needed; run portop on the node, usually with sudo ."
+ },
+ {
+  "page": "containers",
+  "title": "Containers and workers",
+  "section": "Docker Desktop on macOS and Windows",
+  "anchor": "docker-desktop",
+  "text": "Containers run inside a VM, so their processes are not visible to the host. portop recognises them by the host ports Docker publishes, which labels the listening rows."
+ },
+ {
+  "page": "containers",
+  "title": "Containers and workers",
+  "section": "Masters and workers",
+  "anchor": "workers",
+  "text": "Pre-forking servers such as nginx, gunicorn, php-fpm and Apache share one listening socket between a master and its workers. portop shows one row owned by the master, the process whose parent does not hold the socket, and counts the others: nginx +3 . The details list the workers' PIDs and JSON has "
+ },
+ {
+  "page": "firewall",
+  "title": "Firewall",
+  "section": "",
+  "anchor": "",
+  "text": "For every listening port the network can reach, portop asks the host firewall whether incoming traffic gets through."
+ },
+ {
+  "page": "firewall",
+  "title": "Firewall",
+  "section": "Verdicts",
+  "anchor": "verdicts",
+  "text": "Verdict Meaning allowed Anyone can connect, or no firewall is running restricted Only some sources may connect blocked Incoming connections are refused ? portop cannot tell Loopback ports show - : the firewall does not matter for them."
+ },
+ {
+  "page": "firewall",
+  "title": "Firewall",
+  "section": "What each system reports",
+  "anchor": "sources",
+  "text": "System Read from Unknown when Linux ufw rules and default policy; firewalld's default zone (ports, services, target); an empty nftables ruleset means no firewall portop is not root (the tools refuse), or nftables input rules or firewalld rich rules apply macOS The application firewall's global state"
+ },
+ {
+  "page": "traffic",
+  "title": "Traffic",
+  "section": "",
+  "anchor": "",
+  "text": "Established TCP connections show how many bytes they sent and received, and the rate between two refreshes."
+ },
+ {
+  "page": "traffic",
+  "title": "Traffic",
+  "section": "Sources",
+  "anchor": "sources",
+  "text": "System Read from Linux The kernel's socket diagnostics over netlink, as ss -ti shows them; no root and no eBPF macOS A nettop snapshot; other users' connections need sudo Windows Not available: Windows keeps these counters only for connections an administrator enabled statistics on, and portop does "
+ },
+ {
+  "page": "traffic",
+  "title": "Traffic",
+  "section": "Where it appears",
+  "anchor": "where",
+  "text": "The TRAFFIC column in the established view (sortable, busiest first), the remote cell of the web dashboard and Cockpit, and rx_bytes / tx_bytes in JSON . Turn it off with --no-traffic or resolve_traffic: false ."
+ },
+ {
+  "page": "web-dashboard",
+  "title": "Web dashboard",
+  "section": "",
+  "anchor": "",
+  "text": "The same live view in a browser, with process details and confirmed SIGTERM and SIGKILL."
+ },
+ {
+  "page": "web-dashboard",
+  "title": "Web dashboard",
+  "section": "Start",
+  "anchor": "start",
+  "text": "portop --web # http://127.0.0.1:8088 portop --web --web-port 9090 The dashboard lists every socket with its exposure and firewall badges, user, workers and traffic, with tabs for listening and connected sockets and a search box. The printed URL carries a per-run token: without it the table is readab"
+ },
+ {
+  "page": "web-dashboard",
+  "title": "Web dashboard",
+  "section": "Sign-in",
+  "anchor": "sign-in",
+  "text": "Option Meaning --web-auth Require sign-in; without a password, one is generated and printed --web-user NAME Username (default portop ); implies --web-auth PORTOP_WEB_PASSWORD Password from the environment --web-password PASS Password on the command line, visible to other local users in ps Sessions l"
+ },
+ {
+  "page": "web-dashboard",
+  "title": "Web dashboard",
+  "section": "Remote access and TLS",
+  "anchor": "remote",
+  "text": "Only a dashboard with sign-in may listen beyond loopback: openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 365 \\ -subj \"/CN=$(hostname)\" -keyout portop.key -out portop.crt PORTOP_WEB_PASSWORD='choose-one' portop --web --web-user admin \\ --web-addr 0.0.0.0:8088 --web-tls-cer"
+ },
+ {
+  "page": "web-dashboard",
+  "title": "Web dashboard",
+  "section": "Prometheus metrics",
+  "anchor": "metrics",
+  "text": "/metrics serves the Prometheus text format: Metric Labels portop_sockets protocol , state portop_listening_ports protocol , scope portop_listening_port_info protocol , port , address , scope , firewall , process , pid , user , container (value always 1) portop_scrape_duration_seconds With sign-in en"
+ },
+ {
+  "page": "cockpit",
+  "title": "Cockpit add-on",
+  "section": "",
+  "anchor": "",
+  "text": "The dashboard inside Cockpit , using its login and your permissions. Linux only."
+ },
+ {
+  "page": "cockpit",
+  "title": "Cockpit add-on",
+  "section": "Install",
+  "anchor": "install",
+  "text": "mkdir -p ~/.local/share/cockpit cp -r cockpit/portop ~/.local/share/cockpit/portop # from a portop checkout Open Tools → Ports (portop) . portop must be installed on the host; the page calls portop --json , --inspect-pid and --signal-pid through Cockpit's bridge, so there is no extra service to expo"
+ },
+ {
+  "page": "platforms",
+  "title": "Platform support",
+  "section": "",
+  "anchor": "",
+  "text": "Every feature runs on Linux, macOS and Windows. Where the operating system does not provide something, portop leaves the field empty or shows ? instead of failing."
+ },
+ {
+  "page": "platforms",
+  "title": "Platform support",
+  "section": "Features",
+  "anchor": "features",
+  "text": "Feature Linux macOS Windows Sockets and owner Yes; sudo for other users' processes Yes; sudo for other users' sockets Yes, every PID Process details Yes No thread count No working directory or open files Stop a process SIGTERM, SIGKILL SIGTERM, SIGKILL Both end the process Service column systemd uni"
+ },
+ {
+  "page": "platforms",
+  "title": "Platform support",
+  "section": "Targets",
+  "anchor": "targets",
+  "text": "Linux on amd64, arm64, ARMv7 and ARMv6 with hardware floating point; macOS on Intel and Apple Silicon; Windows 10 1809 or later and Windows 11 on x64 and ARM64. ARMv5, soft-float armel , big-endian ARM, 32-bit x86 and 32-bit Windows are not supported. The validation report lists what has been tested"
+ },
+ {
+  "page": "how-it-works",
+  "title": "How it works",
+  "section": "",
+  "anchor": "",
+  "text": "portop reads what the operating system already exposes; it installs nothing and runs no daemon."
+ },
+ {
+  "page": "how-it-works",
+  "title": "How it works",
+  "section": "Linux",
+  "anchor": "linux",
+  "text": "Sockets come from /proc/net/{tcp,tcp6,udp,udp6} and are matched to processes through /proc/<pid>/fd , as ss and lsof do. systemd units and container IDs come from each process's cgroup, traffic from netlink socket diagnostics."
+ },
+ {
+  "page": "how-it-works",
+  "title": "How it works",
+  "section": "macOS",
+  "anchor": "macos",
+  "text": "Sockets and owners come from the machine-readable output of lsof ; process details and CPU time from ps ; traffic from nettop ."
+ },
+ {
+  "page": "how-it-works",
+  "title": "How it works",
+  "section": "Windows",
+  "anchor": "windows",
+  "text": "Sockets and owning PIDs come from GetExtendedTcpTable and GetExtendedUdpTable , process details from the Win32 process APIs with limited query rights, and services from the Service Control Manager."
+ },
+ {
+  "page": "how-it-works",
+  "title": "How it works",
+  "section": "Safety",
+  "anchor": "safety",
+  "text": "External tools run without a shell, with a timeout and a fixed locale. Text that other processes control (names, command lines, reverse DNS, Compose values) is cleaned of terminal escape sequences and bidirectional controls before it is drawn. A signal is only sent after re-checking the target's sta"
+ },
+ {
+  "page": "troubleshooting",
+  "title": "Troubleshooting",
+  "section": "",
+  "anchor": "",
+  "text": ""
+ },
+ {
+  "page": "troubleshooting",
+  "title": "Troubleshooting",
+  "section": "Rows without a process",
+  "anchor": "no-process",
+  "text": "The socket belongs to another user. Run sudo portop on Linux and macOS, or use an Administrator terminal on Windows. TIME_WAIT rows never have one: the connection is closing and no process holds it."
+ },
+ {
+  "page": "troubleshooting",
+  "title": "Troubleshooting",
+  "section": "The firewall column shows ?",
+  "anchor": "firewall-unknown",
+  "text": "The firewall could not be read or decides per program. See what each system reports ; on Linux, run portop with sudo ."
+ },
+ {
+  "page": "troubleshooting",
+  "title": "Troubleshooting",
+  "section": "No container names",
+  "anchor": "no-container",
+  "text": "portop cannot reach the Docker or Podman socket. Check DOCKER_HOST , membership of the docker group, or run with sudo . On Kubernetes nodes, /var/log/containers must be readable."
+ },
+ {
+  "page": "troubleshooting",
+  "title": "Troubleshooting",
+  "section": "Washed-out colors",
+  "anchor": "colors",
+  "text": "The terminal reports 16 colors. Set TERM=xterm-256color or COLORTERM=truecolor ."
+ },
+ {
+  "page": "troubleshooting",
+  "title": "Troubleshooting",
+  "section": "A kill is refused",
+  "anchor": "kill-refused",
+  "text": "The process exited or was replaced since the row was shown; portop refuses to signal a different process. Refresh with r and try again."
+ },
+ {
+  "page": "troubleshooting",
+  "title": "Troubleshooting",
+  "section": "Reporting a problem",
+  "anchor": "report",
+  "text": "Open an issue with portop --version , the operating system and, if useful, portop --json output."
+ }
+]

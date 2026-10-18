@@ -1,0 +1,16 @@
+<h1>New-port alerts</h1>
+<p class="lede">A port that starts listening while portop runs is marked in the table; <code>--watch-new</code> also raises a desktop notification.</p>
+
+<h2 id="marks">Marks</h2>
+<p>New listening ports are highlighted until you press <kbd>n</kbd>. The first scan after start-up marks nothing.</p>
+
+<h2 id="notifications">Desktop notifications</h2>
+<table>
+  <thead><tr><th>System</th><th>Shown with</th></tr></thead>
+  <tbody>
+    <tr><td>Linux</td><td><code>notify-send</code>, when installed</td></tr>
+    <tr><td>macOS</td><td>Notification Center</td></tr>
+    <tr><td>Windows</td><td>A toast shown as <em>portop</em> with its icon; Microsoft Store installs show it as Windows PowerShell</td></tr>
+  </tbody>
+</table>
+<p>Without a notifier nothing happens; the table still marks the port. Enable it permanently with <code>watch_new: true</code>.</p>

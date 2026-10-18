@@ -1,0 +1,14 @@
+<h1>How it works</h1>
+<p class="lede">portop reads what the operating system already exposes; it installs nothing and runs no daemon.</p>
+
+<h2 id="linux">Linux</h2>
+<p>Sockets come from <code>/proc/net/{tcp,tcp6,udp,udp6}</code> and are matched to processes through <code>/proc/&lt;pid&gt;/fd</code>, as <code>ss</code> and <code>lsof</code> do. systemd units and container IDs come from each process's cgroup, traffic from netlink socket diagnostics.</p>
+
+<h2 id="macos">macOS</h2>
+<p>Sockets and owners come from the machine-readable output of <code>lsof</code>; process details and CPU time from <code>ps</code>; traffic from <code>nettop</code>.</p>
+
+<h2 id="windows">Windows</h2>
+<p>Sockets and owning PIDs come from <code>GetExtendedTcpTable</code> and <code>GetExtendedUdpTable</code>, process details from the Win32 process APIs with limited query rights, and services from the Service Control Manager.</p>
+
+<h2 id="safety">Safety</h2>
+<p>External tools run without a shell, with a timeout and a fixed locale. Text that other processes control (names, command lines, reverse DNS, Compose values) is cleaned of terminal escape sequences and bidirectional controls before it is drawn. A signal is only sent after re-checking the target's start time.</p>

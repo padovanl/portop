@@ -43,6 +43,15 @@ make release # local snapshot release build (deb + rpm + Linux/macOS tar.gz, not
 binary on Linux and macOS. CI runs native macOS unit and end-to-end tests
 on Apple Silicon and Intel runners.
 
+## Documentation
+
+The pages under `docs/docs/` are generated: edit `docs-src/<page>.html`, then
+run `python3 scripts/build-docs.py`, which rebuilds the pages and the search
+index and fails on a broken internal link. A new page also needs an entry in
+the `NAV` list at the top of the script. CI runs `build-docs.py --check` to
+catch pages that were edited directly or not rebuilt. Preview the site with
+`python3 scripts/serve-pages.py`.
+
 ## Releasing (maintainers)
 
 This section only applies if you have push access to `main` — regular

@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The table · portop docs</title>
+<meta name="description" content="One row per socket. Optional columns appear as the terminal gets wider; click a heading, or press s , to sort by it.">
+<link rel="icon" href="../assets/logo.png">
+<link rel="stylesheet" href="docs.css">
+<script>try { var t = localStorage.getItem("portop-docs-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<script defer src="docs.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <button class="nav-toggle" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Menu">
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  </button>
+  <a class="brand" href="index.html"><img src="../assets/logo.png" alt="" width="24" height="24">portop <span>docs</span></a>
+  <div class="search">
+    <input id="search" type="search" placeholder="Search the docs" autocomplete="off" aria-label="Search the docs">
+    <ul id="search-results" class="search-results" hidden></ul>
+  </div>
+  <nav class="topnav" aria-label="Site">
+    <a href="../">Home</a>
+    <a href="https://github.com/padovanl/portop">GitHub</a>
+  </nav>
+  <button class="theme-toggle" type="button" aria-label="Toggle dark mode">
+    <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3a7 7 0 1 0 7 7 5.5 5.5 0 0 1-7-7z" fill="currentColor"/></svg>
+  </button>
+</header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar" aria-label="Documentation">
+      <p class="nav-group">Getting started</p>
+      <ul>
+        <li><a href="index.html">Introduction</a></li>
+        <li><a href="installation.html">Installation</a></li>
+        <li><a href="first-run.html">First run and permissions</a></li>
+      </ul>
+      <p class="nav-group">Using portop</p>
+      <ul>
+        <li><a href="the-table.html" class="active" aria-current="page">The table</a></li>
+        <li><a href="command-line.html">Command line</a></li>
+        <li><a href="scripting.html">Scripting</a></li>
+        <li><a href="configuration.html">Configuration</a></li>
+      </ul>
+      <p class="nav-group">Checks</p>
+      <ul>
+        <li><a href="baseline.html">Baseline drift</a></li>
+        <li><a href="compose.html">Compose audit</a></li>
+        <li><a href="notifications.html">New-port alerts</a></li>
+      </ul>
+      <p class="nav-group">Context</p>
+      <ul>
+        <li><a href="containers.html">Containers and workers</a></li>
+        <li><a href="firewall.html">Firewall</a></li>
+        <li><a href="traffic.html">Traffic</a></li>
+      </ul>
+      <p class="nav-group">Dashboards</p>
+      <ul>
+        <li><a href="web-dashboard.html">Web dashboard</a></li>
+        <li><a href="cockpit.html">Cockpit add-on</a></li>
+      </ul>
+      <p class="nav-group">Reference</p>
+      <ul>
+        <li><a href="platforms.html">Platform support</a></li>
+        <li><a href="how-it-works.html">How it works</a></li>
+        <li><a href="troubleshooting.html">Troubleshooting</a></li>
+      </ul>
+  </aside>
+  <div class="content">
+    <main>
+<h1>The table</h1>
+<p class="lede">One row per socket. Optional columns appear as the terminal gets wider; click a heading, or press <kbd>s</kbd>, to sort by it.</p>
+
+<h2 id="columns">Columns</h2>
+<table>
+  <thead><tr><th>Column</th><th>Shows</th></tr></thead>
+  <tbody>
+    <tr><td><code>PORT</code></td><td>Local port and its service name (<code>:22 ssh</code>), colored by <a href="#exposure">exposure</a> on listening rows.</td></tr>
+    <tr><td><code>PROTO</code></td><td><code>TCP</code> or <code>UDP</code>; <code>6</code> marks IPv6.</td></tr>
+    <tr><td><code>STATE</code></td><td>The TCP state. A bound, unconnected UDP socket is <code>UNCONN</code> and counts as listening.</td></tr>
+    <tr><td><code>PROCESS</code></td><td>The owning process; <code>nginx +3</code> when three <a href="containers.html#workers">workers</a> share the socket.</td></tr>
+    <tr><td><code>PID</code>, <code>CPU</code></td><td>Process ID and CPU use since the previous refresh.</td></tr>
+    <tr><td><code>REMOTE</code></td><td>The peer, or its reverse-DNS name, for established connections.</td></tr>
+    <tr><td><code>IFACE</code></td><td>The bind address; <code>0.0.0.0</code> and <code>::</code> mean every interface.</td></tr>
+    <tr><td><code>FIREWALL</code></td><td>The host <a href="firewall.html">firewall's verdict</a> for a port the network can reach.</td></tr>
+    <tr><td><code>TRAFFIC</code></td><td>Bytes per second received and sent, <code>↓1.2K ↑340</code>, for an established TCP connection (<a href="traffic.html">details</a>).</td></tr>
+    <tr><td><code>USER</code></td><td>The socket's owner.</td></tr>
+    <tr><td><code>CONTAINER</code></td><td>Docker or Podman container, or <code>namespace/pod/container</code> on Kubernetes (<a href="containers.html">details</a>).</td></tr>
+    <tr><td><code>SYSTEMD</code></td><td>The systemd unit on Linux. On Windows it is <code>SERVICE</code>: the services hosted by the process.</td></tr>
+  </tbody>
+</table>
+
+<h2 id="exposure">Exposure</h2>
+<p>A listening port is colored by who can reach it, at any terminal width:</p>
+<table>
+  <thead><tr><th>Color</th><th>Bound to</th><th>Reachable from</th></tr></thead>
+  <tbody>
+    <tr><td>Red</td><td><code>0.0.0.0</code>, <code>::</code></td><td>Every network the host is on, unless a firewall blocks it</td></tr>
+    <tr><td>Amber</td><td>One address</td><td>That interface's network (a LAN or container network)</td></tr>
+    <tr><td>Green</td><td><code>127.0.0.1</code>, <code>::1</code></td><td>This machine only</td></tr>
+  </tbody>
+</table>
+<p>Sorting by <code>IFACE</code> lists the most exposed ports first. The same scopes appear as <code>"scope": "all" | "address" | "loopback"</code> in <a href="command-line.html#json">JSON</a> and drive <a href="baseline.html">baseline drift</a>.</p>
+
+<h2 id="keys">Keys</h2>
+<table>
+  <thead><tr><th>Key</th><th>Action</th></tr></thead>
+  <tbody>
+    <tr><td><kbd>↑</kbd> <kbd>↓</kbd> <kbd>PgUp</kbd> <kbd>PgDn</kbd> <kbd>g</kbd> <kbd>G</kbd></td><td>Move by row or page, to the top or bottom</td></tr>
+    <tr><td><kbd>enter</kbd></td><td>Process details</td></tr>
+    <tr><td><kbd>k</kbd></td><td>Stop the process: then <kbd>y</kbd> for SIGTERM or <kbd>f</kbd> for SIGKILL</td></tr>
+    <tr><td><kbd>o</kbd></td><td>Open the port in the browser, at the bound address for single-interface listeners</td></tr>
+    <tr><td><kbd>f</kbd>, <kbd>/</kbd></td><td>Filter; every word must match the port, PID, process, user, unit, container or address</td></tr>
+    <tr><td><kbd>v</kbd></td><td>IPv4, IPv6 or both</td></tr>
+    <tr><td><kbd>e</kbd></td><td>Show or hide established connections</td></tr>
+    <tr><td><kbd>s</kbd></td><td>Next sort column</td></tr>
+    <tr><td><kbd>c</kbd></td><td>Copy the row</td></tr>
+    <tr><td><kbd>n</kbd></td><td>Clear the new-port marks</td></tr>
+    <tr><td><kbd>r</kbd></td><td>Refresh now</td></tr>
+    <tr><td><kbd>,</kbd></td><td>Settings</td></tr>
+    <tr><td><kbd>?</kbd></td><td>Help</td></tr>
+    <tr><td><kbd>q</kbd></td><td>Quit</td></tr>
+  </tbody>
+</table>
+<p>Every action can be rebound in the settings screen or in <a href="configuration.html">config.yml</a>; a key that another action already uses is refused.</p>
+
+<h2 id="mouse">Mouse</h2>
+<p>Click to select, double-click for details, right-click for the kill confirmation, middle-click to open the port, scroll with the wheel, click a heading to sort and click it again to reverse.</p>
+
+<h2 id="details">Details</h2>
+<p><kbd>enter</kbd> shows the command line, executable, working directory, user, memory, threads, open files, start time and, for a shared socket, its workers.</p>
+
+<h2 id="stopping">Stopping a process</h2>
+<p><kbd>k</kbd> records the process's start time when the confirmation opens and checks it again just before sending the signal. If the process exited and its PID was reused in the meantime, the signal is refused. On Windows both choices end the process.</p>
+      <nav class="pager" aria-label="Pages"><a class="prev" href="first-run.html"><span>Previous</span>First run and permissions</a><a class="next" href="command-line.html"><span>Next</span>Command line</a></nav>
+    </main>
+    <nav class="page-toc" aria-label="On this page">
+      <p>On this page</p>
+      <ul>
+        <li><a href="#columns">Columns</a></li>
+        <li><a href="#exposure">Exposure</a></li>
+        <li><a href="#keys">Keys</a></li>
+        <li><a href="#mouse">Mouse</a></li>
+        <li><a href="#details">Details</a></li>
+        <li><a href="#stopping">Stopping a process</a></li>
+      </ul>
+    </nav>
+  </div>
+</div>
+<footer class="footer">portop · MIT License · <a href="https://github.com/padovanl/portop/edit/develop/docs-src/the-table.html">Edit this page</a></footer>
+</body>
+</html>

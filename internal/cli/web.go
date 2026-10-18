@@ -20,7 +20,6 @@ import (
 
 	"github.com/padovanl/portop/internal/app"
 	"github.com/padovanl/portop/internal/procinfo"
-	"github.com/padovanl/portop/internal/scanner"
 )
 
 //go:embed web/index.html
@@ -86,7 +85,7 @@ func webHandler(collect func(context.Context, app.Options) ([]app.Row, error), c
 		}
 		out := make([]jsonRow, 0, len(rows))
 		for _, row := range rows {
-			if cfg.ListenOnly && row.State != scanner.StateListen {
+			if cfg.ListenOnly && !row.Listening() {
 				continue
 			}
 			if !row.Matches(cfg.Filter) {
@@ -96,6 +95,18 @@ func webHandler(collect func(context.Context, app.Options) ([]app.Row, error), c
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(out)
+	})
+	mux.HandleFunc("GET /metrics", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		defer cancel()
+		started := time.Now()
+		rows, err := collect(ctx, cfg.Options)
+		if err != nil {
+			http.Error(w, "port scan failed", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+		writeMetrics(w, rows, time.Since(started))
 	})
 	currentProcess := func(r *http.Request, pid int) (bool, error) {
 		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
@@ -227,6 +238,15 @@ func requireSession(auth *webAuth, next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
+		// Prometheus cannot hold a browser session: /metrics also takes
+		// the dashboard credentials as HTTP Basic auth (basic_auth in a
+		// scrape config), under the same lockout as the sign-in form.
+		if r.URL.Path == "/metrics" {
+			if _, ok := auth.session(r); ok || auth.basicAuth(w, r) {
+				next.ServeHTTP(w, r)
+			}
+			return
+		}
 		if _, ok := auth.session(r); !ok {
 			if strings.HasPrefix(r.URL.Path, "/api/") {
 				http.Error(w, "sign in required", http.StatusUnauthorized)
@@ -338,20 +358,33 @@ func runWeb(stdout, stderr io.Writer, serve webServe, cfg webConfig) int {
 
 	collector := app.NewCollector()
 	var mu sync.Mutex
-	server := &http.Server{
-		Handler: webHandler(func(ctx context.Context, opts app.Options) ([]app.Row, error) {
-			mu.Lock()
-			defer mu.Unlock()
-			return collector.Collect(ctx, opts)
-		}, cfg),
-		ReadHeaderTimeout: 5 * time.Second,
-		ErrorLog:          log.New(io.Discard, "", 0),
-	}
+	server := newWebServer(webHandler(func(ctx context.Context, opts app.Options) ([]app.Row, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		return collector.Collect(ctx, opts)
+	}, cfg))
 	if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
 		fmt.Fprintln(stderr, "portop: web: "+err.Error())
 		return 1
 	}
 	return 0
+}
+
+// newWebServer bounds every phase of a connection. With --web-addr the
+// dashboard faces the network before anyone has signed in, and a client
+// that sends a body slowly or keeps idle connections open would
+// otherwise hold a file descriptor forever. WriteTimeout leaves room for
+// the 10 s port scan behind /api/ports.
+func newWebServer(handler http.Handler) *http.Server {
+	return &http.Server{
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       2 * time.Minute,
+		MaxHeaderBytes:    64 << 10,
+		ErrorLog:          log.New(io.Discard, "", 0),
+	}
 }
 
 type webFlags struct {

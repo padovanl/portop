@@ -5,8 +5,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/padovanl/portop/internal/app"
 	"github.com/padovanl/portop/internal/scanner"
+	"github.com/padovanl/portop/internal/services"
 )
 
 func TestTitleTaglineOnlyWhenItFits(t *testing.T) {
@@ -136,5 +139,30 @@ func TestPadTrunc(t *testing.T) {
 	}
 	if got := padTrunc("abcdefgh", 5); len([]rune(got)) != 5 {
 		t.Errorf("padTrunc long len = %d, want 5 (got %q)", len([]rune(got)), got)
+	}
+}
+
+// Process and container names can hold double-width characters; every
+// cell must still take exactly its column's width on screen.
+func TestPadTruncCountsTerminalCells(t *testing.T) {
+	for _, s := range []string{"微信", "微信微信微信微信微信", "docker-🐳-proxy", "café", "plain"} {
+		for _, width := range []int{6, 11, 18} {
+			got := padTrunc(s, width)
+			if w := ansi.StringWidth(got); w != width {
+				t.Errorf("padTrunc(%q, %d) = %q, %d cells wide", s, width, got, w)
+			}
+		}
+	}
+}
+
+// A listening UDP socket is named like a TCP listener (":53 domain").
+func TestPortCellNamesListeningUDP(t *testing.T) {
+	name, ok := services.Lookup(53, "UDP")
+	if !ok {
+		t.Skip("no services database entry for 53/udp on this host")
+	}
+	row := app.Row{Protocol: scanner.UDP, LocalPort: 53, State: scanner.StateUnconn}
+	if got := cellValue(row, "PORT"); got != ":53 "+name {
+		t.Fatalf("PORT cell = %q, want %q", got, ":53 "+name)
 	}
 }

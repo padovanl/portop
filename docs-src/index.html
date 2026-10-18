@@ -1,0 +1,20 @@
+<h1>Introduction</h1>
+<p class="lede">portop shows every TCP and UDP socket on a machine together with the process, service and container behind it and who can reach it, and lets you inspect or stop the owner. It runs on Linux, macOS and Windows, in the terminal, in a browser, or inside Cockpit.</p>
+
+<h2 id="what-it-answers">What it answers</h2>
+<ul>
+  <li><strong>What is using this port?</strong> The owning process, its systemd unit or Windows service, its Docker, Podman or Kubernetes container, and the user it runs as.</li>
+  <li><strong>Who can reach it?</strong> Whether the port is bound to every interface, one address or loopback only, and what the host firewall does with it.</li>
+  <li><strong>What changed?</strong> New listening ports are highlighted live, and <code>--diff</code> compares the host against a saved baseline from cron or CI.</li>
+  <li><strong>How do I get the port back?</strong> Stop the owner from the table, or run <code>portop --free 8080</code> in a script.</li>
+</ul>
+
+<h2 id="where-it-runs">Where it runs</h2>
+<ul>
+  <li>The <a href="the-table.html">terminal UI</a>, an htop-style table that refreshes every two seconds.</li>
+  <li>The <a href="command-line.html">command line</a>, for JSON snapshots, <code>--wait</code>, <code>--free</code>, baselines and Compose audits.</li>
+  <li>A <a href="web-dashboard.html">web dashboard</a> with sign-in, TLS and Prometheus metrics, and a <a href="cockpit.html">Cockpit add-on</a>.</li>
+</ul>
+
+<h2 id="next-steps">Next steps</h2>
+<p><a href="installation.html">Install portop</a>, read <a href="first-run.html">First run and permissions</a>, then see <a href="platforms.html">Platform support</a> for what each operating system provides.</p>

@@ -9,7 +9,9 @@ func TestParseLsof(t *testing.T) {
 		"f5\x00tIPv6\x00PUDP\x00n*:5353\x00\n" +
 		"p99\x00cclient\x00u502\x00\n" +
 		"f7\x00tIPv4\x00PUDP\x00n127.0.0.1:5000->127.0.0.1:53\x00\n" +
-		"f8\x00tIPv4\x00PTCP\x00ninvalid\x00\n"
+		"f8\x00tIPv4\x00PTCP\x00ninvalid\x00\n" +
+		"f9\x00tIPv4\x00PTCP\x00n*:*\x00TST=CLOSED\x00\n" +
+		"f10\x00tIPv6\x00PUDP\x00n*:*\x00\n"
 	rows := parseLsof([]byte(data))
 	if len(rows) != 4 {
 		t.Fatalf("got %d rows: %+v", len(rows), rows)
@@ -47,5 +49,33 @@ func TestParseCPUTime(t *testing.T) {
 		if _, err := parseCPUTime(input); err == nil {
 			t.Errorf("accepted %q", input)
 		}
+	}
+}
+
+// lsof prints a shared socket once per process; it becomes one row owned
+// by the master, with the workers listed.
+func TestMergeSharedSockets(t *testing.T) {
+	data := "p100\x00cnginx\x00u0\x00\n" +
+		"f6\x00tIPv4\x00PTCP\x00n*:80\x00TST=LISTEN\x00\n" +
+		"p101\x00cnginx\x00u33\x00\n" +
+		"f6\x00tIPv4\x00PTCP\x00n*:80\x00TST=LISTEN\x00\n" +
+		"p102\x00cnginx\x00u33\x00\n" +
+		"f6\x00tIPv4\x00PTCP\x00n*:80\x00TST=LISTEN\x00\n" +
+		"p200\x00credis\x00u501\x00\n" +
+		"f7\x00tIPv4\x00PTCP\x00n127.0.0.1:6379\x00TST=LISTEN\x00\n"
+	asked := 0
+	rows := mergeShared(parseLsof([]byte(data)), func(pids []int) map[int]int {
+		asked++
+		return parsePSParents([]byte("  100     1\n  101   100\n  102   100\n"))
+	})
+	if len(rows) != 2 || asked != 1 {
+		t.Fatalf("got %d rows after %d ps calls: %+v", len(rows), asked, rows)
+	}
+	nginx := rows[0]
+	if nginx.PID != 100 || nginx.ProcessName != "nginx" || len(nginx.Owners) != 3 {
+		t.Fatalf("shared socket: %+v", nginx)
+	}
+	if rows[1].PID != 200 || rows[1].Owners != nil {
+		t.Fatalf("unshared socket: %+v", rows[1])
 	}
 }

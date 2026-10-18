@@ -4,6 +4,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/padovanl/portop/internal/app"
@@ -116,5 +117,35 @@ func TestExpandRangeEndingAtMaxPort(t *testing.T) {
 	}
 	if _, err := expandRange("9000-8000"); err == nil {
 		t.Fatal("descending range accepted")
+	}
+}
+
+// Compose loads one base file and one override; a stale docker-compose.yml
+// next to compose.yaml is not part of the project and must not be audited.
+func TestLoadDirUsesTheFilesComposeLoads(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, service string, port int) {
+		t.Helper()
+		content := "services:\n  " + service + ":\n    ports:\n      - \"" + strconv.Itoa(port) + ":80\"\n"
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("compose.yaml", "web", 8080)
+	write("docker-compose.yml", "legacy", 9999)
+	write("compose.override.yml", "debug", 9229)
+	write("docker-compose.override.yml", "old-debug", 9230)
+
+	summary, err := LoadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(summary.Files) != 2 || summary.Files[0] != "compose.yaml" || summary.Files[1] != "compose.override.yml" {
+		t.Fatalf("files = %v, want [compose.yaml compose.override.yml]", summary.Files)
+	}
+	for _, r := range summary.Results {
+		if r.Service == "legacy" || r.Service == "old-debug" {
+			t.Fatalf("audited %s from a file Compose ignores", r.Service)
+		}
 	}
 }

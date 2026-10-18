@@ -226,3 +226,44 @@ func indexOfAction(t *testing.T, action string) int {
 	t.Fatalf("action %q not found in KeyActions", action)
 	return -1
 }
+
+// Binding a key another action already uses would make one of them
+// unreachable (with "," bound to "up", the settings screen itself).
+func TestSettingsRefusesKeyOfAnotherAction(t *testing.T) {
+	m := newSettingsModel(t, "")
+	m.settingsCursor = 1 + indexOfAction(t, "up")
+	mm, _ := m.handleSettingsKey(keyMsg("enter"))
+	m = mm.(Model)
+	mm, _ = m.handleSettingsKey(keyMsg(","))
+	m = mm.(Model)
+	if !m.settingsCapturing || m.settingsNote == "" {
+		t.Fatalf("capturing=%v note=%q, want the key refused and capture still open", m.settingsCapturing, m.settingsNote)
+	}
+	if got := keys.Up.Keys(); len(got) != 1 || got[0] != "up" {
+		t.Fatalf("keys.Up.Keys() = %v, want the default kept", got)
+	}
+	if got := keys.Settings.Keys(); len(got) != 1 || got[0] != "," {
+		t.Fatalf("keys.Settings.Keys() = %v", got)
+	}
+}
+
+// The escape action is remappable; every view must honour the new key.
+func TestRemappedEscapeClosesViews(t *testing.T) {
+	m := newSettingsModel(t, "")
+	ApplyKeyBindings(map[string][]string{"escape": {"x"}})
+	mm, _ := m.handleSettingsKey(keyMsg("x"))
+	if mm.(Model).mode != modeNormal {
+		t.Fatal("remapped escape did not close the settings screen")
+	}
+	m.mode = modeDetail
+	mm, _ = m.handleDetailKey(keyMsg("x"))
+	if mm.(Model).mode != modeNormal {
+		t.Fatal("remapped escape did not close the details view")
+	}
+	m.mode = modeFilter
+	m.filterInput.SetValue("ngi")
+	mm, _ = m.handleFilterKey(keyMsg("x"))
+	if got := mm.(Model); got.mode != modeNormal || got.filterInput.Value() != "" {
+		t.Fatalf("remapped escape did not cancel the filter: mode=%v value=%q", got.mode, got.filterInput.Value())
+	}
+}

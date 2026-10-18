@@ -17,31 +17,39 @@ import (
 // Send fires a best-effort desktop notification with the given title and
 // body. Errors are swallowed: notifications are a nice-to-have, and a
 // headless server (the most common place to run portop) simply won't
-// have a notifier installed.
+// have a notifier installed. It never waits for the notifier, since it is
+// called from the TUI's update loop.
 func Send(title, body string) {
-	title = terminaltext.Sanitize(title)
-	body = terminaltext.Sanitize(body)
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
+	cmd := command(runtime.GOOS, terminaltext.Sanitize(title), terminaltext.Sanitize(body))
+	if cmd == nil {
+		return
+	}
+	if cmd.Start() == nil {
+		go func() { _ = cmd.Wait() }()
+	}
+}
+
+// command builds the notifier invocation for goos, or nil when there is
+// none. The body carries a process name, which any local user controls.
+func command(goos, title, body string) *exec.Cmd {
+	switch goos {
 	case "darwin":
 		script := `display notification "` + escapeAppleScript(body) + `" with title "` + escapeAppleScript(title) + `"`
-		cmd = exec.Command("osascript", "-e", script)
+		return exec.Command("osascript", "-e", script)
 	case "windows":
-		// PowerShell is slow to start, so fire and forget instead of
-		// blocking the TUI; text travels in env vars to avoid quoting.
-		cmd = exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", windowsToastScript)
-		cmd.Env = append(os.Environ(), "PORTOP_TOAST_TITLE="+title, "PORTOP_TOAST_BODY="+body)
-		if cmd.Start() == nil {
-			go func() { _ = cmd.Wait() }()
-		}
-		return
+		// Text travels in env vars to avoid quoting.
+		cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", windowsToastScript)
+		cmd.Env = append(os.Environ(), "PORTOP_TOAST_TITLE="+title, "PORTOP_TOAST_BODY="+body,
+			"PORTOP_TOAST_APPID="+registeredAppID())
+		return cmd
 	default:
 		if _, err := exec.LookPath("notify-send"); err != nil {
-			return
+			return nil
 		}
-		cmd = exec.Command("notify-send", title, body)
+		// "--" ends option parsing: a process named "-w" or "--action=x"
+		// must not become a notify-send option.
+		return exec.Command("notify-send", "--", title, body)
 	}
-	_ = cmd.Run()
 }
 
 func escapeAppleScript(s string) string {
@@ -56,13 +64,14 @@ func escapeAppleScript(s string) string {
 }
 
 // windowsToastScript shows a toast through the WinRT notification API,
-// attributed to Windows PowerShell's registered app ID so it needs no
-// installation step of its own.
+// under portop's own app ID when it could be registered (see
+// registeredAppID) and Windows PowerShell's otherwise.
 const windowsToastScript = `$ErrorActionPreference = 'SilentlyContinue'
 [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null
 $t = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)
 $n = $t.GetElementsByTagName('text')
 $n.Item(0).AppendChild($t.CreateTextNode($env:PORTOP_TOAST_TITLE)) > $null
 $n.Item(1).AppendChild($t.CreateTextNode($env:PORTOP_TOAST_BODY)) > $null
-$id = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe'
+$id = $env:PORTOP_TOAST_APPID
+if (-not $id) { $id = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe' }
 [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($id).Show([Windows.UI.Notifications.ToastNotification]::new($t))`

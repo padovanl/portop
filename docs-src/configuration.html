@@ -1,0 +1,22 @@
+<h1>Configuration</h1>
+<p class="lede">Everything is optional. Command-line flags win over the file.</p>
+
+<h2 id="settings-screen">Settings screen</h2>
+<p>Press <kbd>,</kbd> in the table to preview the 13 themes live and rebind any of the 20 actions. Changes are saved to the configuration file at once.</p>
+
+<h2 id="file">config.yml</h2>
+<p><code>portop --init-config</code> writes a commented file in the OS configuration directory: <code>~/.config/portop/config.yml</code> on Linux, <code>~/Library/Application Support/portop/config.yml</code> on macOS, <code>%AppData%\portop\config.yml</code> on Windows. <code>--config</code> uses another.</p>
+<pre>theme: tokyo-night        # default, dracula, nord, solarized, gruvbox, catppuccin,
+                          # tokyo-night, monokai, darcula, vscode, ubuntu, rose-pine, mono
+refresh_interval: 2s
+show_established: true    # false behaves like --listen
+resolve_dns: true
+resolve_systemd: true
+resolve_docker: true
+resolve_firewall: true
+resolve_traffic: true
+watch_new: false
+keybindings:
+  kill: ["x"]
+  quit: ["q", "ctrl+c"]</pre>
+<p>Keybinding actions: <code>up</code>, <code>down</code>, <code>page_up</code>, <code>page_down</code>, <code>top</code>, <code>bottom</code>, <code>enter</code>, <code>kill</code>, <code>open</code>, <code>filter</code>, <code>sort</code>, <code>protocol</code>, <code>established</code>, <code>new_mark</code>, <code>copy</code>, <code>refresh</code>, <code>help</code>, <code>quit</code>, <code>escape</code>, <code>settings</code>. An unknown theme or action stops portop with the list of valid ones.</p>

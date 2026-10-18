@@ -95,8 +95,8 @@ func (a *webAuth) session(r *http.Request) (webSession, bool) {
 }
 
 // lockedFor reports how long a client must wait after too many failed
-// sign-ins. It is keyed by remote IP, so one noisy client does not lock out
-// the others.
+// sign-ins. It is keyed by clientKey, so one noisy client does not lock
+// out the others.
 func (a *webAuth) lockedFor(ip string) time.Duration {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -199,7 +199,7 @@ func (a *webAuth) renderLogin(w http.ResponseWriter, r *http.Request, status int
 }
 
 func (a *webAuth) handleLogin(w http.ResponseWriter, r *http.Request) {
-	ip := remoteIP(r)
+	ip := clientKey(r)
 	if wait := a.lockedFor(ip); wait > 0 {
 		seconds := int(wait.Round(time.Second) / time.Second)
 		if seconds < 1 {
@@ -226,6 +226,27 @@ func (a *webAuth) handleLogin(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
+// basicAuth checks HTTP Basic credentials and answers the request itself
+// when they are missing, wrong or locked out.
+func (a *webAuth) basicAuth(w http.ResponseWriter, r *http.Request) bool {
+	ip := clientKey(r)
+	if wait := a.lockedFor(ip); wait > 0 {
+		w.Header().Set("Retry-After", strconv.Itoa(int(wait.Round(time.Second)/time.Second)+1))
+		http.Error(w, "too many failed attempts", http.StatusTooManyRequests)
+		return false
+	}
+	user, password, ok := r.BasicAuth()
+	if ok && a.credentialsMatch(user, password) {
+		return true
+	}
+	if ok {
+		a.recordFailure(ip)
+	}
+	w.Header().Set("WWW-Authenticate", `Basic realm="portop", charset="UTF-8"`)
+	http.Error(w, "sign in required", http.StatusUnauthorized)
+	return false
+}
+
 func randomHex(n int) (string, error) {
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
@@ -240,6 +261,18 @@ func remoteIP(r *http.Request) string {
 		return r.RemoteAddr
 	}
 	return host
+}
+
+// clientKey identifies a client for the sign-in lockout: its IPv4
+// address, or the /64 prefix of its IPv6 address. Anyone holding an IPv6
+// address holds at least a /64, so keying by the full address would let
+// a client pick a new one for every guess and never be locked out.
+func clientKey(r *http.Request) string {
+	ip := net.ParseIP(remoteIP(r))
+	if ip == nil || ip.To4() != nil {
+		return remoteIP(r)
+	}
+	return ip.Mask(net.CIDRMask(64, 128)).String() + "/64"
 }
 
 func requestHost(r *http.Request) string {

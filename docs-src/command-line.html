@@ -1,0 +1,59 @@
+<h1>Command line</h1>
+<p class="lede">Without flags portop opens the table. Every other mode prints and exits, so it fits in scripts, cron jobs and CI.</p>
+
+<h2 id="flags">Flags</h2>
+<table>
+  <thead><tr><th>Flag</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>portop [WORDS]</code></td><td>Open the table filtered on the words: <code>portop 8080</code>, <code>portop nginx 443</code></td></tr>
+    <tr><td><code>--listen</code></td><td>Listening sockets only: TCP LISTEN and bound UDP</td></tr>
+    <tr><td><code>--json</code></td><td>Print one snapshot as JSON and exit</td></tr>
+    <tr><td><code>--wait PORT[/udp]</code></td><td>Wait until something listens on the port (<a href="scripting.html">scripting</a>)</td></tr>
+    <tr><td><code>--free PORT[/udp]</code></td><td>Stop whatever listens on the port; <code>--force</code>, <code>--yes</code></td></tr>
+    <tr><td><code>--timeout DURATION</code></td><td>How long <code>--wait</code> (default 30s) or <code>--free</code> (default 5s) waits</td></tr>
+    <tr><td><code>--save-baseline</code>, <code>--diff</code></td><td>Record the listening ports, or compare with the record (<a href="baseline.html">baseline drift</a>)</td></tr>
+    <tr><td><code>--compose DIR</code></td><td>Audit a Docker Compose project's published ports (<a href="compose.html">Compose audit</a>)</td></tr>
+    <tr><td><code>--web</code></td><td>Serve the <a href="web-dashboard.html">web dashboard</a></td></tr>
+    <tr><td><code>--watch-new</code></td><td>Desktop notification when a new port starts listening</td></tr>
+    <tr><td><code>--interval DURATION</code></td><td>Table refresh interval (default 2s)</td></tr>
+    <tr><td><code>--no-dns</code>, <code>--no-systemd</code>, <code>--no-docker</code>, <code>--no-firewall</code>, <code>--no-traffic</code></td><td>Skip that information</td></tr>
+    <tr><td><code>--config FILE</code>, <code>--init-config</code></td><td>Use another <a href="configuration.html">configuration file</a>; write a commented one</td></tr>
+    <tr><td><code>--baseline-path FILE</code></td><td>Use another baseline file</td></tr>
+    <tr><td><code>--inspect-pid N</code></td><td>Print a process's details as JSON</td></tr>
+    <tr><td><code>--signal-pid N --expected-start TIME</code></td><td>Signal a process only if its start time still matches; <code>--force</code> for SIGKILL</td></tr>
+    <tr><td><code>--version</code></td><td>Print the version</td></tr>
+  </tbody>
+</table>
+
+<h2 id="json">JSON output</h2>
+<pre>portop --json --listen | jq '.[] | select(.scope == "all") | {port: .local_port, process, firewall}'</pre>
+<p>Each row is an object with these fields; fields marked optional are left out when unknown.</p>
+<table>
+  <thead><tr><th>Field</th><th>Type</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>protocol</code></td><td>string</td><td><code>TCP</code> or <code>UDP</code></td></tr>
+    <tr><td><code>local_address</code>, <code>local_port</code></td><td>string, number</td><td>Bind address and port</td></tr>
+    <tr><td><code>remote_address</code>, <code>remote_port</code>, <code>remote_host</code></td><td>optional</td><td>Peer and its reverse-DNS name</td></tr>
+    <tr><td><code>state</code></td><td>string</td><td>TCP state, or <code>UNCONN</code> for a bound UDP socket</td></tr>
+    <tr><td><code>ipv6</code></td><td>boolean</td><td>Read from an IPv6 table</td></tr>
+    <tr><td><code>scope</code></td><td>string</td><td><code>all</code>, <code>address</code> or <code>loopback</code></td></tr>
+    <tr><td><code>pid</code>, <code>process</code>, <code>user</code></td><td>optional</td><td>Owner; names are raw, not sanitized</td></tr>
+    <tr><td><code>workers</code></td><td>optional array</td><td>Other processes holding the socket</td></tr>
+    <tr><td><code>systemd_unit</code>, <code>container</code></td><td>optional</td><td>Unit or Windows service, and container</td></tr>
+    <tr><td><code>firewall</code></td><td>optional</td><td><code>allowed</code>, <code>restricted</code> or <code>blocked</code></td></tr>
+    <tr><td><code>rx_bytes</code>, <code>tx_bytes</code></td><td>optional</td><td>Bytes received and sent by an established TCP connection</td></tr>
+    <tr><td><code>rx_bytes_per_second</code>, <code>tx_bytes_per_second</code></td><td>optional</td><td>Rates; need two samples, so they appear in the dashboard's <code>/api/ports</code></td></tr>
+    <tr><td><code>cpu_percent</code></td><td>number</td><td>CPU use; also needs two samples</td></tr>
+  </tbody>
+</table>
+
+<h2 id="exit-codes">Exit codes</h2>
+<table>
+  <thead><tr><th>Code</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>0</code></td><td>Success; <code>--diff</code> found no change; <code>--compose</code> found every fixed port as expected</td></tr>
+    <tr><td><code>1</code></td><td>Error; <code>--wait</code> timed out; <code>--free</code> could not free the port</td></tr>
+    <tr><td><code>2</code></td><td>Invalid flags</td></tr>
+    <tr><td><code>3</code></td><td><code>--diff</code> found changes; <code>--compose</code> found an unused or conflicting port</td></tr>
+  </tbody>
+</table>

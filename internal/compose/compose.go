@@ -19,15 +19,34 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-var defaultFiles = []string{
-	"compose.yaml",
-	"compose.yml",
-	"compose.override.yaml",
-	"compose.override.yml",
-	"docker-compose.yaml",
-	"docker-compose.yml",
-	"docker-compose.override.yaml",
-	"docker-compose.override.yml",
+// Docker Compose reads one base file, the first of baseFiles found, and
+// one override, the first of overrideFiles found (the order compose-go
+// uses). Other candidates in the folder, such as a stale
+// docker-compose.yml next to compose.yaml, are not part of the project.
+var (
+	baseFiles     = []string{"compose.yaml", "compose.yml", "docker-compose.yml", "docker-compose.yaml"}
+	overrideFiles = []string{"compose.override.yml", "compose.override.yaml", "docker-compose.override.yml", "docker-compose.override.yaml"}
+)
+
+// projectFiles returns the files Compose would load from dir, in load order.
+func projectFiles(dir string) ([]string, error) {
+	var names []string
+	for _, group := range [][]string{baseFiles, overrideFiles} {
+		for _, name := range group {
+			_, err := os.Stat(filepath.Join(dir, name))
+			if err == nil {
+				names = append(names, name)
+				break
+			}
+			if !os.IsNotExist(err) {
+				return nil, err
+			}
+		}
+		if len(names) == 0 {
+			return nil, errors.New("no compose.yaml, compose.yml or docker-compose.yml found")
+		}
+	}
+	return names, nil
 }
 
 type ConfiguredPort struct {
@@ -201,19 +220,34 @@ func LoadDir(dir string) (Summary, error) {
 		return Summary{}, fmt.Errorf("%s is not a directory", dir)
 	}
 
+	env, err := projectEnv(dir)
+	if err != nil {
+		return Summary{}, err
+	}
+
+	names, err := projectFiles(dir)
+	if err != nil {
+		return Summary{}, err
+	}
+
 	var files []string
 	var ports []ConfiguredPort
-	for _, name := range defaultFiles {
-		path := filepath.Join(dir, name)
-		data, err := os.ReadFile(path)
+	for _, name := range names {
+		data, err := os.ReadFile(filepath.Join(dir, name))
 		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
 			return Summary{}, err
 		}
+		// Substitute ${VAR} values like Compose before reading ports,
+		// so "${WEB_PORT:-8080}:80" is audited as 8080.
+		var doc yaml.Node
+		if err := yaml.Unmarshal(data, &doc); err != nil {
+			return Summary{}, fmt.Errorf("%s: %w", name, err)
+		}
+		if err := interpolateNode(&doc, env); err != nil {
+			return Summary{}, fmt.Errorf("%s: %w", name, err)
+		}
 		var cf composeFile
-		if err := yaml.Unmarshal(data, &cf); err != nil {
+		if err := doc.Decode(&cf); err != nil {
 			return Summary{}, fmt.Errorf("%s: %w", name, err)
 		}
 		files = append(files, name)
@@ -227,10 +261,6 @@ func LoadDir(dir string) (Summary, error) {
 			}
 		}
 	}
-	if len(files) == 0 {
-		return Summary{}, errors.New("no compose.yaml, compose.yml or docker-compose.yml found")
-	}
-
 	sort.Slice(ports, func(i, j int) bool {
 		if ports[i].Service != ports[j].Service {
 			return ports[i].Service < ports[j].Service

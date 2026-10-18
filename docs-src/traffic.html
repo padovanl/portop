@@ -1,0 +1,15 @@
+<h1>Traffic</h1>
+<p class="lede">Established TCP connections show how many bytes they sent and received, and the rate between two refreshes.</p>
+
+<h2 id="sources">Sources</h2>
+<table>
+  <thead><tr><th>System</th><th>Read from</th></tr></thead>
+  <tbody>
+    <tr><td>Linux</td><td>The kernel's socket diagnostics over netlink, as <code>ss -ti</code> shows them; no root and no eBPF</td></tr>
+    <tr><td>macOS</td><td>A <code>nettop</code> snapshot; other users' connections need <code>sudo</code></td></tr>
+    <tr><td>Windows</td><td>Not available: Windows keeps these counters only for connections an administrator enabled statistics on, and portop does not change system settings</td></tr>
+  </tbody>
+</table>
+
+<h2 id="where">Where it appears</h2>
+<p>The <code>TRAFFIC</code> column in the established view (sortable, busiest first), the remote cell of the web dashboard and Cockpit, and <code>rx_bytes</code>/<code>tx_bytes</code> in <a href="command-line.html#json">JSON</a>. Turn it off with <code>--no-traffic</code> or <code>resolve_traffic: false</code>.</p>

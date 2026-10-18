@@ -4,9 +4,11 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"strconv"
 	"strings"
@@ -20,7 +22,6 @@ import (
 	"github.com/padovanl/portop/internal/compose"
 	"github.com/padovanl/portop/internal/config"
 	"github.com/padovanl/portop/internal/procinfo"
-	"github.com/padovanl/portop/internal/scanner"
 	"github.com/padovanl/portop/internal/terminaltext"
 	"github.com/padovanl/portop/internal/ui"
 )
@@ -33,13 +34,18 @@ const usage = `portop — what's really using your ports?
 Usage:
   portop                 launch the TUI (shows LISTEN + ESTABLISHED)
   portop <port|name>     launch the TUI pre-filtered on a port or process
-  portop --listen         show only listening (LISTEN) sockets
+  portop --listen         show only listening sockets (TCP LISTEN, bound UDP)
   portop --json           print a JSON snapshot and exit
   portop --save-baseline  remember which ports are currently listening
   portop --diff           compare live ports against the saved baseline
                            (exit code 3 if something changed — handy in
                            a cron job or systemd timer)
   portop --compose DIR     audit published ports from a Docker Compose folder
+  portop --wait 5432       wait until something listens on a port (exit 1
+                           after --timeout, default 30s; 53/udp for UDP)
+  portop --free 8080       stop whatever listens on a port and wait until
+                           it is released (--force for SIGKILL, --yes to
+                           skip the confirmation)
   portop --web             serve a local dashboard at http://127.0.0.1:8088
   portop --web --web-port 9090  choose the dashboard port
   portop --web --web-auth       require sign-in (password printed if not set)
@@ -66,7 +72,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		fs.PrintDefaults()
 	}
 
-	listenOnly := fs.Bool("listen", false, "show only sockets in LISTEN state")
+	listenOnly := fs.Bool("listen", false, "show only listening sockets (TCP LISTEN and bound UDP)")
 	jsonMode := fs.Bool("json", false, "print a JSON snapshot and exit (non-interactive)")
 	webMode := fs.Bool("web", false, "serve a local web dashboard")
 	webPort := fs.Int("web-port", 8088, "web dashboard port (loopback only)")
@@ -79,7 +85,9 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	noDNS := fs.Bool("no-dns", false, "disable reverse DNS lookups on ESTABLISHED connections")
 	noSystemd := fs.Bool("no-systemd", false, "disable systemd unit association")
 	noDocker := fs.Bool("no-docker", false, "disable Docker container association")
-	watchNew := fs.Bool("watch-new", false, "send a desktop notification when a new LISTEN port appears")
+	noFirewall := fs.Bool("no-firewall", false, "do not read the host firewall for exposed ports")
+	noTraffic := fs.Bool("no-traffic", false, "do not read per-connection traffic")
+	watchNew := fs.Bool("watch-new", false, "send a desktop notification when a new listening port appears")
 	interval := fs.Duration("interval", 2*time.Second, "TUI refresh interval")
 	showVersion := fs.Bool("version", false, "print the version and exit")
 	saveBaseline := fs.Bool("save-baseline", false, "record which ports are currently listening")
@@ -91,7 +99,11 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	inspectPID := fs.Int("inspect-pid", 0, "print process details as JSON")
 	signalPID := fs.Int("signal-pid", 0, "signal a process after checking its start time")
 	expectedStart := fs.String("expected-start", "", "start time from --inspect-pid")
-	forceSignal := fs.Bool("force", false, "use SIGKILL with --signal-pid instead of SIGTERM")
+	forceSignal := fs.Bool("force", false, "use SIGKILL with --signal-pid or --free instead of SIGTERM")
+	waitPort := fs.String("wait", "", "wait until something listens on PORT[/udp]")
+	freePort := fs.String("free", "", "stop whatever listens on PORT[/udp]")
+	timeout := fs.Duration("timeout", 0, "how long --wait (default 30s) or --free (default 5s) waits; 0 uses the default")
+	assumeYes := fs.Bool("yes", false, "do not ask for confirmation with --free")
 
 	// The stdlib flag package stops parsing at the first non-flag
 	// argument, which would break "portop 8080 --json" (flag package
@@ -163,6 +175,12 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	if !explicit["no-docker"] && fileCfg.ResolveDocker != nil && !*fileCfg.ResolveDocker {
 		*noDocker = true
 	}
+	if !explicit["no-firewall"] && fileCfg.ResolveFirewall != nil && !*fileCfg.ResolveFirewall {
+		*noFirewall = true
+	}
+	if !explicit["no-traffic"] && fileCfg.ResolveTraffic != nil && !*fileCfg.ResolveTraffic {
+		*noTraffic = true
+	}
 	if !explicit["watch-new"] && fileCfg.WatchNew != nil {
 		*watchNew = *fileCfg.WatchNew
 	}
@@ -220,12 +238,29 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		return 0
 	}
 
+	if *waitPort != "" {
+		wait := *timeout
+		if wait <= 0 {
+			wait = 30 * time.Second
+		}
+		return runWait(stdout, stderr, *waitPort, wait, systemPortEnv())
+	}
+	if *freePort != "" {
+		wait := *timeout
+		if wait <= 0 {
+			wait = 5 * time.Second
+		}
+		return runFree(stdout, stderr, *freePort, *forceSignal, *assumeYes, wait, systemPortEnv())
+	}
+
 	filter := strings.Join(positional, " ")
 
 	opts := app.Options{
-		ResolveSystemd: !*noSystemd,
-		ResolveDocker:  !*noDocker,
-		ResolveDNS:     !*noDNS,
+		ResolveSystemd:  !*noSystemd,
+		ResolveDocker:   !*noDocker,
+		ResolveDNS:      !*noDNS,
+		ResolveFirewall: !*noFirewall,
+		ResolveTraffic:  !*noTraffic,
 	}
 
 	blPath := *baselinePath
@@ -266,6 +301,8 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		ResolveDNS:      opts.ResolveDNS,
 		ResolveSystemd:  opts.ResolveSystemd,
 		ResolveDocker:   opts.ResolveDocker,
+		ResolveFirewall: opts.ResolveFirewall,
+		ResolveTraffic:  opts.ResolveTraffic,
 		NotifyOnNewPort: *watchNew,
 		ConfigPath:      cfgPath,
 		Theme:           themeName,
@@ -295,7 +332,7 @@ func runJSON(stdout, stderr io.Writer, filter string, listenOnly bool, opts app.
 
 	out := make([]jsonRow, 0, len(rows))
 	for _, r := range rows {
-		if listenOnly && r.State != scanner.StateListen {
+		if listenOnly && !r.Listening() {
 			continue
 		}
 		if !r.Matches(filter) {
@@ -338,7 +375,7 @@ var (
 	styleDiffRemoved = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#6B7280", Dark: "#8A93A6"})
 )
 
-// runDiffBaseline compares the live LISTEN ports against a previously
+// runDiffBaseline compares the live listening ports against a previously
 // saved baseline and reports what changed. It exits 3 if anything
 // changed (added or removed), so it composes with cron/systemd timers
 // and `&&`/`||` shell chains without extra parsing.
@@ -348,8 +385,12 @@ func runDiffBaseline(stdout, stderr io.Writer, path string, jsonOut bool, opts a
 		return 1
 	}
 	saved, savedAt, err := baseline.Load(path)
-	if err != nil {
+	if errors.Is(err, fs.ErrNotExist) {
 		fmt.Fprintln(stderr, "portop: no baseline found at "+path+" — run 'portop --save-baseline' first")
+		return 1
+	}
+	if err != nil {
+		fmt.Fprintln(stderr, terminaltext.Sanitize("portop: reading baseline: "+err.Error()))
 		return 1
 	}
 
@@ -379,10 +420,10 @@ func runDiffBaseline(stdout, stderr io.Writer, path string, jsonOut bool, opts a
 			fmt.Fprintln(stdout, "no changes — every listening port matches the baseline")
 		}
 		for _, e := range added {
-			fmt.Fprintln(stdout, styleDiffAdded.Render(fmt.Sprintf("+ :%d %s (%s) — new, not in baseline", e.Port, e.Protocol, terminaltext.Sanitize(orDash(e.Process)))))
+			fmt.Fprintln(stdout, styleDiffAdded.Render(fmt.Sprintf("+ :%d %s%s (%s) — new, not in baseline", e.Port, e.Protocol, scopeLabel(e.Scope), terminaltext.Sanitize(orDash(e.Process)))))
 		}
 		for _, e := range removed {
-			fmt.Fprintln(stdout, styleDiffRemoved.Render(fmt.Sprintf("- :%d %s (%s) — in baseline, not listening anymore", e.Port, e.Protocol, terminaltext.Sanitize(orDash(e.Process)))))
+			fmt.Fprintln(stdout, styleDiffRemoved.Render(fmt.Sprintf("- :%d %s%s (%s) — in baseline, not listening anymore", e.Port, e.Protocol, scopeLabel(e.Scope), terminaltext.Sanitize(orDash(e.Process)))))
 		}
 	}
 
@@ -390,6 +431,19 @@ func runDiffBaseline(stdout, stderr io.Writer, path string, jsonOut bool, opts a
 		return 3
 	}
 	return 0
+}
+
+// scopeLabel says who can reach a baseline entry's port.
+func scopeLabel(scope string) string {
+	switch scope {
+	case baseline.ScopeLoopback:
+		return " on loopback"
+	case baseline.ScopeAll:
+		return " on all interfaces"
+	case baseline.ScopeAddress:
+		return " on one address"
+	}
+	return ""
 }
 
 func runComposeAudit(stdout, stderr io.Writer, dir string, jsonOut bool, opts app.Options) int {
@@ -479,19 +533,27 @@ func orEmpty(e []baseline.Entry) []baseline.Entry {
 }
 
 type jsonRow struct {
-	Protocol      string  `json:"protocol"`
-	LocalAddress  string  `json:"local_address"`
-	LocalPort     uint16  `json:"local_port"`
-	RemoteAddress string  `json:"remote_address,omitempty"`
-	RemotePort    uint16  `json:"remote_port,omitempty"`
-	RemoteHost    string  `json:"remote_host,omitempty"`
-	State         string  `json:"state"`
-	IPv6          bool    `json:"ipv6"`
-	PID           int     `json:"pid,omitempty"`
-	Process       string  `json:"process,omitempty"`
-	CPUPercent    float64 `json:"cpu_percent"`
-	SystemdUnit   string  `json:"systemd_unit,omitempty"`
-	Container     string  `json:"container,omitempty"`
+	Protocol      string   `json:"protocol"`
+	LocalAddress  string   `json:"local_address"`
+	LocalPort     uint16   `json:"local_port"`
+	RemoteAddress string   `json:"remote_address,omitempty"`
+	RemotePort    uint16   `json:"remote_port,omitempty"`
+	RemoteHost    string   `json:"remote_host,omitempty"`
+	State         string   `json:"state"`
+	IPv6          bool     `json:"ipv6"`
+	PID           int      `json:"pid,omitempty"`
+	Process       string   `json:"process,omitempty"`
+	User          string   `json:"user,omitempty"`
+	Workers       []int    `json:"workers,omitempty"`
+	Firewall      string   `json:"firewall,omitempty"`
+	RXBytes       *uint64  `json:"rx_bytes,omitempty"`
+	TXBytes       *uint64  `json:"tx_bytes,omitempty"`
+	RXRate        *float64 `json:"rx_bytes_per_second,omitempty"`
+	TXRate        *float64 `json:"tx_bytes_per_second,omitempty"`
+	Scope         string   `json:"scope"`
+	CPUPercent    float64  `json:"cpu_percent"`
+	SystemdUnit   string   `json:"systemd_unit,omitempty"`
+	Container     string   `json:"container,omitempty"`
 }
 
 func toJSONRow(r app.Row) jsonRow {
@@ -503,9 +565,19 @@ func toJSONRow(r app.Row) jsonRow {
 		IPv6:         r.IPv6,
 		PID:          r.PID,
 		Process:      r.ProcessName,
+		User:         r.Username,
+		Workers:      r.Workers,
+		Firewall:     r.Firewall,
+		Scope:        r.Scope(),
 		CPUPercent:   r.CPUPercent,
 		SystemdUnit:  r.SystemdUnit,
 		Container:    r.ContainerName,
+	}
+	if r.TrafficKnown {
+		jr.RXBytes, jr.TXBytes = &r.RXBytes, &r.TXBytes
+	}
+	if r.RateKnown {
+		jr.RXRate, jr.TXRate = &r.RXRate, &r.TXRate
 	}
 	if r.RemotePort != 0 {
 		jr.RemoteAddress = r.RemoteAddr.String()

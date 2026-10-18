@@ -4,50 +4,103 @@ package app
 import (
 	"context"
 	"net"
+	"os/user"
 	"runtime"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/padovanl/portop/internal/dnscache"
 	"github.com/padovanl/portop/internal/docker"
+	"github.com/padovanl/portop/internal/firewall"
 	"github.com/padovanl/portop/internal/scanner"
 	"github.com/padovanl/portop/internal/systemdinfo"
+	"github.com/padovanl/portop/internal/traffic"
 )
 
 // Row is a single, fully enriched table row.
 type Row struct {
-	Protocol      scanner.Protocol
-	LocalAddr     net.IP
-	LocalPort     uint16
-	RemoteAddr    net.IP
-	RemotePort    uint16
-	RemoteHost    string // reverse DNS, empty until resolved
-	State         scanner.State
-	IPv6          bool
-	PID           int
-	ProcessName   string
-	CPUPercent    float64
-	SystemdUnit   string
-	ContainerName string
-	FirstSeen     bool // true if this socket was absent from the previous scan
+	Protocol    scanner.Protocol
+	LocalAddr   net.IP
+	LocalPort   uint16
+	RemoteAddr  net.IP
+	RemotePort  uint16
+	RemoteHost  string // reverse DNS, empty until resolved
+	State       scanner.State
+	IPv6        bool
+	PID         int
+	ProcessName string
+	Username    string // owner of the socket; empty if unknown
+	Workers     []int  // other processes holding the same socket (a server's workers)
+	Firewall    string // the host firewall's verdict for an exposed listener; "" if unknown or loopback
+	// Traffic of an established TCP connection where the platform reports
+	// it: lifetime totals, and bytes per second since the previous scan
+	// (RateKnown is false on the first scan that sees the connection).
+	RXBytes, TXBytes uint64
+	RXRate, TXRate   float64
+	TrafficKnown     bool
+	RateKnown        bool
+	CPUPercent       float64
+	SystemdUnit      string
+	ContainerName    string
+	FirstSeen        bool // true if this socket was absent from the previous scan
+}
+
+// Exposure says who can reach a socket's local address.
+const (
+	ScopeLoopback = "loopback" // 127.0.0.1, ::1: only this machine
+	ScopeAll      = "all"      // 0.0.0.0, ::: every interface
+	ScopeAddress  = "address"  // one specific address
+)
+
+// ScopeOf classifies a bind address by exposure.
+func ScopeOf(ip net.IP) string {
+	switch {
+	case ip == nil || ip.IsUnspecified():
+		return ScopeAll
+	case ip.IsLoopback():
+		return ScopeLoopback
+	default:
+		return ScopeAddress
+	}
+}
+
+// Scope is ScopeOf the row's local address.
+func (r Row) Scope() string { return ScopeOf(r.LocalAddr) }
+
+// Listening reports whether the socket accepts new traffic: a TCP socket
+// in LISTEN, or a bound UDP socket that has not connected to a peer (UDP
+// has no LISTEN state; ss -l lists these as UNCONN).
+func (r Row) Listening() bool {
+	if r.LocalPort == 0 {
+		return false // a socket never bound to a port
+	}
+	return r.State == scanner.StateListen || (r.Protocol == scanner.UDP && r.State == scanner.StateUnconn)
 }
 
 // Matches reports whether a row contains the search text used by the TUI,
-// JSON output, and web dashboard.
+// JSON output, and web dashboard. Each whitespace-separated word must
+// match some field, so "nginx 443" finds nginx's rows on port 443.
 func (r Row) Matches(query string) bool {
-	query = strings.ToLower(strings.TrimSpace(query))
-	if query == "" {
-		return true
+	for _, term := range strings.Fields(strings.ToLower(query)) {
+		if !r.matchesTerm(term) {
+			return false
+		}
 	}
-	return strings.Contains(strconv.Itoa(int(r.LocalPort)), query) ||
-		strings.Contains(strconv.Itoa(r.PID), query) ||
-		strings.Contains(strings.ToLower(r.ProcessName), query) ||
-		strings.Contains(strings.ToLower(r.SystemdUnit), query) ||
-		strings.Contains(strings.ToLower(r.ContainerName), query) ||
-		strings.Contains(strings.ToLower(r.LocalAddr.String()), query) ||
-		(r.RemotePort != 0 && strings.Contains(strings.ToLower(r.RemoteAddr.String()), query))
+	return true
+}
+
+func (r Row) matchesTerm(term string) bool {
+	return strings.Contains(strconv.Itoa(int(r.LocalPort)), term) ||
+		strings.Contains(strconv.Itoa(r.PID), term) ||
+		strings.Contains(strings.ToLower(r.ProcessName), term) ||
+		strings.Contains(strings.ToLower(r.Username), term) ||
+		strings.Contains(strings.ToLower(r.SystemdUnit), term) ||
+		strings.Contains(strings.ToLower(r.ContainerName), term) ||
+		strings.Contains(strings.ToLower(r.LocalAddr.String()), term) ||
+		(r.RemotePort != 0 && strings.Contains(strings.ToLower(r.RemoteAddr.String()), term))
 }
 
 // Key identifies a socket by protocol and endpoints across scans.
@@ -69,12 +122,20 @@ func keyFor(c scanner.Connection) Key {
 // Collector produces enriched Rows and tracks CPU usage and first-seen
 // state across successive calls to Collect.
 type Collector struct {
+	// mu serializes Collect: the TUI starts a scan on every tick without
+	// waiting for the previous one, and seen/init are not safe to share.
+	mu sync.Mutex
+
 	cpu    *scanner.CPUTracker
 	dns    *dnscache.Resolver
 	docker *docker.Client
 
-	seen map[Key]bool // sockets observed in any previous Collect call
-	init bool         // false until the first Collect call completes
+	seen  map[Key]bool // sockets observed in any previous Collect call
+	init  bool         // false until the first Collect call completes
+	users map[uint32]string
+
+	traffic   map[traffic.Key]traffic.Counter // counters of the previous scan
+	trafficAt time.Time
 }
 
 // NewCollector wires up a Collector with real system backends.
@@ -84,22 +145,111 @@ func NewCollector() *Collector {
 		dns:    dnscache.New(defaultDNSTimeout),
 		docker: docker.NewClient(),
 		seen:   make(map[Key]bool),
+		users:  make(map[uint32]string),
 	}
+}
+
+// applyTraffic fills the counters of established TCP rows and, against
+// the previous scan, their rates. A counter that went down belongs to a
+// new connection reusing the same endpoints.
+func (c *Collector) applyTraffic(rows []Row, now map[traffic.Key]traffic.Counter, at time.Time) {
+	elapsed := at.Sub(c.trafficAt).Seconds()
+	for i := range rows {
+		r := &rows[i]
+		if r.Protocol != scanner.TCP || r.State != scanner.StateEstablished {
+			continue
+		}
+		k := traffic.KeyFor(r.LocalAddr, r.LocalPort, r.RemoteAddr, r.RemotePort)
+		cur, ok := now[k]
+		if !ok {
+			continue
+		}
+		r.RXBytes, r.TXBytes, r.TrafficKnown = cur.RX, cur.TX, true
+		if prev, seen := c.traffic[k]; seen && elapsed > 0 && cur.RX >= prev.RX && cur.TX >= prev.TX {
+			r.RXRate = float64(cur.RX-prev.RX) / elapsed
+			r.TXRate = float64(cur.TX-prev.TX) / elapsed
+			r.RateKnown = true
+		}
+	}
+	c.traffic, c.trafficAt = now, at
+}
+
+// applyFirewall records the firewall's verdict on every listener the
+// network can reach; for loopback the firewall does not matter.
+func applyFirewall(rows []Row, policy firewall.Policy) {
+	for i := range rows {
+		r := &rows[i]
+		if r.Listening() && r.Scope() != ScopeLoopback {
+			r.Firewall = string(policy.Verdict(strings.ToLower(string(r.Protocol)), r.LocalPort))
+		}
+	}
+}
+
+// containerName names the container pid runs in: through the Docker
+// (or Podman) API when it knows the container, else from the kubelet's
+// records for Kubernetes pods run by containerd or CRI-O.
+func (c *Collector) containerName(ctx context.Context, pid int) string {
+	cid := docker.ContainerIDForPID(pid)
+	if cid == "" {
+		return ""
+	}
+	if c.docker.Available() {
+		if name := c.docker.ContainerName(ctx, cid); name != "" {
+			return name
+		}
+	}
+	return docker.KubernetesName(cid)
+}
+
+// workers lists the holders of conn's socket other than its main process.
+func workers(conn scanner.Connection) []int {
+	var out []int
+	for _, pid := range conn.Owners {
+		if pid != conn.PID {
+			out = append(out, pid)
+		}
+	}
+	return out
+}
+
+// username names a socket's owner. Windows reports the account with the
+// socket; Linux and macOS report a uid, resolved once per uid.
+func (c *Collector) username(conn scanner.Connection) string {
+	if conn.User != "" || runtime.GOOS == "windows" {
+		return conn.User
+	}
+	if conn.PID == 0 && conn.UID == 0 && conn.Inode == 0 {
+		return "" // no owner information at all (closing socket)
+	}
+	if name, ok := c.users[conn.UID]; ok {
+		return name
+	}
+	name := strconv.FormatUint(uint64(conn.UID), 10)
+	if u, err := user.LookupId(name); err == nil {
+		name = u.Username
+	}
+	c.users[conn.UID] = name
+	return name
 }
 
 const defaultDNSTimeout = 800 * time.Millisecond
 
 // Options controls the metadata resolved during a scan.
 type Options struct {
-	ResolveSystemd bool
-	ResolveDocker  bool
-	ResolveDNS     bool
+	ResolveSystemd  bool
+	ResolveDocker   bool
+	ResolveDNS      bool
+	ResolveFirewall bool
+	ResolveTraffic  bool
 }
 
 // Collect scans current sockets, resolves owning processes, and enriches
 // each into a Row. Rows are sorted by protocol then local port for stable
 // display.
 func (c *Collector) Collect(ctx context.Context, opts Options) ([]Row, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	conns, err := scanner.Scan()
 	if err != nil {
 		return nil, err
@@ -124,6 +274,8 @@ func (c *Collector) Collect(ctx context.Context, opts Options) ([]Row, error) {
 			IPv6:        conn.IPv6,
 			PID:         conn.PID,
 			ProcessName: conn.ProcessName,
+			Username:    c.username(conn),
+			Workers:     workers(conn),
 			FirstSeen:   c.init && !c.seen[k],
 		}
 
@@ -137,10 +289,8 @@ func (c *Collector) Collect(ctx context.Context, opts Options) ([]Row, error) {
 			if opts.ResolveSystemd {
 				row.SystemdUnit = systemdinfo.UnitForPID(conn.PID)
 			}
-			if opts.ResolveDocker && c.docker.Available() {
-				if cid := docker.ContainerIDForPID(conn.PID); cid != "" {
-					row.ContainerName = c.docker.ContainerName(ctx, cid)
-				}
+			if opts.ResolveDocker {
+				row.ContainerName = c.containerName(ctx, conn.PID)
 			}
 		}
 
@@ -153,12 +303,20 @@ func (c *Collector) Collect(ctx context.Context, opts Options) ([]Row, error) {
 		rows = append(rows, row)
 	}
 
+	if opts.ResolveFirewall {
+		applyFirewall(rows, firewall.Current())
+	}
+	if opts.ResolveTraffic {
+		c.applyTraffic(rows, traffic.Sample(), time.Now())
+	}
+
 	if opts.ResolveDocker && portBasedContainers && c.docker.Available() {
 		labelPublishedPorts(rows, c.docker.PublishedPorts(ctx))
 	}
 
 	c.seen = currentKeys
 	c.init = true
+	c.cpu.Retain(cpuByPID)
 
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].Protocol != rows[j].Protocol {
@@ -171,10 +329,11 @@ func (c *Collector) Collect(ctx context.Context, opts Options) ([]Row, error) {
 }
 
 // portBasedContainers is true where container processes are not visible
-// to the host (Docker Desktop on Windows runs them inside a VM): there,
-// containers are recognised by the host ports they publish instead of by
-// the owning PID's cgroup. Linux and macOS keep the PID-based lookup.
-var portBasedContainers = runtime.GOOS == "windows"
+// to the host (Docker Desktop on Windows and macOS runs them inside a VM,
+// and macOS has no /proc cgroups to read): there, containers are
+// recognised by the host ports they publish instead of by the owning
+// PID's cgroup. Linux keeps the PID-based lookup.
+var portBasedContainers = runtime.GOOS == "windows" || runtime.GOOS == "darwin"
 
 // labelPublishedPorts fills ContainerName on listening rows whose port is
 // published by a running container and that have no name yet.

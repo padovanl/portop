@@ -17,6 +17,9 @@ func TestSanitize(t *testing.T) {
 		{name: "C1 CSI", in: "a\u009b2Jb", want: "a�2Jb"},
 		{name: "raw 8-bit CSI", in: "a\x9b2Jb", want: "ab"},
 		{name: "bare ESC", in: "a\x1bcb", want: "ab"},
+		{name: "right-to-left override", in: "\u202Edhss", want: "\uFFFDdhss"},
+		{name: "isolates and marks", in: "a\u2066b\u2069c\u200Fd", want: "a\uFFFDb\uFFFDc\uFFFDd"},
+		{name: "joiners kept", in: "\U0001F469\u200D\U0001F4BB", want: "\U0001F469\u200D\U0001F4BB"},
 	}
 
 	for _, tt := range tests {

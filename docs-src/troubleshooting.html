@@ -1,0 +1,19 @@
+<h1>Troubleshooting</h1>
+
+<h2 id="no-process">Rows without a process</h2>
+<p>The socket belongs to another user. Run <code>sudo portop</code> on Linux and macOS, or use an Administrator terminal on Windows. <code>TIME_WAIT</code> rows never have one: the connection is closing and no process holds it.</p>
+
+<h2 id="firewall-unknown">The firewall column shows ?</h2>
+<p>The firewall could not be read or decides per program. See <a href="firewall.html#sources">what each system reports</a>; on Linux, run portop with <code>sudo</code>.</p>
+
+<h2 id="no-container">No container names</h2>
+<p>portop cannot reach the Docker or Podman socket. Check <code>DOCKER_HOST</code>, membership of the <code>docker</code> group, or run with <code>sudo</code>. On Kubernetes nodes, <code>/var/log/containers</code> must be readable.</p>
+
+<h2 id="colors">Washed-out colors</h2>
+<p>The terminal reports 16 colors. Set <code>TERM=xterm-256color</code> or <code>COLORTERM=truecolor</code>.</p>
+
+<h2 id="kill-refused">A kill is refused</h2>
+<p>The process exited or was replaced since the row was shown; portop refuses to signal a different process. Refresh with <kbd>r</kbd> and try again.</p>
+
+<h2 id="report">Reporting a problem</h2>
+<p>Open an <a href="https://github.com/padovanl/portop/issues">issue</a> with <code>portop --version</code>, the operating system and, if useful, <code>portop --json</code> output.</p>

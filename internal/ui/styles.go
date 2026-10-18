@@ -1,6 +1,10 @@
 package ui
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"github.com/charmbracelet/lipgloss"
+
+	"github.com/padovanl/portop/internal/app"
+)
 
 // Palette is the full set of colors a theme controls. Every field is an
 // AdaptiveColor pair (light/dark terminal background) except where noted.
@@ -380,7 +384,7 @@ func cpuStyle(pct float64) lipgloss.Style {
 // states are distinguishable at a glance.
 func stateStyle(state string) lipgloss.Style {
 	switch state {
-	case "LISTEN":
+	case "LISTEN", "UNCONN": // a bound UDP socket is how UDP listens
 		return styleStateListen
 	case "ESTABLISHED":
 		return styleStateEstablished
@@ -396,4 +400,34 @@ func protoStyle(proto string) lipgloss.Style {
 		return styleProtoUDP
 	}
 	return styleProtoTCP
+}
+
+// ifaceStyle colors the IFACE column by exposure, so a listener reachable
+// from the network stands out without reading the address: green for
+// loopback, red for every interface, amber for one specific address.
+func ifaceStyle(r app.Row) lipgloss.Style {
+	switch r.Scope() {
+	case app.ScopeLoopback:
+		return styleOk
+	case app.ScopeAll:
+		return styleDanger
+	default:
+		return styleWarn
+	}
+}
+
+// firewallStyle colors the firewall's verdict on an exposed port: red when
+// anyone can connect, amber when only some sources can, green when it is
+// blocked.
+func firewallStyle(verdict string) lipgloss.Style {
+	switch verdict {
+	case "allowed":
+		return styleDanger
+	case "restricted":
+		return styleWarn
+	case "blocked":
+		return styleOk
+	default:
+		return styleFaint
+	}
 }

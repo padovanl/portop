@@ -285,8 +285,8 @@ func TestConfigSuppliesFlagDefault(t *testing.T) {
 		t.Fatalf("invalid JSON: %v\n%s", err, out.String())
 	}
 	for _, r := range rows {
-		if r.State != "LISTEN" {
-			t.Errorf("config's show_established:false should have filtered to LISTEN only, found %+v", r)
+		if r.State != "LISTEN" && !(r.Protocol == "UDP" && r.State == "UNCONN") {
+			t.Errorf("config's show_established:false should have filtered to listening sockets only, found %+v", r)
 		}
 	}
 }
@@ -335,5 +335,17 @@ func TestUnknownKeybindingActionFails(t *testing.T) {
 	}
 	if !strings.Contains(errOut.String(), "kil") {
 		t.Errorf("stderr = %q, want it to name the bad action", errOut.String())
+	}
+}
+
+func TestDiffReportsUnreadableBaseline(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "baseline.json")
+	if err := os.WriteFile(path, []byte("{not json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	code := Run([]string{"--diff", "--baseline-path", path, "--no-dns", "--no-systemd", "--no-docker"}, &out, &errOut)
+	if code != 1 || strings.Contains(errOut.String(), "no baseline found") || !strings.Contains(errOut.String(), "parsing") {
+		t.Fatalf("exit %d, stderr %q: want the parse error, not 'no baseline found'", code, errOut.String())
 	}
 }

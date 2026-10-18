@@ -60,6 +60,9 @@ const (
 	sortByRemote
 	sortByContainer
 	sortBySystemd
+	sortByIface
+	sortByUser
+	sortByTraffic
 	sortModeCount
 )
 
@@ -81,6 +84,12 @@ func (s sortMode) String() string {
 		return "container"
 	case sortBySystemd:
 		return platformLabels.unitSort
+	case sortByIface:
+		return "exposure"
+	case sortByUser:
+		return "user"
+	case sortByTraffic:
+		return "traffic"
 	default:
 		return "port"
 	}
@@ -94,6 +103,8 @@ type Config struct {
 	ResolveDNS      bool
 	ResolveSystemd  bool
 	ResolveDocker   bool
+	ResolveFirewall bool
+	ResolveTraffic  bool
 	NotifyOnNewPort bool
 
 	// ConfigPath is where the settings screen (",") persists live theme
@@ -135,6 +146,10 @@ type Model struct {
 
 	newSeen map[app.Key]bool // ports flagged "new" since last acknowledgment (n)
 
+	// detailRow is the row the details were opened for. The table keeps
+	// refreshing and re-sorting underneath, so the selected row can be a
+	// different process by the time the details are drawn.
+	detailRow  app.Row
 	detailInfo *procinfo.Info
 	detailErr  error
 
@@ -151,6 +166,12 @@ type Model struct {
 	settingsCursor    int
 	settingsThemeIdx  int
 	settingsCapturing bool
+	settingsNote      string // why the last captured key was refused
+
+	// collecting is true while a scan is running. Ticks and refreshes do
+	// not start another one meanwhile: a scan slower than the interval
+	// would otherwise queue a new one on every tick, without bound.
+	collecting bool
 
 	quitting bool
 }
@@ -195,6 +216,7 @@ func New(cfg Config) Model {
 		configPath:       cfg.ConfigPath,
 		keyOverrides:     overrides,
 		settingsThemeIdx: themeIdx,
+		collecting:       true, // Init starts the first scan
 	}
 }
 
@@ -210,6 +232,7 @@ type collectResultMsg struct {
 type tickMsg time.Time
 
 type detailResultMsg struct {
+	pid  int
 	info procinfo.Info
 	err  error
 }
@@ -227,12 +250,23 @@ func tickCmd(interval time.Duration) tea.Cmd {
 	return tea.Tick(interval, func(t time.Time) tea.Msg { return tickMsg(t) })
 }
 
+// startCollect starts a scan unless one is already running.
+func (m *Model) startCollect() tea.Cmd {
+	if m.collecting {
+		return nil
+	}
+	m.collecting = true
+	return m.collectCmd()
+}
+
 func (m Model) collectCmd() tea.Cmd {
 	collector := m.collector
 	opts := app.Options{
-		ResolveSystemd: m.cfg.ResolveSystemd,
-		ResolveDocker:  m.cfg.ResolveDocker,
-		ResolveDNS:     m.cfg.ResolveDNS,
+		ResolveSystemd:  m.cfg.ResolveSystemd,
+		ResolveDocker:   m.cfg.ResolveDocker,
+		ResolveDNS:      m.cfg.ResolveDNS,
+		ResolveFirewall: m.cfg.ResolveFirewall,
+		ResolveTraffic:  m.cfg.ResolveTraffic,
 	}
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -245,7 +279,7 @@ func (m Model) collectCmd() tea.Cmd {
 func loadDetailCmd(pid int) tea.Cmd {
 	return func() tea.Msg {
 		info, err := procinfo.Load(pid)
-		return detailResultMsg{info: info, err: err}
+		return detailResultMsg{pid: pid, info: info, err: err}
 	}
 }
 
@@ -267,9 +301,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tickMsg:
-		return m, tea.Batch(m.collectCmd(), tickCmd(m.cfg.RefreshInterval))
+		return m, tea.Batch(m.startCollect(), tickCmd(m.cfg.RefreshInterval))
 
 	case collectResultMsg:
+		m.collecting = false
 		m.lastErr = msg.err
 		if msg.err == nil {
 			m.applyRows(msg.rows)
@@ -277,6 +312,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case detailResultMsg:
+		if msg.pid != m.detailRow.PID {
+			return m, nil // details of a process whose view was closed meanwhile
+		}
 		if msg.err == nil {
 			m.detailInfo = &msg.info
 		}
@@ -290,7 +328,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.setStatus("signal sent to "+msg.name+" ("+strconv.Itoa(msg.pid)+")", false)
 		}
-		return m, m.collectCmd()
+		return m, m.startCollect()
 
 	case tea.MouseMsg:
 		return m.handleMouse(msg)
@@ -305,7 +343,7 @@ func (m *Model) applyRows(rows []app.Row) {
 	for _, r := range rows {
 		if r.FirstSeen {
 			m.newSeen[keyForRow(r)] = true
-			if m.cfg.NotifyOnNewPort && r.State == "LISTEN" {
+			if m.cfg.NotifyOnNewPort && r.Listening() {
 				notify.Send("portop: new port listening", r.ProcessName+" on :"+strconv.Itoa(int(r.LocalPort)))
 			}
 		}
@@ -333,6 +371,15 @@ func (m *Model) openKillConfirm(row app.Row) {
 	m.killTarget = row
 	m.killStart = start
 	m.mode = modeConfirmKill
+}
+
+// openDetail shows row's process details and starts loading them.
+func (m *Model) openDetail(row app.Row) tea.Cmd {
+	m.mode = modeDetail
+	m.detailRow = row
+	m.detailInfo = nil
+	m.detailErr = nil
+	return loadDetailCmd(row.PID)
 }
 
 func (m *Model) setStatus(msg string, isErr bool) {

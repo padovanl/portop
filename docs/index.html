@@ -442,6 +442,7 @@
       <a href="#dashboards">Dashboards</a>
       <a href="#install">Install</a>
       <a href="#keys">Keys</a>
+      <a href="docs/">Docs</a>
       <a class="gh" href="https://github.com/padovanl/portop">GitHub ↗</a>
     </nav>
   </div>
@@ -470,7 +471,7 @@
           <div class="t-title"><span class="tag">portop</span><span class="q">what's really using your ports?</span><span class="flags">[LISTEN+ESTABLISHED] [IPv4+IPv6] [sort: port]</span></div>
           <div class="t-head"><span></span><span>PORT</span><span>PROTO</span><span>STATE</span><span>PROCESS</span><span>PID</span><span>CPU</span><span>CONTAINER</span><span>SYSTEMD</span></div>
           <div class="t-row"><span></span><span class="p">:22 ssh</span><span>TCP</span><span class="listen">LISTEN</span><span>sshd</span><span>812</span><span>0.0%</span><span class="d">-</span><span>ssh.service</span></div>
-          <div class="t-row"><span></span><span class="p">:53 domain</span><span>UDP</span><span class="listen">LISTEN</span><span>systemd-resolve</span><span>640</span><span>0.1%</span><span class="d">-</span><span>systemd-resolved.service</span></div>
+          <div class="t-row"><span></span><span class="p">:53 domain</span><span>UDP</span><span class="listen">UNCONN</span><span>systemd-resolve</span><span>640</span><span>0.1%</span><span class="d">-</span><span>systemd-resolved.service</span></div>
           <div class="t-row"><span></span><span class="p">:443 https</span><span>TCP</span><span class="listen">LISTEN</span><span>nginx</span><span>1290</span><span>0.3%</span><span>web-proxy</span><span class="d">-</span></div>
           <div class="t-row"><span></span><span class="p">:443 https</span><span>TCP</span><span class="estab">ESTABLISHED</span><span>nginx</span><span>1290</span><span>0.3%</span><span>web-proxy</span><span class="d">-</span></div>
           <div class="t-row"><span></span><span class="p">:5432</span><span>TCP</span><span class="listen">LISTEN</span><span>postgres</span><span>2210</span><span>1.2%</span><span>db</span><span class="d">-</span></div>
@@ -493,42 +494,57 @@
         <div class="feature">
           <div class="icon" aria-hidden="true">📡</div>
           <h3>Live port table</h3>
-          <p>Listening and established sockets, coloured by state, with per-process CPU sampled like <code>top</code> and port names from <code>/etc/services</code>. Columns drop out as the terminal narrows.</p>
+          <p>Listening and established sockets, colored by state, with per-process CPU and port names from <code>/etc/services</code>. Columns drop out as the terminal narrows.</p>
+        </div>
+        <div class="feature">
+          <div class="icon" aria-hidden="true">🌐</div>
+          <h3>Who can reach it</h3>
+          <p>Each listening port is colored by exposure: every interface, one address or loopback only. The host firewall's verdict says whether traffic actually gets in.</p>
         </div>
         <div class="feature">
           <div class="icon" aria-hidden="true">🐳</div>
           <h3>Process, service and container</h3>
-          <p>The systemd unit on Linux, or Windows service on Windows, and the Docker container behind each port. Read from the process's cgroup, with no daemon of its own.</p>
+          <p>The systemd unit or Windows service, and the Docker, Podman or Kubernetes container behind each port, read from cgroups with no daemon of its own.</p>
+        </div>
+        <div class="feature">
+          <div class="icon" aria-hidden="true">🧵</div>
+          <h3>Masters and workers</h3>
+          <p>A socket shared by nginx, gunicorn or php-fpm shows as one row owned by the master, <code>nginx +3</code>, with its workers listed.</p>
         </div>
         <div class="feature">
           <div class="icon" aria-hidden="true">🛑</div>
           <h3>Inspect and stop</h3>
-          <p><kbd>enter</kbd> shows command line, executable, working directory, user, memory and start time. <kbd>k</kbd> asks for confirmation, then sends SIGTERM or SIGKILL.</p>
+          <p><kbd>enter</kbd> shows the command line, user, memory and start time. <kbd>k</kbd> confirms, re-checks the process identity, then sends SIGTERM or SIGKILL.</p>
         </div>
         <div class="feature">
-          <div class="icon" aria-hidden="true">🔔</div>
-          <h3>New-port alerts</h3>
-          <p>Ports that start listening while portop is open are highlighted, with an optional desktop notification.</p>
+          <div class="icon" aria-hidden="true">📶</div>
+          <h3>Per-connection traffic</h3>
+          <p>Bytes per second for every established TCP connection, on Linux from the kernel's socket diagnostics and on macOS from nettop.</p>
+        </div>
+        <div class="feature">
+          <div class="icon" aria-hidden="true">⏱️</div>
+          <h3>Wait for and free ports</h3>
+          <p><code>--wait 5432</code> blocks until a service listens; <code>--free 3000</code> stops whatever holds a port and waits until it is released.</p>
         </div>
         <div class="feature">
           <div class="icon" aria-hidden="true">📈</div>
           <h3>Baseline drift detection</h3>
-          <p>Save what is listening with <code>--save-baseline</code>, then run <code>--diff</code> from cron or a systemd timer. It exits with code 3 when an unexpected port appears.</p>
+          <p><code>--save-baseline</code>, then <code>--diff</code> from cron: exit code 3 when a port appears, disappears or becomes reachable from the network.</p>
         </div>
         <div class="feature">
           <div class="icon" aria-hidden="true">🧩</div>
           <h3>Compose port audit</h3>
-          <p><code>--compose DIR</code> compares the published ports of a Docker Compose project with what is actually listening, and reports unused or conflicting ones.</p>
+          <p><code>--compose DIR</code> checks a Compose project's published ports, with <code>${VARIABLES}</code> resolved, against what actually listens.</p>
         </div>
         <div class="feature">
-          <div class="icon" aria-hidden="true">🔐</div>
-          <h3>Clear about permissions</h3>
-          <p>When a row belongs to a process it cannot read, such as a root-owned <code>docker-proxy</code>, portop says so and tells you that <code>sudo</code> would resolve it.</p>
+          <div class="icon" aria-hidden="true">🔔</div>
+          <h3>New-port alerts</h3>
+          <p>Ports that start listening are highlighted live, with an optional desktop notification on Linux, macOS and Windows.</p>
         </div>
         <div class="feature">
-          <div class="icon" aria-hidden="true">🧾</div>
-          <h3>Scriptable</h3>
-          <p><code>--json</code> prints the same data the interface shows, ready for <code>jq</code> or your own monitoring.</p>
+          <div class="icon" aria-hidden="true">📊</div>
+          <h3>JSON and Prometheus</h3>
+          <p><code>--json</code> for scripts and <code>jq</code>; the web dashboard serves <code>/metrics</code> for Prometheus, with basic auth when sign-in is on.</p>
         </div>
         <div class="feature">
           <div class="icon" aria-hidden="true">🎨</div>
@@ -546,7 +562,7 @@
       <p class="lede">Filtering to a port, opening the process details and confirming a kill, recorded as it happened.</p>
       <figure class="window demo-window" style="padding:0">
         <div class="window-bar"><i></i><i></i><i></i>portop</div>
-        <img src="assets/demo.gif" width="1902" height="1064" alt="portop filtering to a port, showing the process details, the kill confirmation and the help overlay" loading="lazy">
+        <img src="assets/demo.gif" width="1600" height="600" alt="portop filtering to a port, showing the process details, the kill confirmation and the help overlay" loading="lazy">
       </figure>
     </div>
   </section>
@@ -558,7 +574,7 @@
       <p class="lede">The same live view of ports and processes, for when a terminal is not at hand.</p>
       <div class="figures">
         <article class="figure">
-          <a class="shot" href="assets/web-dashboard.gif"><img src="assets/web-dashboard.gif" width="960" height="600" alt="Signing in to the portop web dashboard, filtering to redis and opening its process details" loading="lazy"></a>
+          <a class="shot" href="assets/web-dashboard.gif"><img src="assets/web-dashboard.gif" width="960" height="600" alt="Signing in to the portop web dashboard, filtering to nginx and opening its details, with exposure and firewall badges" loading="lazy"></a>
           <div class="figure-body">
             <h3>Web dashboard <span class="flag">--web</span></h3>
             <p><code>portop --web</code> serves a dashboard on <code>127.0.0.1:8088</code> with search, process details and confirmed SIGTERM/SIGKILL. With <code>--web-auth</code> it adds a <a href="assets/web-login.png">sign-in page</a>, can listen beyond loopback and serves HTTPS via <code>--web-tls-cert</code> and <code>--web-tls-key</code>.</p>
@@ -661,7 +677,7 @@ sudo install -m 755 portop /usr/local/bin/portop</pre>
             </ol>
             <p>See <a href="https://support.apple.com/en-us/102445">Apple's instructions</a> for your macOS version.</p>
           </details>
-          <p>portop uses the system's <code>lsof</code> and <code>ps</code>. Run <code>sudo portop</code> to include other users' processes. Systemd, Docker Desktop VM process metadata and thread counts are not available on macOS.</p>
+          <p>portop uses the system's <code>lsof</code> and <code>ps</code>. Run <code>sudo portop</code> to include other users' processes. Systemd, Docker Desktop VM process metadata and thread counts are not available on macOS; containers are recognised by the ports Docker Desktop publishes.</p>
         </div>
 
         <div id="tab-pkg" class="panel" role="tabpanel" aria-labelledby="t-pkg">
@@ -733,7 +749,7 @@ sudo install -m 755 portop /usr/local/bin/portop</pre>
         <div class="key"><span><kbd>g</kbd> <kbd>G</kbd></span>Jump to top or bottom</div>
         <div class="key"><span><kbd>enter</kbd></span>Process details</div>
         <div class="key"><span><kbd>k</kbd></span>Stop the process, after confirming</div>
-        <div class="key"><span><kbd>o</kbd></span>Open localhost:PORT in the browser</div>
+        <div class="key"><span><kbd>o</kbd></span>Open the port in the browser</div>
         <div class="key"><span><kbd>f</kbd> <kbd>/</kbd></span>Filter by port, process or PID</div>
         <div class="key"><span><kbd>v</kbd></span>IPv4, IPv6 or both</div>
         <div class="key"><span><kbd>e</kbd></span>Show or hide established</div>

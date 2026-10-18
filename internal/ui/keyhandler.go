@@ -9,6 +9,7 @@ import (
 
 	"github.com/padovanl/portop/internal/app"
 	"github.com/padovanl/portop/internal/openurl"
+	"github.com/padovanl/portop/internal/terminaltext"
 )
 
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -57,23 +58,21 @@ func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, keys.Enter):
 		if row, ok := m.selected(); ok && row.PID != 0 {
-			m.mode = modeDetail
-			m.detailInfo = nil
-			m.detailErr = nil
-			return m, loadDetailCmd(row.PID)
+			return m, m.openDetail(row)
+		} else if ok {
+			m.setStatus(unresolvedHint(row), true)
 		}
-		m.setStatus(unresolvedHint(), true)
 
 	case key.Matches(msg, keys.Kill):
 		if row, ok := m.selected(); ok && row.PID != 0 {
 			m.openKillConfirm(row)
-		} else {
-			m.setStatus(unresolvedHint(), true)
+		} else if ok {
+			m.setStatus(unresolvedHint(row), true)
 		}
 
 	case key.Matches(msg, keys.Open):
 		if row, ok := m.selected(); ok {
-			url := openurl.URLForPort(row.LocalPort)
+			url := openurl.URLForListener(row.LocalAddr, row.LocalPort)
 			if err := openurl.Open(url); err != nil {
 				m.setStatus("could not open "+url+": "+err.Error(), true)
 			} else {
@@ -83,7 +82,7 @@ func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, keys.Copy):
 		if row, ok := m.selected(); ok {
-			text := row.ProcessName + " :" + strconv.Itoa(int(row.LocalPort)) + " (PID " + strconv.Itoa(row.PID) + ")"
+			text := copyText(row)
 			if err := clipboard.WriteAll(text); err != nil {
 				m.setStatus("clipboard unavailable: "+err.Error(), true)
 			} else {
@@ -112,7 +111,7 @@ func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.newSeen = make(map[app.Key]bool)
 
 	case key.Matches(msg, keys.Refresh):
-		return m, m.collectCmd()
+		return m, m.startCollect()
 
 	case key.Matches(msg, keys.Help):
 		m.mode = modeHelp
@@ -125,14 +124,23 @@ func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// copyText is what the copy action puts on the clipboard. The process name
+// is chosen by whoever started the process and can hold a newline or an
+// escape sequence; pasted raw into a shell, the part after a newline would
+// run as a command.
+func copyText(row app.Row) string {
+	return terminaltext.Sanitize(row.ProcessName) + " :" + strconv.Itoa(int(row.LocalPort)) + " (PID " + strconv.Itoa(row.PID) + ")"
+}
+
 func (m Model) handleFilterKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc":
+	if key.Matches(msg, keys.Escape) {
 		m.filterInput.SetValue("")
 		m.filterInput.Blur()
 		m.mode = modeNormal
 		m.refilter()
 		return m, nil
+	}
+	switch msg.String() {
 	case "enter":
 		m.filterInput.Blur()
 		m.mode = modeNormal
@@ -158,8 +166,7 @@ func (m Model) handleConfirmKillKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleDetailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc", "enter", "q":
+	if key.Matches(msg, keys.Escape, keys.Enter, keys.Quit) {
 		m.mode = modeNormal
 	}
 	return m, nil
@@ -174,11 +181,19 @@ func (m Model) handleHelpKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m Model) handleSettingsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.settingsCapturing {
 		pressed := msg.String()
-		if pressed == "esc" {
+		if key.Matches(msg, keys.Escape) {
 			m.settingsCapturing = false
+			m.settingsNote = ""
 			return m, nil
 		}
 		action := KeyActions[m.settingsCursor-1]
+		// A key held by another action would make one of the two
+		// unreachable: bound to "up", "," would hide this very screen.
+		if other := actionBoundTo(pressed, action); other != "" {
+			m.settingsNote = pressed + " is already bound to " + actionDesc[other] + " — press another key"
+			return m, nil
+		}
+		m.settingsNote = ""
 		m.keyOverrides[action] = []string{pressed}
 		ApplyKeyBindings(m.keyOverrides)
 		m.settingsCapturing = false
@@ -186,9 +201,11 @@ func (m Model) handleSettingsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	switch msg.String() {
-	case "esc":
+	if key.Matches(msg, keys.Escape) {
 		m.mode = modeNormal
+		return m, nil
+	}
+	switch msg.String() {
 	case "up":
 		if m.settingsCursor > 0 {
 			m.settingsCursor--
@@ -224,6 +241,21 @@ func (m Model) handleSettingsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// actionBoundTo returns the action other than except that k triggers, or "".
+func actionBoundTo(k, except string) string {
+	for action, ks := range CurrentKeyBindings() {
+		if action == except {
+			continue
+		}
+		for _, bound := range ks {
+			if bound == k {
+				return action
+			}
+		}
+	}
+	return ""
+}
+
 // refilter recomputes m.filtered from m.rows given the current filter
 // text, protocol/state toggles and sort mode, and clamps the cursor.
 func (m *Model) refilter() {
@@ -231,7 +263,7 @@ func (m *Model) refilter() {
 
 	out := make([]app.Row, 0, len(m.rows))
 	for _, r := range m.rows {
-		if !m.showEstablished && r.State != "LISTEN" {
+		if !m.showEstablished && !r.Listening() {
 			continue
 		}
 		if m.ipFilter == ipv4Only && r.IPv6 {

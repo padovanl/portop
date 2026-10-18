@@ -1,0 +1,14 @@
+<h1>Containers and workers</h1>
+<p class="lede">portop names the container behind a port and tells a server's master process from its workers.</p>
+
+<h2 id="docker-podman">Docker and Podman</h2>
+<p>On Linux the container ID comes from the process's cgroup and the name from the Engine API. The socket is found the way the docker CLI finds it: a <code>unix://</code> <code>DOCKER_HOST</code>, <code>/var/run/docker.sock</code>, rootless Docker in <code>$XDG_RUNTIME_DIR</code>, Docker Desktop's <code>~/.docker/run/docker.sock</code>, then Podman's <code>/run/podman/podman.sock</code> and its rootless socket.</p>
+
+<h2 id="kubernetes">Kubernetes</h2>
+<p>On a node running containerd or CRI-O, a pod's process is shown as <code>namespace/pod/container</code>. The names come from the kubelet's log links in <code>/var/log/containers</code>, so no API access or <code>crictl</code> is needed; run portop on the node, usually with <code>sudo</code>.</p>
+
+<h2 id="docker-desktop">Docker Desktop on macOS and Windows</h2>
+<p>Containers run inside a VM, so their processes are not visible to the host. portop recognises them by the host ports Docker publishes, which labels the listening rows.</p>
+
+<h2 id="workers">Masters and workers</h2>
+<p>Pre-forking servers such as nginx, gunicorn, php-fpm and Apache share one listening socket between a master and its workers. portop shows one row owned by the master, the process whose parent does not hold the socket, and counts the others: <code>nginx +3</code>. The details list the workers' PIDs and JSON has a <code>workers</code> array. With socket activation, systemd (PID 1) also holds the socket and is skipped in favour of the service. On Windows a socket has a single owner.</p>

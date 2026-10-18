@@ -33,14 +33,20 @@
     let token = sessionStorage.getItem(tokenKey);
     let rows = [];
     let selectedState = "all";
+    // UDP has no LISTEN state: a bound, unconnected UDP socket is listening.
+    const isListening = row => row.state === "LISTEN" || (row.protocol === "UDP" && row.state === "UNCONN");
     let selected = null;
     let pendingForce = false;
     let refreshing = false;
 
+    // Bidirectional controls reorder the text around them, so a process
+    // named "\u202Edhss" would read as "sshd"; show them as \uFFFD instead.
+    const clean = value => String(value).replace(/[\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, "\uFFFD");
+
     function cell(tr, value, className) {
         const td = document.createElement("td");
         if (className) td.className = className;
-        td.textContent = value;
+        td.textContent = clean(value);
         tr.append(td);
         return td;
     }
@@ -48,7 +54,7 @@
     function subline(parent, value) {
         const span = document.createElement("span");
         span.className = "secondary";
-        span.textContent = value;
+        span.textContent = clean(value);
         parent.append(span);
     }
 
@@ -56,7 +62,7 @@
         const dt = document.createElement("dt");
         const dd = document.createElement("dd");
         dt.textContent = label;
-        dd.textContent = value === "" || value == null ? "—" : String(value);
+        dd.textContent = value === "" || value == null ? "—" : clean(value);
         list.append(dt, dd);
     }
 
@@ -66,28 +72,34 @@
     }
 
     function render() {
-        const query = filter.value.trim().toLowerCase();
+        // Every word must match some field: "nginx 443" narrows to both.
+        const terms = filter.value.toLowerCase().split(/\s+/).filter(Boolean);
         const matches = rows.filter(row =>
-            (selectedState === "all" || row.state === selectedState) &&
-            (!query || [row.local_port, row.local_address, row.remote_port, row.remote_address,
+            (selectedState === "all" || (selectedState === "LISTEN" ? isListening(row) : row.state === selectedState)) &&
+            terms.every(term => [row.local_port, row.local_address, row.remote_port, row.remote_address,
                 row.remote_host, row.pid, row.process, row.protocol, row.state,
                 row.systemd_unit, row.container].some(value =>
-                String(value || "").toLowerCase().includes(query))));
+                String(value || "").toLowerCase().includes(term))));
         const fragment = document.createDocumentFragment();
 
         for (const row of matches) {
             const tr = document.createElement("tr");
             const local = cell(tr, ":" + row.local_port, "primary port");
+            if (isListening(row)) local.append(scopeBadge(row.scope));
+            if (row.firewall) local.append(firewallBadge(row.firewall));
             subline(local, row.local_address + " · " + row.protocol + (row.ipv6 ? "6" : "4"));
             const remote = cell(tr, endpoint(row.remote_address, row.remote_port), row.remote_port ? "" : "muted");
             if (row.remote_host) subline(remote, row.remote_host);
+            if (row.rx_bytes_per_second !== undefined) subline(remote, "↓ " + rate(row.rx_bytes_per_second) + "  ↑ " + rate(row.tx_bytes_per_second));
             const stateCell = cell(tr, "");
             const badge = document.createElement("span");
             badge.className = "state " + row.state.toLowerCase();
             badge.textContent = row.state;
             stateCell.append(badge);
             const process = cell(tr, row.process || "Unknown", row.process ? "primary" : "muted");
-            if (row.pid) subline(process, "PID " + row.pid);
+            const workers = row.workers ? row.workers.length : 0;
+            if (row.pid) subline(process, "PID " + row.pid + (workers ? ` · +${workers} worker${workers > 1 ? "s" : ""}` : "") + (row.user ? " · " + row.user : ""));
+            else if (row.user) subline(process, row.user);
             cell(tr, row.pid ? row.cpu_percent.toFixed(1) + "%" : "—", row.pid ? "" : "muted");
             const owner = cell(tr, row.systemd_unit || row.container || "—", row.systemd_unit || row.container ? "" : "muted");
             if (row.systemd_unit && row.container) subline(owner, row.container);
@@ -107,6 +119,35 @@
         byId("empty").hidden = matches.length !== 0;
     }
 
+    function size(bytes) {
+        const units = ["B", "KB", "MB", "GB", "TB"];
+        let value = bytes, unit = 0;
+        while (value >= 1000 && unit < units.length - 1) { value /= 1000; unit++; }
+        return (unit ? value.toFixed(value < 10 ? 1 : 0) : String(Math.round(value))) + " " + units[unit];
+    }
+    const rate = bytesPerSecond => size(bytesPerSecond) + "/s";
+
+    const scopeLabels = { all: "all interfaces", address: "one address", loopback: "loopback" };
+
+    // Who can reach the port: red for every interface, amber for one
+    // address, green for loopback only.
+    function scopeBadge(scope) {
+        const badge = document.createElement("span");
+        badge.className = "scope " + (scopeLabels[scope] ? scope : "loopback");
+        badge.textContent = scopeLabels[scope] || scope;
+        badge.title = "Reachable on " + (scopeLabels[scope] || scope);
+        return badge;
+    }
+
+    const firewallLabels = { allowed: "firewall: open", restricted: "firewall: some sources", blocked: "firewall: blocked" };
+
+    function firewallBadge(verdict) {
+        const badge = document.createElement("span");
+        badge.className = "firewall " + (firewallLabels[verdict] ? verdict : "");
+        badge.textContent = firewallLabels[verdict] || "firewall: " + verdict;
+        return badge;
+    }
+
     function showSocket(row) {
         const fields = byId("socket-fields");
         fields.replaceChildren();
@@ -116,7 +157,14 @@
         field(fields, "Remote host", row.remote_host);
         field(fields, "Protocol", row.protocol + (row.ipv6 ? " · IPv6" : " · IPv4"));
         field(fields, "State", row.state);
+        field(fields, "Exposure", scopeLabels[row.scope] || row.scope);
+        field(fields, "Traffic", row.rx_bytes === undefined ? "" :
+            `↓ ${size(row.rx_bytes)}  ↑ ${size(row.tx_bytes)}` +
+            (row.rx_bytes_per_second === undefined ? "" : `  (now ↓ ${rate(row.rx_bytes_per_second)} ↑ ${rate(row.tx_bytes_per_second)})`));
+        field(fields, "Firewall", { allowed: "open to every source", restricted: "open to some sources", blocked: "blocked" }[row.firewall] || row.firewall);
         field(fields, "Process", row.process);
+        field(fields, "User", row.user);
+        field(fields, "Workers", row.workers && row.workers.length ? row.workers.join(", ") : "");
         field(fields, "PID", row.pid || "—");
         field(fields, "CPU", row.pid ? row.cpu_percent.toFixed(1) + "%" : "—");
         field(fields, "Systemd unit", row.systemd_unit);
@@ -171,7 +219,7 @@
     function askToSignal(force) {
         if (!selected?.info) return;
         pendingForce = force;
-        byId("confirm-text").textContent = `${force ? "Force kill (SIGKILL)" : "Terminate (SIGTERM)"} ${selected.info.name || selected.row.process || "process"} (PID ${selected.row.pid})? All of its connections may close.`;
+        byId("confirm-text").textContent = `${force ? "Force kill (SIGKILL)" : "Terminate (SIGTERM)"} ${clean(selected.info.name || selected.row.process || "process")} (PID ${selected.row.pid})? All of its connections may close.`;
         byId("confirm-button").textContent = force ? "Force kill" : "Terminate";
         byId("confirm-action").hidden = false;
     }
@@ -227,7 +275,7 @@
             }
             if (!response.ok) throw new Error("port scan failed");
             rows = await response.json();
-            const listening = rows.filter(row => row.state === "LISTEN").length;
+            const listening = rows.filter(isListening).length;
             byId("total-count").textContent = rows.length;
             byId("listen-count").textContent = listening;
             byId("process-count").textContent = new Set(rows.map(row => row.pid).filter(Boolean)).size;

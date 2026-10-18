@@ -128,23 +128,20 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			m.cursor = originalIdx
 			row = m.filtered[originalIdx]
 			if row.PID == 0 {
-				m.setStatus(unresolvedHint(), true)
+				m.setStatus(unresolvedHint(row), true)
 				return m, nil
 			}
-			m.mode = modeDetail
-			m.detailInfo = nil
-			m.detailErr = nil
-			return m, loadDetailCmd(row.PID)
+			return m, m.openDetail(row)
 		}
 		m.lastClick = mouseClick{key: key, pid: row.PID, x: event.X, y: event.Y, at: now}
 	case tea.MouseButtonRight:
 		if row.PID == 0 {
-			m.setStatus(unresolvedHint(), true)
+			m.setStatus(unresolvedHint(row), true)
 		} else {
 			m.openKillConfirm(row)
 		}
 	case tea.MouseButtonMiddle:
-		url := openurl.URLForPort(row.LocalPort)
+		url := openurl.URLForListener(row.LocalAddr, row.LocalPort)
 		if err := openurl.Open(url); err != nil {
 			m.setStatus("could not open "+url+": "+err.Error(), true)
 		} else {
