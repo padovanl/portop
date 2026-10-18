@@ -14,140 +14,71 @@
 
 [![Snap Store](https://img.shields.io/snapcraft/v/portop/latest/stable?logo=snapcraft&label=snap)](https://snapcraft.io/portop)
 [![Homebrew](https://img.shields.io/homebrew/v/portop?logo=homebrew)](https://formulae.brew.sh/formula/portop)
-[![APT](https://img.shields.io/endpoint?url=https%3A%2F%2Fapt.lucapadovan.dev%2Fbadges%2Fportop.json&logo=debian)](#apt-repository-debianubuntu-and-derivatives)
+[![APT](https://img.shields.io/endpoint?url=https%3A%2F%2Fapt.lucapadovan.dev%2Fbadges%2Fportop.json&logo=debian)](https://padovanl.github.io/portop/docs/installation.html#apt)
 [![Microsoft Store](https://img.shields.io/badge/microsoft_store-available-0078D4)](https://apps.microsoft.com/detail/9MZ319F4LW70)
 [![winget](https://img.shields.io/badge/winget-in_review-lightgrey)](https://github.com/microsoft/winget-pkgs/pull/453604)
 
+**[Website](https://padovanl.github.io/portop/) · [Documentation](https://padovanl.github.io/portop/docs/) · [Releases](https://github.com/padovanl/portop/releases)**
+
 </div>
 
-An **htop-style** terminal UI (TUI) that answers the question `ss`, `netstat`
-and `lsof` only half-answer: not just *what's* bound to a port, but which
-process, which systemd unit or Windows service, which Docker container — and
-a one-key way to open, inspect or kill it, live. Runs on Linux, macOS and
-Windows.
+portop is an htop-style terminal UI for the TCP and UDP sockets on a machine.
+For every port it shows the process, its systemd unit or Windows service, its
+Docker, Podman or Kubernetes container, who can reach it and what the firewall
+does with it, and it lets you inspect or stop the owner from the keyboard. It
+runs on Linux, macOS and Windows, in the terminal, in a browser or inside
+Cockpit.
 
-**[padovanl.github.io/portop →](https://padovanl.github.io/portop/)**
-
-| Get started | Day to day | Beyond the terminal |
-|:--|:--|:--|
-| ✨ [Features](#-features) | ⌨️ [Usage](#%EF%B8%8F-usage) | 🌐 [Web dashboard](#-web-dashboard) |
-| 🆚 [Why not just `ss`?](#-why-not-just-ss--tlnp) | 🎹 [Keybindings](#keybindings) | 🔐 [Dashboard sign-in](#sign-in) |
-| 📥 [Installation](#-installation) | ⚙️ [Configuration](#%EF%B8%8F-configuration) | 🖥️ [Cockpit add-on](#%EF%B8%8F-cockpit-add-on) |
-| ✅ [Requirements](#-requirements) | 🔧 [How it works](#-how-it-works) | 🤝 [Contributing](#-contributing) |
-
-![portop demo: filtering to a port, viewing process details, the kill confirmation, and the help overlay](docs/assets/demo.gif)
-*Filtering to a port, checking who owns it, and the confirm-before-kill flow — all in real time.*
+![portop: the port table colored by exposure, filtering to nginx, its details with workers, the kill confirmation, sorting by exposure and the help screen](docs/assets/demo.gif)
 
 ## ✨ Features
 
-### 👀 See what's using your ports
+**See what is using your ports**
+- A live table of listening and established sockets with process, PID, CPU,
+  user and service names (`:22 ssh`), sortable by any column.
+- The systemd unit or Windows service, and the Docker, Podman or Kubernetes
+  container behind each socket, read from cgroups with no daemon of its own.
+- One row for a server's master and its workers: `nginx +3`.
+- Bytes per second for every established TCP connection (Linux, macOS).
 
-- **Live, color-coded table**: `LISTEN`/`ESTABLISHED`/transient states,
-  protocol and per-process CPU% (sampled like `top`) are all colored at a
-  glance.
-- **Well-known port names**: `:22` shows as `ssh`, `:443` as `https`, parsed
-  straight from `/etc/services`.
-- **systemd & Docker aware**: every row shows the owning `.service` unit and
-  Docker container, resolved from cgroups — no D-Bus, no Docker SDK, no
-  extra daemon.
-- **Process detail view**: cmdline, executable, cwd, user, RSS, thread
-  count, start time.
-- **Adapts to your terminal width**: drops the least useful columns first
-  so rows never wrap, down to 80 columns.
+**Know who can reach them**
+- Listening ports colored by exposure: every interface, one address or
+  loopback only.
+- The host firewall's verdict for exposed ports: allowed, restricted to some
+  sources, or blocked.
 
-### ⚡ Act on it
+**Act on them**
+- Process details, and SIGTERM or SIGKILL after a confirmation that re-checks
+  the process identity.
+- `--wait 5432` blocks until a service listens; `--free 3000` stops whatever
+  holds a port and waits until it is released.
+- Open a port in the browser, copy a row, filter by any word.
 
-- **Kill, with confirmation**: `k` then `y` (SIGTERM) or `f` (SIGKILL) —
-  never a stray keypress away from killing the wrong thing.
-- **Open in the browser**: `o` launches `http(s)://localhost:PORT` for the
-  selected row, or the bound address when the service listens on a single
-  interface.
-- **Instant filter/search**: `f`, then start typing — matches port, process
-  name or PID as you type.
-- **Copy to clipboard**: `c` on the selected row.
+**Catch changes**
+- New listening ports are highlighted live, with an optional desktop
+  notification.
+- `--save-baseline` and `--diff` (exit code 3) report ports that appear,
+  disappear or become reachable from the network, from cron or CI.
+- `--compose DIR` checks a Docker Compose project's published ports against
+  what actually listens.
 
-### 🛎️ Stay ahead of surprises
+**Use it anywhere**
+- `--json` for scripts, a web dashboard with sign-in, TLS and Prometheus
+  `/metrics`, and a Cockpit add-on.
+- 13 themes and remappable keys from a live settings screen.
 
-- **New-port alerts**: a freshly opened listening port is highlighted the
-  moment it appears, with an optional desktop notification
-  (`--watch-new`).
-- **Baseline drift detection**: `--save-baseline` now, `--diff` later (e.g.
-  from a cron job or systemd timer) — exits non-zero the instant a port
-  that wasn't in your baseline starts listening, or a port that only
-  listened on loopback becomes reachable on every interface. Nothing else
-  in this space does this as a first-class feature.
-- **Docker Compose port audit**: `--compose /path/to/project` reads the
-  folder's Compose file(s), then reports which configured published ports are
-  listening, unused, or already taken by another process/container.
-- **Scriptable**: `--json` prints a clean snapshot for piping into `jq`,
-  dashboards, or your own tooling.
-- **Web dashboard**: `--web` shows live ports in a browser, with search,
-  process details and confirmed SIGTERM/SIGKILL actions. Add `--web-auth`
-  for a sign-in page, and serve it to other machines over HTTPS.
-- **Cockpit add-on**: the same view under **Tools → Ports (portop)**, using
-  Cockpit's own login and your user's permissions.
+## 📥 Install
 
-### 🎨 Make it yours
+| System | Command |
+|--------|---------|
+| Debian, Ubuntu | [APT repository](https://padovanl.github.io/portop/docs/installation.html#apt) |
+| Linux (Snap) | `sudo snap install portop` |
+| macOS, Linux | `brew install portop` |
+| Windows | `winget install padovanl.portop`, or the [Microsoft Store](https://apps.microsoft.com/detail/9MZ319F4LW70) |
+| Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh \| sh` |
+| From source | `go install github.com/padovanl/portop/cmd/portop@latest` |
 
-- **Live settings screen** (`,`): cycle through **13 built-in themes**
-  (default, Dracula, Nord, Solarized, Gruvbox, Catppuccin, Tokyo Night,
-  Monokai, Darcula, VS Code Dark+, Ubuntu, Rosé Pine, mono) with
-  `←`/`→` — the whole UI re-skins as you move — and rebind any of 20
-  actions on the spot. Saved automatically; you never touch a file.
-- **`config.yml`** is there too if you'd rather hand-edit it —
-  `portop --init-config` writes a fully-commented template.
-
-## 🆚 Why not just `ss -tlnp`?
-
-You can. But you'll be doing all of this by hand, every time:
-
-|                              | ss / netstat | lsof | bandwhich | portop |
-|------------------------------|:---:|:---:|:---:|:---:|
-| Live, refreshing view        | ❌ | ❌ | ✅ | ✅ |
-| Kill from the UI              | ❌ | ❌ | ❌ | ✅ |
-| Open port in browser          | ❌ | ❌ | ❌ | ✅ |
-| systemd unit shown            | ❌ | ❌ | ❌ | ✅ |
-| Docker container shown        | ❌ | ❌ | ❌ | ✅ |
-| New-port alerts               | ❌ | ❌ | ❌ | ✅ |
-| Baseline drift / audit mode   | ❌ | ❌ | ❌ | ✅ |
-| Docker Compose port audit     | ❌ | ❌ | ❌ | ✅ |
-| Fuzzy filter/search           | ❌ | ❌ | ❌ | ✅ |
-| Themeable / remappable        | ❌ | ❌ | ❌ | ✅ |
-| Browser & Cockpit views       | ❌ | ❌ | ❌ | ✅ |
-
-## 📥 Installation
-
-Below, `<version>` means the release number **without** a leading `v` (a
-`v0.1.0` tag produces `portop_0.1.0_linux_amd64.tar.gz`, not
-`portop_v0.1.0_...`) — check the exact asset names on the [latest
-release](https://github.com/padovanl/portop/releases/latest) rather than
-guessing.
-
-### One-line installer
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh | sh
-```
-
-Detects Linux or macOS and your architecture, verifies the release checksum,
-and installs to
-`/usr/local/bin` (or `~/.local/bin` if that's not writable).
-
-### Homebrew
-
-```bash
-brew install portop
-```
-
-Available on macOS and Linux through Linuxbrew.
-
-### Snap Store
-
-```bash
-sudo snap install portop
-```
-
-### APT repository (Debian/Ubuntu and derivatives)
+The APT repository serves amd64, arm64 and armhf:
 
 ```bash
 sudo install -d -m 0755 /etc/apt/keyrings
@@ -157,473 +88,72 @@ echo "deb [signed-by=/etc/apt/keyrings/lucapadovan.gpg] https://apt.lucapadovan.
 sudo apt update && sudo apt install portop
 ```
 
-Updates then arrive with `apt upgrade`. The repository serves amd64, arm64
-and armhf; armhf is the ARMv6 build, which also runs on ARMv7.
-
-### Windows
-
-Windows 10 1809+ and Windows 11, x64 and ARM64. Pick one of the three options.
-
-**winget** ([Windows Package Manager](https://learn.microsoft.com/windows/package-manager/winget/)):
-
-```powershell
-winget install padovanl.portop
-```
-
-**Microsoft Store**: [get portop from the Store](https://apps.microsoft.com/detail/9MZ319F4LW70),
-or search for **portop** in the Store app. The Store keeps it updated and adds
-a `portop` command to every terminal.
-
-**Zip from the release**: download `portop_<version>_windows_amd64.zip` (or
-`windows_arm64`) from the
-[latest release](https://github.com/padovanl/portop/releases/latest), extract
-`portop.exe` and put it in a folder on your `PATH`. In PowerShell:
-
-```powershell
-# replace <version> with the latest release number, no leading "v"
-$zip = "portop_<version>_windows_amd64.zip"   # ARM64: windows_arm64
-Invoke-WebRequest "https://github.com/padovanl/portop/releases/latest/download/$zip" -OutFile $zip
-$dir = "$env:LOCALAPPDATA\Programs\portop"
-Expand-Archive $zip -DestinationPath $dir -Force
-# add it to your user PATH, then open a new terminal and run portop
-[Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$dir", "User")
-```
-
-Run it in Windows Terminal or any modern console. Socket owners are visible
-without elevation; process details of other users' or elevated processes
-need an Administrator terminal.
-
-### All supported architectures
-
-Every Linux and macOS archive is named `portop_<version>_<target>.tar.gz`;
-Windows archives are `.zip`. These are the complete
-release targets; Linux also gets `.deb` and `.rpm` files with the same target suffix.
-
-| System | Architecture | Target | Packages | Requirements |
-|--------|--------------|--------|----------|--------------|
-| Linux | Intel/AMD 64-bit | `linux_amd64` | `.tar.gz`, `.deb`, `.rpm` | 64-bit x86 OS; amd64 baseline (v1). |
-| Linux | ARM64 / AArch64 (64-bit) | `linux_arm64` | `.tar.gz`, `.deb`, `.rpm` | 64-bit ARM OS; ARMv8.0 baseline. |
-| Linux | ARMv7 (32-bit) | `linux_armv7` | `.tar.gz`, `.deb`, `.rpm` | 32-bit ARM Linux with hardware floating point (VFPv3). |
-| Linux | ARMv6 (32-bit) | `linux_armv6` | `.tar.gz`, `.deb`, `.rpm` | 32-bit ARM Linux with hardware floating point (VFP); includes the CPU target used by original Pi 1 / Zero. |
-| macOS | Intel (64-bit) | `darwin_amd64` | `.tar.gz` | 64-bit Intel Mac; no 32-bit macOS build. |
-| macOS | Apple Silicon (64-bit) | `darwin_arm64` | `.tar.gz` | Native ARM64 Mac; no Rosetta required. |
-| Windows | Intel/AMD 64-bit | `windows_amd64` | `.zip`, winget, Microsoft Store | Windows 10 1809 or later. |
-| Windows | ARM64 | `windows_arm64` | `.zip`, winget, Microsoft Store | Windows 11 on ARM. |
-
-#### ARM selection and package limitations
-
-- Choose for the **installed OS**, not just the CPU: a 64-bit board running a
-  32-bit OS needs `armv7` (or `armv6` on older CPUs), not `arm64`.
-- The installer maps `armv6l` to `armv6`, `armv7l`/`armv8l` to `armv7`, and
-  `aarch64`/`arm64` to `arm64`. On Linux it checks `getconf LONG_BIT` to detect
-  a 32-bit userland on an ARM64 kernel. If `getconf` is unavailable, it uses
-  the kernel architecture; override detection for unusual containers or OS setups:
-
-  ```sh
-  curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh -o install.sh
-  PORTOP_ARCH=armv7 sh install.sh
-  ```
-
-  Valid overrides: `amd64`, `arm64`, `armv6`, `armv7`; macOS accepts only the first two.
-- ARMv6 and ARMv7 releases require hardware floating point. ARMv5, ARM soft-float
-  (`armel`), big-endian ARM, 32-bit x86 and other unlisted targets are
-  **not supported by these releases**. ARM64 requires a 64-bit OS; a 32-bit
-  compatibility layer on a 64-bit kernel is not guaranteed.
-- Both ARM32 DEBs have `armhf` metadata, but their filenames distinguish `armv6`
-  and `armv7`. Pick the variant your CPU supports; install only one. Distribution
-  support for ARMv6 varies. RPM architecture labels may be rejected by a particular
-  distribution: use its matching package or the `.tar.gz`, not a forced installation.
-  RPM labels are `x86_64`, `aarch64`, `armv6hl` and `armv7hl`, respectively.
-- Prebuilt binaries do not require Go or a C runtime installation (`CGO_ENABLED=0`).
-  Old board images may still have kernels too old for the Go runtime; see
-  [Go's OS requirements](https://go.dev/wiki/MinimumRequirements). CPU compatibility
-  does not imply support for every historical Linux image or macOS version.
-- Linux requires readable `/proc/net` tables. Containers show their own network
-  namespace; root may be needed for process ownership, and systemd/Docker enrichment
-  is available only when those services and their metadata are accessible.
-- macOS requires the system `lsof` and `ps`, can omit other users' sockets without
-  `sudo`, and does not expose systemd, Docker Desktop VM process metadata or thread
-  counts. Its scans may be slower; see the first-launch Gatekeeper instructions below.
-- Windows uses the IP Helper API, so every socket comes with its owning PID even
-  without elevation. The SYSTEMD column becomes SERVICE (the Windows service
-  hosted by the process) and Docker Desktop containers are recognised by the
-  host ports they publish, via the `docker` CLI. There is no SIGTERM on
-  Windows: both kill choices end the process.
-- Build and emulation checks do not replace testing on physical ARM hardware or a
-  native Mac. See [validation status](docs/platform-support.md) for what has been run.
-
-### `.deb` package (Debian/Ubuntu and derivatives)
-
-Replace `linux_amd64` with the target from the table above for ARM systems.
-
-```bash
-curl -fLO https://github.com/padovanl/portop/releases/latest/download/portop_<version>_linux_amd64.deb
-sudo dpkg -i portop_<version>_linux_amd64.deb
-```
-
-### Fedora / RHEL / openSUSE (RPM)
-
-Download the `.rpm` for your target from [Releases](https://github.com/padovanl/portop/releases).
-In the examples below, replace `linux_amd64` with `linux_arm64`, `linux_armv7` or
-`linux_armv6` as appropriate:
-
-```sh
-sudo dnf install ./portop_<version>_linux_amd64.rpm
-# openSUSE: sudo zypper install ./portop_<version>_linux_amd64.rpm
-```
-
-### macOS (Apple Silicon and Intel)
-
-The one-line installer detects your Mac's architecture, downloads the matching
-archive and verifies its checksum:
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh | sh
-portop
-```
-
-For a manual installation, choose `darwin_arm64` for Apple Silicon or
-`darwin_amd64` for Intel. Replace `<version>` with the release number:
-
-```sh
-archive="portop_<version>_darwin_arm64.tar.gz" # Intel: use darwin_amd64
-curl -fLO "https://github.com/padovanl/portop/releases/latest/download/$archive"
-tar -xzf "$archive"
-sudo mkdir -p /usr/local/bin
-sudo install -m 755 portop /usr/local/bin/portop
-portop
-```
-
-#### First launch: if macOS blocks portop
-
-The release binaries are not notarized by Apple. If you downloaded the archive
-with a browser, macOS may block its first launch. After checking that the binary
-comes from this repository's release, use the approval flow for this app:
-
-1. Try running `portop`. If a **“portop” Not Opened** dialog appears, click **Done**.
-2. Open **System Settings → Privacy & Security**. Find the message about
-   portop and click **Open Anyway** (or **Allow Anyway**, depending on macOS).
-3. Run `portop` again if prompted, confirm **Open Anyway**, and authenticate
-   when macOS asks.
-
-This follows the first-launch guidance used by
-[pkgtui](https://padovanl.github.io/pkgtui/#install). See also
-[Apple's instructions for opening an app from an unidentified developer](https://support.apple.com/en-us/102445).
-
-#### Visibility and platform differences
-
-The scanner uses `/usr/sbin/lsof`; process details and CPU sampling use `/bin/ps`.
-Run `sudo portop` to include processes belonging to other users. Without it,
-some sockets can be omitted entirely. Systemd and Docker Desktop VM process
-metadata are unavailable; containers are recognised by the host ports Docker
-Desktop publishes. The process detail thread count is shown as `-`.
-
-### Binary tarball (Linux and macOS)
-
-Replace `linux_amd64` with any target in the architecture table above.
-
-```bash
-curl -fLO https://github.com/padovanl/portop/releases/latest/download/portop_<version>_linux_amd64.tar.gz
-tar -xzf portop_<version>_linux_amd64.tar.gz
-sudo install -m 755 portop /usr/local/bin/portop
-```
-
-### From source
-
-```bash
-go install github.com/padovanl/portop/cmd/portop@latest
-```
+Release archives cover Linux on amd64, arm64, ARMv7 and ARMv6, macOS on Intel
+and Apple Silicon, and Windows on x64 and ARM64, with `.deb` and `.rpm`
+packages for Linux. See [Installation](https://padovanl.github.io/portop/docs/installation.html)
+for every option.
 
 ## ⌨️ Usage
 
 ```bash
-portop                 # launch the TUI (LISTEN + ESTABLISHED)
-portop 8080             # launch the TUI pre-filtered on port 8080
-portop redis            # launch the TUI pre-filtered on a process name
-portop --listen          # show only listening sockets (TCP LISTEN, bound UDP)
-portop --json            # print one JSON snapshot and exit
-portop --watch-new       # desktop-notify when a new port starts listening
+portop                      # the live table
+portop nginx 443            # filtered: every word must match
+portop --listen             # listening sockets only
+portop --json               # one snapshot for scripts
 
-portop --save-baseline   # remember which ports are currently listening
-portop --diff            # compare live ports against the saved baseline
-                          # (exit code 3 if something changed — great for cron)
+portop --wait 5432          # exit 0 once something listens
+portop --free 3000          # stop whatever holds the port
 
-portop --compose ./stack  # audit Compose published ports in a project folder
-portop --compose ./stack --json
+portop --save-baseline      # record what listens now
+portop --diff               # exit 3 if that changed
+portop --compose ./stack    # audit a Compose project's ports
 
-portop --web              # local dashboard on port 8088
-portop --web --web-port 9090  # choose the web server port
-portop --web --web-auth   # require sign-in; prints a generated password
+portop --web                # dashboard on http://127.0.0.1:8088
 ```
 
-Run `portop --help` for the full flag list.
+Run `sudo portop` (an Administrator terminal on Windows) to see other users'
+processes and read the firewall. In the table, press `?` for help and `,` for
+settings. The [documentation](https://padovanl.github.io/portop/docs/) covers
+every flag, the JSON fields, exit codes and what each platform supports.
 
-> Rows with no process/PID are owned by another user (root's `docker-proxy`,
-> `systemd-resolved`, ...) — the same limitation `lsof`/`ss -p` have without
-> `sudo`. portop tells you when that's happening instead of leaving you to
-> guess.
+![portop web dashboard: sign-in, the listening tab with exposure and firewall badges, nginx with its workers and the details dialog](docs/assets/web-dashboard.gif)
 
-### Docker Compose port audit
+## 🆚 Why not just `ss -tlnp`?
 
-Point portop at a folder containing `compose.yml`, `compose.yaml`,
-`docker-compose.yml` or `docker-compose.yaml`. Like Docker Compose, it reads
-the first of those it finds plus one `compose.override.yml` (or its
-variants), and substitutes `${VARIABLES}` from `.env` and the environment:
+|                                  | ss / netstat | lsof | bandwhich | portop |
+|----------------------------------|:---:|:---:|:---:|:---:|
+| Live, refreshing view            | ❌ | ❌ | ✅ | ✅ |
+| Owning process                   | ✅ | ✅ | ✅ | ✅ |
+| systemd unit, Windows service    | ❌ | ❌ | ❌ | ✅ |
+| Docker, Podman, Kubernetes       | ❌ | ❌ | ❌ | ✅ |
+| Exposure and firewall verdict    | ❌ | ❌ | ❌ | ✅ |
+| Per-connection traffic           | ✅ `-ti` | ❌ | ✅ | ✅ |
+| Stop the owner, safely           | ❌ | ❌ | ❌ | ✅ |
+| `--wait` / `--free` for scripts  | ❌ | ❌ | ❌ | ✅ |
+| Baseline drift, Compose audit    | ❌ | ❌ | ❌ | ✅ |
+| Web dashboard, Prometheus        | ❌ | ❌ | ❌ | ✅ |
+| Linux, macOS and Windows         | ✅ | ❌ | ✅ | ✅ |
 
-```bash
-portop --compose ~/selfhosted/crawl-stack
-```
+## 📚 Documentation
 
-It parses each service's `ports:` entries and checks fixed published ports
-against the host's current listeners. Status values are:
+- [Installation](https://padovanl.github.io/portop/docs/installation.html) and [first run](https://padovanl.github.io/portop/docs/first-run.html)
+- [The table](https://padovanl.github.io/portop/docs/the-table.html): columns, colors, keys
+- [Command line](https://padovanl.github.io/portop/docs/command-line.html) and [scripting](https://padovanl.github.io/portop/docs/scripting.html)
+- [Baseline drift](https://padovanl.github.io/portop/docs/baseline.html) and [Compose audit](https://padovanl.github.io/portop/docs/compose.html)
+- [Containers](https://padovanl.github.io/portop/docs/containers.html), [firewall](https://padovanl.github.io/portop/docs/firewall.html) and [traffic](https://padovanl.github.io/portop/docs/traffic.html)
+- [Web dashboard and metrics](https://padovanl.github.io/portop/docs/web-dashboard.html), [Cockpit add-on](https://padovanl.github.io/portop/docs/cockpit.html)
+- [Configuration](https://padovanl.github.io/portop/docs/configuration.html) and [platform support](https://padovanl.github.io/portop/docs/platforms.html)
 
-| Status | Meaning |
-|--------|---------|
-| `expected` | Docker reports the port on the matching Compose service/container, or the listener's container name matches. |
-| `conflict` | Something is listening, but it is not identified as the expected Compose service. |
-| `unused` | The Compose file configures the port, but nothing is listening on it. |
-| `dynamic` | Compose will choose the host port at runtime, so there is no fixed port to check. |
-
-`--compose` exits `3` when it finds `conflict` or `unused`, and `0` when every
-fixed port is accounted for. Add `--json` for scripts.
-
-When Docker is accessible, the audit also reads Docker's published-port table
-and Compose labels. That means it can identify the expected service even when
-the local socket row belongs to `docker-proxy`. Without Docker access, it still
-checks whether the port is listening, but may report a conflict because the
-expected container/service cannot be confirmed. Supported `ports:` forms include
-short syntax (`"8080:80"`, `"127.0.0.1:8080:80/udp"`, simple ranges) and long
-syntax (`published`, `target`, `host_ip`, `protocol`). Compose profiles,
-environment interpolation and complex multi-file merge semantics are not
-expanded by portop itself; use the generated JSON output if you need to compare
-against a custom `docker compose config` workflow.
-
-### Keybindings
-
-These are the defaults — every one can be remapped, see
-[Configuration](#%EF%B8%8F-configuration) below. The in-app `?` help always
-reflects whatever's actually bound, including your overrides.
-
-| Key       | Action                                          |
-|-----------|--------------------------------------------------|
-| `↑` `↓`   | move the cursor                                  |
-| `PgUp` `PgDn` | move one visible page at a time               |
-| `g` `G`   | jump to top / bottom                             |
-| `enter`   | process details                                  |
-| `k`       | kill process (then `y`=SIGTERM, `f`=SIGKILL)     |
-| `o`       | open `http(s)://HOST:PORT` in the browser        |
-| `f` `/`   | filter/search by port, process or PID            |
-| `v`       | toggle IPv4 / IPv6 / both                        |
-| `e`       | show/hide `ESTABLISHED` connections              |
-| `s`       | cycle sort column                                |
-| `c`       | copy selected row to clipboard                   |
-| `n`       | clear the new-port highlight                     |
-| `r`       | refresh now                                      |
-| `,`       | settings — live theme picker, remap any key      |
-| `?`       | help                                             |
-| `q`       | quit                                             |
-
-Mouse support is enabled in compatible terminals: hover highlights rows,
-click selects, drag moves the selection, double-click opens process details,
-right-click opens the kill confirmation, middle-click opens the local URL,
-and the wheel moves through the table. Click any column heading to sort by it;
-click it again to reverse the order.
-
-## ⚙️ Configuration
-
-Everything below is optional — portop works with no config file at all.
-
-### Settings screen (recommended)
-
-Press <kbd>,</kbd> inside portop:
-
-- **Theme**: `←`/`→` cycles through it live — the whole UI re-skins as you
-  move, no restart, no confirmation needed.
-- **Keybindings**: pick any of the 20 actions, hit `enter`, then press
-  whatever you want it bound to. `esc` cancels instead of capturing.
-- **Reset keybindings to defaults** at the bottom of the list, one keypress.
-
-Every change is written to `config.yml` immediately — you never have to
-open the file yourself.
-
-### Or hand-edit `config.yml`
-
-```bash
-portop --init-config   # writes a fully-commented template and exits
-```
-
-That writes to `~/.config/portop/config.yml` (pass `--config /path` to use a
-different one). Example:
-
-```yaml
-theme: tokyo-night        # default | dracula | nord | solarized | gruvbox
-                          # | catppuccin | tokyo-night | monokai | darcula
-                          # | vscode | ubuntu | rose-pine | mono
-show_established: false   # same as always passing --listen
-refresh_interval: 1s
-
-keybindings:
-  kill: ["x"]
-  quit: ["q", "ctrl+c"]
-```
-
-Command-line flags always win over `config.yml` when both set the same
-thing. An unknown theme name or keybinding action fails fast with a message
-telling you what's valid, instead of silently doing nothing. Fields the
-settings screen doesn't touch (like `refresh_interval` above) are left
-exactly as you wrote them.
-
-## 🔧 How it works
-
-On Linux, portop reads `/proc/net/{tcp,tcp6,udp,udp6}` for the socket table and walks
-`/proc/<pid>/fd` to match socket inodes to owning processes — the same
-technique `lsof`/`ss` use, no root required beyond what's needed to see
-other users' processes. systemd unit and Docker container association are
-derived from each process's cgroup path, so no D-Bus or Docker SDK
-dependency is needed; Docker container names are resolved via a couple of
-read-only calls to the Docker Engine API over its unix socket when
-available. The socket is found like the docker CLI finds it: a `unix://`
-`DOCKER_HOST`, `/var/run/docker.sock`, rootless Docker's
-`$XDG_RUNTIME_DIR/docker.sock` or Docker Desktop's `~/.docker/run/docker.sock`.
-
-`portop --compose DIR` adds one Docker-specific read-only call to
-`/containers/json?all=1` when Docker enrichment is enabled. That gives the audit
-the daemon's published-port view and Compose labels, so it can map a host port
-back to the Compose service even if the listener process is `docker-proxy`.
-
-On macOS, portop parses the machine-readable output of `lsof` for TCP/UDP
-sockets and their owning processes. `ps` supplies cumulative CPU time and
-process details; CPU usage is calculated between successive samples, once
-per PID per scan. System commands run with a timeout and a fixed locale.
-
-On Windows, portop calls `GetExtendedTcpTable` and `GetExtendedUdpTable`
-from the IP Helper API, which report the owning PID of every socket, and
-names processes from a Toolhelp snapshot. Process details come from the
-Win32 process APIs with limited query rights, the SERVICE column from the
-Service Control Manager, and Docker Desktop containers are matched by the
-host ports `docker ps` reports as published, because their processes run
-inside a VM.
-
-On every platform, well-known port names come from the system services
-database (`/etc/services`, or `%SystemRoot%\System32\drivers\etc\services`
-on Windows), and baseline diffing snapshots the listening TCP and UDP ports, with
-whether each is bound to loopback, every interface or one address, to a
-small JSON file under your OS's config directory.
-
-## ✅ Requirements
-
-- **Linux, macOS and Windows.** Linux uses `/proc/net`; macOS uses `lsof`
-  and `ps`; Windows uses the IP Helper and Win32 process APIs. macOS scans
-  and CPU sampling invoke system tools and may be slower on machines with
-  many processes.
-- `sudo`/root only if you want to see sockets owned by other users (e.g.
-  root's `docker-proxy`) — portop runs fine without it, it just can't
-  resolve those specific rows on Linux. On macOS, sockets belonging to
-  other users can be omitted entirely without sufficient permissions. On
-  Windows, an Administrator terminal is only needed for the details of
-  elevated or other users' processes.
-- Go 1.24+ only if building from source.
-- A terminal that reports 256-color or truecolor support. A bare
-  `TERM=xterm` (no `-256color` suffix) gets detected as a 16-color
-  terminal, which downsamples every theme's colors and can make some hard
-  to tell apart — `export TERM=xterm-256color` (or `COLORTERM=truecolor`)
-  fixes it. This is common in minimal Docker/SSH sessions.
-
-## 🌐 Web dashboard
-
-```bash
-portop --web
-```
-
-Open the URL it prints. The dashboard refreshes every two seconds and shows
-local and remote endpoints, process, CPU, systemd unit and container.
-**Details** adds command line, user, memory, threads and open files.
-Terminate (SIGTERM) and Force kill (SIGKILL) require confirmation, and the
-process must still have the same start time as when you opened it.
-
-By default the server binds to `127.0.0.1:8088` and needs no password. The
-printed URL carries a per-run token in its fragment: without it, the table
-is readable but process details and signals are refused. Choose another
-port with `--web-port 9090`, or a loopback address with `--web-addr`.
-`--listen`, `--no-dns`, `--no-systemd`, `--no-docker` and a positional
-filter apply here too. Ctrl-C stops the server.
-
-![portop web dashboard with a process detail dialog](docs/assets/web-dashboard.png)
-
-### Sign-in
-
-`--web-auth` puts the dashboard behind a username and password:
-
-| Flag | Meaning |
-|------|---------|
-| `--web-auth` | Require sign-in. With no password set, portop generates one and prints it. |
-| `--web-user NAME` | Username (default `portop`). Implies `--web-auth`. |
-| `--web-password PASS` | Password. Implies `--web-auth`. Visible to other local users in `ps`, so prefer the variable below on shared machines. |
-| `PORTOP_WEB_PASSWORD` | Password from the environment, used when `--web-password` is not given. |
-| `--web-tls-cert FILE`, `--web-tls-key FILE` | Serve HTTPS with a PEM certificate and key. |
-
-```bash
-portop --web --web-auth
-# portop web: http://127.0.0.1:8088/
-# portop web: sign in as "portop"
-# portop web: password: 7XK2... (generated for this run; ...)
-
-PORTOP_WEB_PASSWORD='choose-one' portop --web --web-user admin
-```
-
-Sessions use an `HttpOnly`, `SameSite=Strict` cookie, last 12 hours and end
-when portop stops. After five failed attempts, a client must wait a minute.
-Process actions also need a per-session token, so a signed-in cookie alone
-cannot be used to kill a process from another site.
-
-#### Reaching the dashboard from another machine
-
-Only a dashboard with sign-in may listen beyond loopback:
-
-```bash
-openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 365 \
-  -subj "/CN=$(hostname)" -keyout portop.key -out portop.crt
-PORTOP_WEB_PASSWORD='choose-one' portop --web --web-user admin \
-  --web-addr 0.0.0.0:8088 --web-tls-cert portop.crt --web-tls-key portop.key
-```
-
-Browsers warn about a self-signed certificate until you trust it. Without
-TLS, portop still starts but warns that the password and port data cross
-the network unencrypted; the sign-in page says so too. An SSH tunnel
-(`ssh -L 8088:127.0.0.1:8088 host`) to a loopback-only dashboard is an
-alternative that needs no certificate. What the dashboard can see and signal
-is limited by the user portop runs as.
-
-### Previewing from a checkout
-
-```bash
-go build -o ./bin/portop ./cmd/portop
-./bin/portop --web --web-auth
-```
-
-To preview the GitHub Pages site locally, run `python3 scripts/serve-pages.py`
-from the checkout and open <http://127.0.0.1:8000/>. Use `--port 8001` to
-choose another port; stop the server with Ctrl-C.
-
-## 🖥️ Cockpit add-on
-
-The optional Cockpit page is in [`cockpit/portop`](cockpit/README.md). It lists
-ports and process details using the current Cockpit session, and can send
-SIGTERM or SIGKILL after confirmation. It needs no separate web server:
-Cockpit's login and your user's permissions apply. On a Linux host, install
-portop and copy `cockpit/portop` into `~/.local/share/cockpit/portop`, then
-open **Tools → Ports (portop)**. See the [Cockpit setup steps](cockpit/README.md).
-
-![portop inside Cockpit under Tools, dark theme](docs/assets/cockpit.png)
+The documentation is generated from [`docs-src/`](docs-src) with
+`python3 scripts/build-docs.py`; preview the whole site with
+`python3 scripts/serve-pages.py`.
 
 ## 🤝 Contributing
 
-Pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for the
-branch policy and PR requirements. Short version: open PRs against
-`develop`, not `main`, and run `gofmt -l . && go vet ./... && go test ./...`
-before pushing.
+Pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md). Open them
+against `develop`, and run `gofmt -l . && go vet ./... && go test ./...` before
+pushing.
 
 ## 📄 License
 
-MIT — see [LICENSE](LICENSE).
-
+MIT. See [LICENSE](LICENSE).
