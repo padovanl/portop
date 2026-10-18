@@ -1,0 +1,27 @@
+<h1>Platform support</h1>
+<p class="lede">Every feature runs on Linux, macOS and Windows. Where the operating system does not provide something, portop leaves the field empty or shows <code>?</code> instead of failing.</p>
+
+<h2 id="features">Features</h2>
+<table class="matrix">
+  <thead><tr><th>Feature</th><th>Linux</th><th>macOS</th><th>Windows</th></tr></thead>
+  <tbody>
+    <tr><td>Sockets and owner</td><td>Yes; <code>sudo</code> for other users' processes</td><td>Yes; <code>sudo</code> for other users' sockets</td><td>Yes, every PID</td></tr>
+    <tr><td>Process details</td><td>Yes</td><td>No thread count</td><td>No working directory or open files</td></tr>
+    <tr><td>Stop a process</td><td>SIGTERM, SIGKILL</td><td>SIGTERM, SIGKILL</td><td>Both end the process</td></tr>
+    <tr><td>Service column</td><td>systemd unit</td><td>—</td><td>Windows services</td></tr>
+    <tr><td>Containers</td><td>Docker, Podman, Kubernetes</td><td>Docker Desktop, by published port</td><td>Docker Desktop, by published port</td></tr>
+    <tr><td>Masters and workers</td><td>Yes</td><td>Yes</td><td>— (one owner per socket)</td></tr>
+    <tr><td>User</td><td>Yes</td><td>Yes</td><td>Own processes without elevation</td></tr>
+    <tr><td>Exposure</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+    <tr><td>Firewall</td><td>ufw, firewalld, nftables; needs root</td><td>Only when off or blocking all</td><td>Only when off</td></tr>
+    <tr><td>Traffic</td><td>TCP</td><td>TCP</td><td>—</td></tr>
+    <tr><td>Notifications</td><td><code>notify-send</code></td><td>Notification Center</td><td>Toast</td></tr>
+    <tr><td><code>--wait</code>, <code>--free</code>, <code>--diff</code>, <code>--compose</code>, <code>--json</code></td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+    <tr><td>Web dashboard and metrics</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+    <tr><td>Cockpit add-on</td><td>Yes</td><td>—</td><td>—</td></tr>
+  </tbody>
+</table>
+<p>Details: <a href="firewall.html">firewall</a>, <a href="traffic.html">traffic</a>, <a href="containers.html">containers</a>, <a href="first-run.html#permissions">permissions</a>.</p>
+
+<h2 id="targets">Targets</h2>
+<p>Linux on amd64, arm64, ARMv7 and ARMv6 with hardware floating point; macOS on Intel and Apple Silicon; Windows 10 1809 or later and Windows 11 on x64 and ARM64. ARMv5, soft-float <code>armel</code>, big-endian ARM, 32-bit x86 and 32-bit Windows are not supported. The <a href="https://github.com/padovanl/portop/blob/main/docs/platform-support.md">validation report</a> lists what has been tested on real hardware.</p>

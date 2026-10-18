@@ -1,0 +1,8 @@
+<h1>Cockpit add-on</h1>
+<p class="lede">The dashboard inside <a href="https://cockpit-project.org">Cockpit</a>, using its login and your permissions. Linux only.</p>
+
+<h2 id="install">Install</h2>
+<pre>mkdir -p ~/.local/share/cockpit
+cp -r cockpit/portop ~/.local/share/cockpit/portop   # from a portop checkout</pre>
+<p>Open <em>Tools → Ports (portop)</em>. portop must be installed on the host; the page calls <code>portop --json</code>, <code>--inspect-pid</code> and <code>--signal-pid</code> through Cockpit's bridge, so there is no extra service to expose. Installing it under <code>/usr/share/cockpit/portop</code> makes it available to every user.</p>
+<figure><img src="../assets/cockpit.png" alt="portop inside Cockpit under Tools" loading="lazy"><figcaption>portop under Tools in Cockpit.</figcaption></figure>

@@ -1,0 +1,50 @@
+<h1>Web dashboard</h1>
+<p class="lede">The same live view in a browser, with process details and confirmed SIGTERM and SIGKILL.</p>
+
+<h2 id="start">Start</h2>
+<pre>portop --web                  # http://127.0.0.1:8088
+portop --web --web-port 9090</pre>
+<p>The dashboard lists every socket with its exposure and firewall badges, user, workers and traffic, with tabs for listening and connected sockets and a search box. The printed URL carries a per-run token: without it the table is readable, but process details and signals are refused. <code>--listen</code>, the <code>--no-*</code> flags and a filter apply here too.</p>
+<figure><img src="../assets/web-dashboard.png" alt="The portop web dashboard with exposure badges and a process detail dialog" loading="lazy"><figcaption>The web dashboard with a process's details open.</figcaption></figure>
+
+<h2 id="sign-in">Sign-in</h2>
+<table>
+  <thead><tr><th>Option</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>--web-auth</code></td><td>Require sign-in; without a password, one is generated and printed</td></tr>
+    <tr><td><code>--web-user NAME</code></td><td>Username (default <code>portop</code>); implies <code>--web-auth</code></td></tr>
+    <tr><td><code>PORTOP_WEB_PASSWORD</code></td><td>Password from the environment</td></tr>
+    <tr><td><code>--web-password PASS</code></td><td>Password on the command line, visible to other local users in <code>ps</code></td></tr>
+  </tbody>
+</table>
+<p>Sessions last 12 hours and end when portop stops. After five failed sign-ins a client, an IPv4 address or an IPv6 /64, waits a minute. Process actions also need a per-session token, so another site cannot use a signed-in cookie.</p>
+
+<h2 id="remote">Remote access and TLS</h2>
+<p>Only a dashboard with sign-in may listen beyond loopback:</p>
+<pre>openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 365 \
+  -subj "/CN=$(hostname)" -keyout portop.key -out portop.crt
+PORTOP_WEB_PASSWORD='choose-one' portop --web --web-user admin \
+  --web-addr 0.0.0.0:8088 --web-tls-cert portop.crt --web-tls-key portop.key</pre>
+<p>Without TLS the password crosses the network unencrypted; portop warns about it. An SSH tunnel to a loopback dashboard needs no certificate: <code>ssh -L 8088:127.0.0.1:8088 host</code>.</p>
+
+<h2 id="metrics">Prometheus metrics</h2>
+<p><code>/metrics</code> serves the Prometheus text format:</p>
+<table>
+  <thead><tr><th>Metric</th><th>Labels</th></tr></thead>
+  <tbody>
+    <tr><td><code>portop_sockets</code></td><td><code>protocol</code>, <code>state</code></td></tr>
+    <tr><td><code>portop_listening_ports</code></td><td><code>protocol</code>, <code>scope</code></td></tr>
+    <tr><td><code>portop_listening_port_info</code></td><td><code>protocol</code>, <code>port</code>, <code>address</code>, <code>scope</code>, <code>firewall</code>, <code>process</code>, <code>pid</code>, <code>user</code>, <code>container</code> (value always 1)</td></tr>
+    <tr><td><code>portop_scrape_duration_seconds</code></td><td></td></tr>
+  </tbody>
+</table>
+<p>With sign-in enabled, <code>/metrics</code> accepts the dashboard credentials as HTTP Basic auth:</p>
+<pre>scrape_configs:
+  - job_name: portop
+    scheme: https
+    basic_auth:
+      username: admin
+      password: choose-one
+    static_configs:
+      - targets: ["host:8088"]</pre>
+<p>Alert when <code>portop_listening_ports{scope="all"}</code> grows, or on a new <code>portop_listening_port_info</code> series.</p>

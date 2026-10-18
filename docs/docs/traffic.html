@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Traffic · portop docs</title>
+<meta name="description" content="Established TCP connections show how many bytes they sent and received, and the rate between two refreshes.">
+<link rel="icon" href="../assets/logo.png">
+<link rel="stylesheet" href="docs.css">
+<script>try { var t = localStorage.getItem("portop-docs-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<script defer src="docs.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <button class="nav-toggle" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Menu">
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  </button>
+  <a class="brand" href="index.html"><img src="../assets/logo.png" alt="" width="24" height="24">portop <span>docs</span></a>
+  <div class="search">
+    <input id="search" type="search" placeholder="Search the docs" autocomplete="off" aria-label="Search the docs">
+    <ul id="search-results" class="search-results" hidden></ul>
+  </div>
+  <nav class="topnav" aria-label="Site">
+    <a href="../">Home</a>
+    <a href="https://github.com/padovanl/portop">GitHub</a>
+  </nav>
+  <button class="theme-toggle" type="button" aria-label="Toggle dark mode">
+    <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3a7 7 0 1 0 7 7 5.5 5.5 0 0 1-7-7z" fill="currentColor"/></svg>
+  </button>
+</header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar" aria-label="Documentation">
+      <p class="nav-group">Getting started</p>
+      <ul>
+        <li><a href="index.html">Introduction</a></li>
+        <li><a href="installation.html">Installation</a></li>
+        <li><a href="first-run.html">First run and permissions</a></li>
+      </ul>
+      <p class="nav-group">Using portop</p>
+      <ul>
+        <li><a href="the-table.html">The table</a></li>
+        <li><a href="command-line.html">Command line</a></li>
+        <li><a href="scripting.html">Scripting</a></li>
+        <li><a href="configuration.html">Configuration</a></li>
+      </ul>
+      <p class="nav-group">Checks</p>
+      <ul>
+        <li><a href="baseline.html">Baseline drift</a></li>
+        <li><a href="compose.html">Compose audit</a></li>
+        <li><a href="notifications.html">New-port alerts</a></li>
+      </ul>
+      <p class="nav-group">Context</p>
+      <ul>
+        <li><a href="containers.html">Containers and workers</a></li>
+        <li><a href="firewall.html">Firewall</a></li>
+        <li><a href="traffic.html" class="active" aria-current="page">Traffic</a></li>
+      </ul>
+      <p class="nav-group">Dashboards</p>
+      <ul>
+        <li><a href="web-dashboard.html">Web dashboard</a></li>
+        <li><a href="cockpit.html">Cockpit add-on</a></li>
+      </ul>
+      <p class="nav-group">Reference</p>
+      <ul>
+        <li><a href="platforms.html">Platform support</a></li>
+        <li><a href="how-it-works.html">How it works</a></li>
+        <li><a href="troubleshooting.html">Troubleshooting</a></li>
+      </ul>
+  </aside>
+  <div class="content">
+    <main>
+<h1>Traffic</h1>
+<p class="lede">Established TCP connections show how many bytes they sent and received, and the rate between two refreshes.</p>
+
+<h2 id="sources">Sources</h2>
+<table>
+  <thead><tr><th>System</th><th>Read from</th></tr></thead>
+  <tbody>
+    <tr><td>Linux</td><td>The kernel's socket diagnostics over netlink, as <code>ss -ti</code> shows them; no root and no eBPF</td></tr>
+    <tr><td>macOS</td><td>A <code>nettop</code> snapshot; other users' connections need <code>sudo</code></td></tr>
+    <tr><td>Windows</td><td>Not available: Windows keeps these counters only for connections an administrator enabled statistics on, and portop does not change system settings</td></tr>
+  </tbody>
+</table>
+
+<h2 id="where">Where it appears</h2>
+<p>The <code>TRAFFIC</code> column in the established view (sortable, busiest first), the remote cell of the web dashboard and Cockpit, and <code>rx_bytes</code>/<code>tx_bytes</code> in <a href="command-line.html#json">JSON</a>. Turn it off with <code>--no-traffic</code> or <code>resolve_traffic: false</code>.</p>
+      <nav class="pager" aria-label="Pages"><a class="prev" href="firewall.html"><span>Previous</span>Firewall</a><a class="next" href="web-dashboard.html"><span>Next</span>Web dashboard</a></nav>
+    </main>
+    <nav class="page-toc" aria-label="On this page">
+      <p>On this page</p>
+      <ul>
+        <li><a href="#sources">Sources</a></li>
+        <li><a href="#where">Where it appears</a></li>
+      </ul>
+    </nav>
+  </div>
+</div>
+<footer class="footer">portop · MIT License · <a href="https://github.com/padovanl/portop/edit/develop/docs-src/traffic.html">Edit this page</a></footer>
+</body>
+</html>

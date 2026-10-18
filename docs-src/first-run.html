@@ -1,0 +1,22 @@
+<h1>First run and permissions</h1>
+<p class="lede">portop needs no configuration. What it can see depends on the user it runs as.</p>
+
+<h2 id="start">Start</h2>
+<pre>portop            # every listening and established socket
+portop 8080       # filtered on a port
+portop --listen   # listening sockets only</pre>
+<p>The table refreshes every two seconds. Press <kbd>?</kbd> for help and <kbd>q</kbd> to quit.</p>
+
+<h2 id="permissions">Permissions</h2>
+<table>
+  <thead><tr><th>System</th><th>Without privileges</th><th>With privileges</th></tr></thead>
+  <tbody>
+    <tr><td>Linux</td><td>Other users' sockets appear without a process; the status bar counts them, for example <code>(3 hidden — try sudo)</code>.</td><td><code>sudo portop</code> resolves every row and lets portop read the firewall.</td></tr>
+    <tr><td>macOS</td><td><code>lsof</code> omits other users' sockets entirely.</td><td><code>sudo portop</code> lists them.</td></tr>
+    <tr><td>Windows</td><td>Every socket comes with its PID; details of elevated or other users' processes are not readable.</td><td>An Administrator terminal reads them.</td></tr>
+  </tbody>
+</table>
+<p>Settings and baseline files written under <code>sudo</code> stay owned by your user, so later runs without <code>sudo</code> can still update them.</p>
+
+<h2 id="terminal">Terminal</h2>
+<p>Use a terminal with 256 colors or true color. In a minimal SSH or container session where <code>TERM=xterm</code>, set <code>TERM=xterm-256color</code> or <code>COLORTERM=truecolor</code>.</p>

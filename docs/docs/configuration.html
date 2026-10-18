@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Configuration · portop docs</title>
+<meta name="description" content="Everything is optional. Command-line flags win over the file.">
+<link rel="icon" href="../assets/logo.png">
+<link rel="stylesheet" href="docs.css">
+<script>try { var t = localStorage.getItem("portop-docs-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<script defer src="docs.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <button class="nav-toggle" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Menu">
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  </button>
+  <a class="brand" href="index.html"><img src="../assets/logo.png" alt="" width="24" height="24">portop <span>docs</span></a>
+  <div class="search">
+    <input id="search" type="search" placeholder="Search the docs" autocomplete="off" aria-label="Search the docs">
+    <ul id="search-results" class="search-results" hidden></ul>
+  </div>
+  <nav class="topnav" aria-label="Site">
+    <a href="../">Home</a>
+    <a href="https://github.com/padovanl/portop">GitHub</a>
+  </nav>
+  <button class="theme-toggle" type="button" aria-label="Toggle dark mode">
+    <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3a7 7 0 1 0 7 7 5.5 5.5 0 0 1-7-7z" fill="currentColor"/></svg>
+  </button>
+</header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar" aria-label="Documentation">
+      <p class="nav-group">Getting started</p>
+      <ul>
+        <li><a href="index.html">Introduction</a></li>
+        <li><a href="installation.html">Installation</a></li>
+        <li><a href="first-run.html">First run and permissions</a></li>
+      </ul>
+      <p class="nav-group">Using portop</p>
+      <ul>
+        <li><a href="the-table.html">The table</a></li>
+        <li><a href="command-line.html">Command line</a></li>
+        <li><a href="scripting.html">Scripting</a></li>
+        <li><a href="configuration.html" class="active" aria-current="page">Configuration</a></li>
+      </ul>
+      <p class="nav-group">Checks</p>
+      <ul>
+        <li><a href="baseline.html">Baseline drift</a></li>
+        <li><a href="compose.html">Compose audit</a></li>
+        <li><a href="notifications.html">New-port alerts</a></li>
+      </ul>
+      <p class="nav-group">Context</p>
+      <ul>
+        <li><a href="containers.html">Containers and workers</a></li>
+        <li><a href="firewall.html">Firewall</a></li>
+        <li><a href="traffic.html">Traffic</a></li>
+      </ul>
+      <p class="nav-group">Dashboards</p>
+      <ul>
+        <li><a href="web-dashboard.html">Web dashboard</a></li>
+        <li><a href="cockpit.html">Cockpit add-on</a></li>
+      </ul>
+      <p class="nav-group">Reference</p>
+      <ul>
+        <li><a href="platforms.html">Platform support</a></li>
+        <li><a href="how-it-works.html">How it works</a></li>
+        <li><a href="troubleshooting.html">Troubleshooting</a></li>
+      </ul>
+  </aside>
+  <div class="content">
+    <main>
+<h1>Configuration</h1>
+<p class="lede">Everything is optional. Command-line flags win over the file.</p>
+
+<h2 id="settings-screen">Settings screen</h2>
+<p>Press <kbd>,</kbd> in the table to preview the 13 themes live and rebind any of the 20 actions. Changes are saved to the configuration file at once.</p>
+
+<h2 id="file">config.yml</h2>
+<p><code>portop --init-config</code> writes a commented file in the OS configuration directory: <code>~/.config/portop/config.yml</code> on Linux, <code>~/Library/Application Support/portop/config.yml</code> on macOS, <code>%AppData%\portop\config.yml</code> on Windows. <code>--config</code> uses another.</p>
+<pre>theme: tokyo-night        # default, dracula, nord, solarized, gruvbox, catppuccin,
+                          # tokyo-night, monokai, darcula, vscode, ubuntu, rose-pine, mono
+refresh_interval: 2s
+show_established: true    # false behaves like --listen
+resolve_dns: true
+resolve_systemd: true
+resolve_docker: true
+resolve_firewall: true
+resolve_traffic: true
+watch_new: false
+keybindings:
+  kill: ["x"]
+  quit: ["q", "ctrl+c"]</pre>
+<p>Keybinding actions: <code>up</code>, <code>down</code>, <code>page_up</code>, <code>page_down</code>, <code>top</code>, <code>bottom</code>, <code>enter</code>, <code>kill</code>, <code>open</code>, <code>filter</code>, <code>sort</code>, <code>protocol</code>, <code>established</code>, <code>new_mark</code>, <code>copy</code>, <code>refresh</code>, <code>help</code>, <code>quit</code>, <code>escape</code>, <code>settings</code>. An unknown theme or action stops portop with the list of valid ones.</p>
+      <nav class="pager" aria-label="Pages"><a class="prev" href="scripting.html"><span>Previous</span>Scripting</a><a class="next" href="baseline.html"><span>Next</span>Baseline drift</a></nav>
+    </main>
+    <nav class="page-toc" aria-label="On this page">
+      <p>On this page</p>
+      <ul>
+        <li><a href="#settings-screen">Settings screen</a></li>
+        <li><a href="#file">config.yml</a></li>
+      </ul>
+    </nav>
+  </div>
+</div>
+<footer class="footer">portop · MIT License · <a href="https://github.com/padovanl/portop/edit/develop/docs-src/configuration.html">Edit this page</a></footer>
+</body>
+</html>

@@ -1,0 +1,21 @@
+<h1>Compose audit</h1>
+<p class="lede">Check a Docker Compose project's published ports against what actually listens on the host.</p>
+
+<h2 id="usage">Usage</h2>
+<pre>portop --compose ~/stacks/shop
+portop --compose ~/stacks/shop --json</pre>
+
+<h2 id="files">Files and variables</h2>
+<p>portop reads the files Docker Compose would load: the first of <code>compose.yaml</code>, <code>compose.yml</code>, <code>docker-compose.yml</code> and <code>docker-compose.yaml</code>, plus the first override found. <code>${VARIABLE}</code>, <code>${VARIABLE:-default}</code> and the other Compose forms are substituted from the <code>.env</code> file next to them and the environment, which wins.</p>
+
+<h2 id="statuses">Statuses</h2>
+<table>
+  <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>expected</code></td><td>The port is held by the matching service or container</td></tr>
+    <tr><td><code>conflict</code></td><td>Something else listens on it</td></tr>
+    <tr><td><code>unused</code></td><td>Nothing listens on it</td></tr>
+    <tr><td><code>dynamic</code></td><td>Compose picks the host port at runtime</td></tr>
+  </tbody>
+</table>
+<p>The command exits 3 when a port is unused or in conflict. With access to Docker, portop reads Docker's published-port table and Compose labels, so a <code>docker-proxy</code> listener is tied back to its service.</p>

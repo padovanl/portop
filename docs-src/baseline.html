@@ -1,0 +1,34 @@
+<h1>Baseline drift</h1>
+<p class="lede">Record which ports a host is supposed to listen on, then let a timer tell you when that changes.</p>
+
+<h2 id="usage">Usage</h2>
+<pre>portop --save-baseline     # record what listens now
+portop --diff              # exit 3 if anything changed
+portop --diff --json       # the same, for scripts</pre>
+<p>The baseline is a small JSON file in the OS config directory; <code>--baseline-path</code> chooses another.</p>
+
+<h2 id="what-is-compared">What is compared</h2>
+<p>Each listening TCP and UDP port is recorded with its <a href="the-table.html#exposure">scope</a>: loopback, every interface or one address. A service listening on IPv4 and IPv6 is one entry. <code>--diff</code> reports:</p>
+<ul>
+  <li>ports listening now that were not in the baseline;</li>
+  <li>ports in the baseline that no longer listen;</li>
+  <li>ports whose scope changed, for example a database moving from <code>127.0.0.1</code> to <code>0.0.0.0</code>.</li>
+</ul>
+<p>Baselines saved by versions before 0.3.0 have no scope and are compared by protocol and port only.</p>
+
+<h2 id="systemd-timer">Run it from a systemd timer</h2>
+<pre># /etc/systemd/system/portop-diff.service
+[Unit]
+Description=Compare listening ports with the baseline
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/portop --diff --baseline-path /var/lib/portop/baseline.json
+
+# /etc/systemd/system/portop-diff.timer
+[Timer]
+OnCalendar=hourly
+
+[Install]
+WantedBy=timers.target</pre>
+<p>A failed run (exit 3) shows up in <code>systemctl --failed</code> and can trigger <code>OnFailure=</code> alerting.</p>

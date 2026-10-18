@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Installation · portop docs</title>
+<meta name="description" content="portop is a single static binary. Package managers keep it up to date; the release archives work anywhere.">
+<link rel="icon" href="../assets/logo.png">
+<link rel="stylesheet" href="docs.css">
+<script>try { var t = localStorage.getItem("portop-docs-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<script defer src="docs.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <button class="nav-toggle" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Menu">
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  </button>
+  <a class="brand" href="index.html"><img src="../assets/logo.png" alt="" width="24" height="24">portop <span>docs</span></a>
+  <div class="search">
+    <input id="search" type="search" placeholder="Search the docs" autocomplete="off" aria-label="Search the docs">
+    <ul id="search-results" class="search-results" hidden></ul>
+  </div>
+  <nav class="topnav" aria-label="Site">
+    <a href="../">Home</a>
+    <a href="https://github.com/padovanl/portop">GitHub</a>
+  </nav>
+  <button class="theme-toggle" type="button" aria-label="Toggle dark mode">
+    <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3a7 7 0 1 0 7 7 5.5 5.5 0 0 1-7-7z" fill="currentColor"/></svg>
+  </button>
+</header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar" aria-label="Documentation">
+      <p class="nav-group">Getting started</p>
+      <ul>
+        <li><a href="index.html">Introduction</a></li>
+        <li><a href="installation.html" class="active" aria-current="page">Installation</a></li>
+        <li><a href="first-run.html">First run and permissions</a></li>
+      </ul>
+      <p class="nav-group">Using portop</p>
+      <ul>
+        <li><a href="the-table.html">The table</a></li>
+        <li><a href="command-line.html">Command line</a></li>
+        <li><a href="scripting.html">Scripting</a></li>
+        <li><a href="configuration.html">Configuration</a></li>
+      </ul>
+      <p class="nav-group">Checks</p>
+      <ul>
+        <li><a href="baseline.html">Baseline drift</a></li>
+        <li><a href="compose.html">Compose audit</a></li>
+        <li><a href="notifications.html">New-port alerts</a></li>
+      </ul>
+      <p class="nav-group">Context</p>
+      <ul>
+        <li><a href="containers.html">Containers and workers</a></li>
+        <li><a href="firewall.html">Firewall</a></li>
+        <li><a href="traffic.html">Traffic</a></li>
+      </ul>
+      <p class="nav-group">Dashboards</p>
+      <ul>
+        <li><a href="web-dashboard.html">Web dashboard</a></li>
+        <li><a href="cockpit.html">Cockpit add-on</a></li>
+      </ul>
+      <p class="nav-group">Reference</p>
+      <ul>
+        <li><a href="platforms.html">Platform support</a></li>
+        <li><a href="how-it-works.html">How it works</a></li>
+        <li><a href="troubleshooting.html">Troubleshooting</a></li>
+      </ul>
+  </aside>
+  <div class="content">
+    <main>
+<h1>Installation</h1>
+<p class="lede">portop is a single static binary. Package managers keep it up to date; the release archives work anywhere.</p>
+
+<h2 id="package-managers">Package managers</h2>
+<table>
+  <thead><tr><th>System</th><th>Command</th><th>Updates</th></tr></thead>
+  <tbody>
+    <tr><td>Debian, Ubuntu</td><td><a href="#apt">APT repository</a></td><td><code>apt upgrade</code></td></tr>
+    <tr><td>Linux with snapd</td><td><code>sudo snap install portop</code></td><td>automatic</td></tr>
+    <tr><td>macOS, Linux</td><td><code>brew install portop</code></td><td><code>brew upgrade</code></td></tr>
+    <tr><td>Windows</td><td><code>winget install padovanl.portop</code></td><td><code>winget upgrade</code></td></tr>
+    <tr><td>Windows</td><td><a href="https://apps.microsoft.com/detail/9MZ319F4LW70">Microsoft Store</a></td><td>automatic</td></tr>
+  </tbody>
+</table>
+
+<h2 id="apt">APT repository</h2>
+<pre>sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://apt.lucapadovan.dev/lucapadovan.gpg | sudo tee /etc/apt/keyrings/lucapadovan.gpg &gt;/dev/null
+echo "deb [signed-by=/etc/apt/keyrings/lucapadovan.gpg] https://apt.lucapadovan.dev stable main" \
+  | sudo tee /etc/apt/sources.list.d/lucapadovan.list
+sudo apt update &amp;&amp; sudo apt install portop</pre>
+<p>The signed repository at <a href="https://apt.lucapadovan.dev">apt.lucapadovan.dev</a> serves amd64, arm64 and armhf (the ARMv6 build, which also runs on ARMv7).</p>
+
+<h2 id="install-script">Install script</h2>
+<pre>curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh | sh</pre>
+<p>Linux and macOS. The script detects the architecture, verifies the release checksum and installs to <code>/usr/local/bin</code>, or <code>~/.local/bin</code> when that is not writable. Set <code>PORTOP_VERSION</code> to pin a release, <code>PORTOP_ARCH</code> (<code>amd64</code>, <code>arm64</code>, <code>armv7</code>, <code>armv6</code>) to override detection, or <code>PORTOP_INSTALL_DIR</code> to choose the directory.</p>
+
+<h2 id="archives">Release archives</h2>
+<p>Every <a href="https://github.com/padovanl/portop/releases/latest">release</a> has <code>.tar.gz</code> archives (<code>.zip</code> on Windows) and, for Linux, <code>.deb</code> and <code>.rpm</code> packages:</p>
+<table>
+  <thead><tr><th>Target</th><th>Runs on</th></tr></thead>
+  <tbody>
+    <tr><td><code>linux_amd64</code></td><td>64-bit x86 Linux</td></tr>
+    <tr><td><code>linux_arm64</code></td><td>64-bit ARM Linux (ARMv8.0)</td></tr>
+    <tr><td><code>linux_armv7</code></td><td>32-bit ARM Linux with hardware floating point (VFPv3)</td></tr>
+    <tr><td><code>linux_armv6</code></td><td>32-bit ARM Linux with VFP, including Raspberry Pi 1 and Zero</td></tr>
+    <tr><td><code>darwin_amd64</code>, <code>darwin_arm64</code></td><td>macOS on Intel and Apple Silicon</td></tr>
+    <tr><td><code>windows_amd64</code>, <code>windows_arm64</code></td><td>Windows 10 1809 or later, Windows 11 on ARM</td></tr>
+  </tbody>
+</table>
+<p>Choose the target of the installed operating system, not just the CPU: a 64-bit board running a 32-bit OS needs <code>armv7</code> or <code>armv6</code>. Each published file has a build attestation; check one with <code>gh attestation verify FILE --repo padovanl/portop</code>.</p>
+
+<h2 id="from-source">From source</h2>
+<pre>go install github.com/padovanl/portop/cmd/portop@latest</pre>
+
+<h2 id="macos-first-launch">macOS first launch</h2>
+<p>Release binaries are not notarized. If macOS blocks a binary downloaded with a browser, run <code>portop</code> once, open <em>System Settings → Privacy &amp; Security</em> and choose <em>Open Anyway</em>. Homebrew and the install script are not affected.</p>
+      <nav class="pager" aria-label="Pages"><a class="prev" href="index.html"><span>Previous</span>Introduction</a><a class="next" href="first-run.html"><span>Next</span>First run and permissions</a></nav>
+    </main>
+    <nav class="page-toc" aria-label="On this page">
+      <p>On this page</p>
+      <ul>
+        <li><a href="#package-managers">Package managers</a></li>
+        <li><a href="#apt">APT repository</a></li>
+        <li><a href="#install-script">Install script</a></li>
+        <li><a href="#archives">Release archives</a></li>
+        <li><a href="#from-source">From source</a></li>
+        <li><a href="#macos-first-launch">macOS first launch</a></li>
+      </ul>
+    </nav>
+  </div>
+</div>
+<footer class="footer">portop · MIT License · <a href="https://github.com/padovanl/portop/edit/develop/docs-src/installation.html">Edit this page</a></footer>
+</body>
+</html>

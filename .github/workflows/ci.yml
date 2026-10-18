@@ -19,6 +19,8 @@ jobs:
         with:
           go-version-file: go.mod
       - run: python3 scripts/test-install.py
+      # The documentation pages are generated from docs-src/ and committed.
+      - run: python3 scripts/build-docs.py --check
       - run: go vet ./...
       # Same toolchain as the release builds (go.mod), for every target OS.
       - name: govulncheck

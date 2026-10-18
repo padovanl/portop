@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scripting · portop docs</title>
+<meta name="description" content="--wait and --free handle the two port chores of development and CI: waiting for a service, and getting a port back.">
+<link rel="icon" href="../assets/logo.png">
+<link rel="stylesheet" href="docs.css">
+<script>try { var t = localStorage.getItem("portop-docs-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<script defer src="docs.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <button class="nav-toggle" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Menu">
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  </button>
+  <a class="brand" href="index.html"><img src="../assets/logo.png" alt="" width="24" height="24">portop <span>docs</span></a>
+  <div class="search">
+    <input id="search" type="search" placeholder="Search the docs" autocomplete="off" aria-label="Search the docs">
+    <ul id="search-results" class="search-results" hidden></ul>
+  </div>
+  <nav class="topnav" aria-label="Site">
+    <a href="../">Home</a>
+    <a href="https://github.com/padovanl/portop">GitHub</a>
+  </nav>
+  <button class="theme-toggle" type="button" aria-label="Toggle dark mode">
+    <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3a7 7 0 1 0 7 7 5.5 5.5 0 0 1-7-7z" fill="currentColor"/></svg>
+  </button>
+</header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar" aria-label="Documentation">
+      <p class="nav-group">Getting started</p>
+      <ul>
+        <li><a href="index.html">Introduction</a></li>
+        <li><a href="installation.html">Installation</a></li>
+        <li><a href="first-run.html">First run and permissions</a></li>
+      </ul>
+      <p class="nav-group">Using portop</p>
+      <ul>
+        <li><a href="the-table.html">The table</a></li>
+        <li><a href="command-line.html">Command line</a></li>
+        <li><a href="scripting.html" class="active" aria-current="page">Scripting</a></li>
+        <li><a href="configuration.html">Configuration</a></li>
+      </ul>
+      <p class="nav-group">Checks</p>
+      <ul>
+        <li><a href="baseline.html">Baseline drift</a></li>
+        <li><a href="compose.html">Compose audit</a></li>
+        <li><a href="notifications.html">New-port alerts</a></li>
+      </ul>
+      <p class="nav-group">Context</p>
+      <ul>
+        <li><a href="containers.html">Containers and workers</a></li>
+        <li><a href="firewall.html">Firewall</a></li>
+        <li><a href="traffic.html">Traffic</a></li>
+      </ul>
+      <p class="nav-group">Dashboards</p>
+      <ul>
+        <li><a href="web-dashboard.html">Web dashboard</a></li>
+        <li><a href="cockpit.html">Cockpit add-on</a></li>
+      </ul>
+      <p class="nav-group">Reference</p>
+      <ul>
+        <li><a href="platforms.html">Platform support</a></li>
+        <li><a href="how-it-works.html">How it works</a></li>
+        <li><a href="troubleshooting.html">Troubleshooting</a></li>
+      </ul>
+  </aside>
+  <div class="content">
+    <main>
+<h1>Scripting</h1>
+<p class="lede"><code>--wait</code> and <code>--free</code> handle the two port chores of development and CI: waiting for a service, and getting a port back.</p>
+
+<h2 id="wait">Wait for a port</h2>
+<pre>portop --wait 5432 --timeout 1m &amp;&amp; ./migrate</pre>
+<p>Exits 0 as soon as something listens on the port, or 1 when the timeout (default 30s) passes. Add <code>/udp</code> for a UDP port: <code>--wait 53/udp</code>.</p>
+
+<h2 id="free">Free a port</h2>
+<pre>portop --free 3000            # SIGTERM, then wait up to 5s for the port
+portop --free 3000 --force    # SIGKILL to every process holding it
+portop --free 53/udp --yes    # no confirmation</pre>
+<p><code>--free</code> lists what it will stop and, on a terminal, asks for confirmation. It records each process's start time before asking and refuses to signal one that changed in the meantime. It exits 0 when the port is free and 1 when it is still in use after <code>--timeout</code>.</p>
+<p>SIGTERM goes to a server's master process, which stops its workers. <code>--force</code> signals the workers too, because SIGKILL to a master leaves them listening. A port held by a process portop cannot see is reported with a hint to run it with <code>sudo</code>.</p>
+
+<h2 id="json-recipes">JSON recipes</h2>
+<pre># ports reachable from the network
+portop --json --listen | jq -r '.[] | select(.scope != "loopback") | "\(.local_port)/\(.protocol) \(.process // "?")"'
+
+# who listens on 8080
+portop --json --listen 8080 | jq '.[0] | {pid, process, user, container}'</pre>
+      <nav class="pager" aria-label="Pages"><a class="prev" href="command-line.html"><span>Previous</span>Command line</a><a class="next" href="configuration.html"><span>Next</span>Configuration</a></nav>
+    </main>
+    <nav class="page-toc" aria-label="On this page">
+      <p>On this page</p>
+      <ul>
+        <li><a href="#wait">Wait for a port</a></li>
+        <li><a href="#free">Free a port</a></li>
+        <li><a href="#json-recipes">JSON recipes</a></li>
+      </ul>
+    </nav>
+  </div>
+</div>
+<footer class="footer">portop · MIT License · <a href="https://github.com/padovanl/portop/edit/develop/docs-src/scripting.html">Edit this page</a></footer>
+</body>
+</html>

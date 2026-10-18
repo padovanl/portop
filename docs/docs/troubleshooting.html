@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Troubleshooting · portop docs</title>
+<meta name="description" content="Troubleshooting">
+<link rel="icon" href="../assets/logo.png">
+<link rel="stylesheet" href="docs.css">
+<script>try { var t = localStorage.getItem("portop-docs-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<script defer src="docs.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <button class="nav-toggle" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Menu">
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  </button>
+  <a class="brand" href="index.html"><img src="../assets/logo.png" alt="" width="24" height="24">portop <span>docs</span></a>
+  <div class="search">
+    <input id="search" type="search" placeholder="Search the docs" autocomplete="off" aria-label="Search the docs">
+    <ul id="search-results" class="search-results" hidden></ul>
+  </div>
+  <nav class="topnav" aria-label="Site">
+    <a href="../">Home</a>
+    <a href="https://github.com/padovanl/portop">GitHub</a>
+  </nav>
+  <button class="theme-toggle" type="button" aria-label="Toggle dark mode">
+    <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3a7 7 0 1 0 7 7 5.5 5.5 0 0 1-7-7z" fill="currentColor"/></svg>
+  </button>
+</header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar" aria-label="Documentation">
+      <p class="nav-group">Getting started</p>
+      <ul>
+        <li><a href="index.html">Introduction</a></li>
+        <li><a href="installation.html">Installation</a></li>
+        <li><a href="first-run.html">First run and permissions</a></li>
+      </ul>
+      <p class="nav-group">Using portop</p>
+      <ul>
+        <li><a href="the-table.html">The table</a></li>
+        <li><a href="command-line.html">Command line</a></li>
+        <li><a href="scripting.html">Scripting</a></li>
+        <li><a href="configuration.html">Configuration</a></li>
+      </ul>
+      <p class="nav-group">Checks</p>
+      <ul>
+        <li><a href="baseline.html">Baseline drift</a></li>
+        <li><a href="compose.html">Compose audit</a></li>
+        <li><a href="notifications.html">New-port alerts</a></li>
+      </ul>
+      <p class="nav-group">Context</p>
+      <ul>
+        <li><a href="containers.html">Containers and workers</a></li>
+        <li><a href="firewall.html">Firewall</a></li>
+        <li><a href="traffic.html">Traffic</a></li>
+      </ul>
+      <p class="nav-group">Dashboards</p>
+      <ul>
+        <li><a href="web-dashboard.html">Web dashboard</a></li>
+        <li><a href="cockpit.html">Cockpit add-on</a></li>
+      </ul>
+      <p class="nav-group">Reference</p>
+      <ul>
+        <li><a href="platforms.html">Platform support</a></li>
+        <li><a href="how-it-works.html">How it works</a></li>
+        <li><a href="troubleshooting.html" class="active" aria-current="page">Troubleshooting</a></li>
+      </ul>
+  </aside>
+  <div class="content">
+    <main>
+<h1>Troubleshooting</h1>
+
+<h2 id="no-process">Rows without a process</h2>
+<p>The socket belongs to another user. Run <code>sudo portop</code> on Linux and macOS, or use an Administrator terminal on Windows. <code>TIME_WAIT</code> rows never have one: the connection is closing and no process holds it.</p>
+
+<h2 id="firewall-unknown">The firewall column shows ?</h2>
+<p>The firewall could not be read or decides per program. See <a href="firewall.html#sources">what each system reports</a>; on Linux, run portop with <code>sudo</code>.</p>
+
+<h2 id="no-container">No container names</h2>
+<p>portop cannot reach the Docker or Podman socket. Check <code>DOCKER_HOST</code>, membership of the <code>docker</code> group, or run with <code>sudo</code>. On Kubernetes nodes, <code>/var/log/containers</code> must be readable.</p>
+
+<h2 id="colors">Washed-out colors</h2>
+<p>The terminal reports 16 colors. Set <code>TERM=xterm-256color</code> or <code>COLORTERM=truecolor</code>.</p>
+
+<h2 id="kill-refused">A kill is refused</h2>
+<p>The process exited or was replaced since the row was shown; portop refuses to signal a different process. Refresh with <kbd>r</kbd> and try again.</p>
+
+<h2 id="report">Reporting a problem</h2>
+<p>Open an <a href="https://github.com/padovanl/portop/issues">issue</a> with <code>portop --version</code>, the operating system and, if useful, <code>portop --json</code> output.</p>
+      <nav class="pager" aria-label="Pages"><a class="prev" href="how-it-works.html"><span>Previous</span>How it works</a></nav>
+    </main>
+    <nav class="page-toc" aria-label="On this page">
+      <p>On this page</p>
+      <ul>
+        <li><a href="#no-process">Rows without a process</a></li>
+        <li><a href="#firewall-unknown">The firewall column shows ?</a></li>
+        <li><a href="#no-container">No container names</a></li>
+        <li><a href="#colors">Washed-out colors</a></li>
+        <li><a href="#kill-refused">A kill is refused</a></li>
+        <li><a href="#report">Reporting a problem</a></li>
+      </ul>
+    </nav>
+  </div>
+</div>
+<footer class="footer">portop · MIT License · <a href="https://github.com/padovanl/portop/edit/develop/docs-src/troubleshooting.html">Edit this page</a></footer>
+</body>
+</html>

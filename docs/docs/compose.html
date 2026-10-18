@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compose audit · portop docs</title>
+<meta name="description" content="Check a Docker Compose project&#x27;s published ports against what actually listens on the host.">
+<link rel="icon" href="../assets/logo.png">
+<link rel="stylesheet" href="docs.css">
+<script>try { var t = localStorage.getItem("portop-docs-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<script defer src="docs.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <button class="nav-toggle" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Menu">
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  </button>
+  <a class="brand" href="index.html"><img src="../assets/logo.png" alt="" width="24" height="24">portop <span>docs</span></a>
+  <div class="search">
+    <input id="search" type="search" placeholder="Search the docs" autocomplete="off" aria-label="Search the docs">
+    <ul id="search-results" class="search-results" hidden></ul>
+  </div>
+  <nav class="topnav" aria-label="Site">
+    <a href="../">Home</a>
+    <a href="https://github.com/padovanl/portop">GitHub</a>
+  </nav>
+  <button class="theme-toggle" type="button" aria-label="Toggle dark mode">
+    <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3a7 7 0 1 0 7 7 5.5 5.5 0 0 1-7-7z" fill="currentColor"/></svg>
+  </button>
+</header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar" aria-label="Documentation">
+      <p class="nav-group">Getting started</p>
+      <ul>
+        <li><a href="index.html">Introduction</a></li>
+        <li><a href="installation.html">Installation</a></li>
+        <li><a href="first-run.html">First run and permissions</a></li>
+      </ul>
+      <p class="nav-group">Using portop</p>
+      <ul>
+        <li><a href="the-table.html">The table</a></li>
+        <li><a href="command-line.html">Command line</a></li>
+        <li><a href="scripting.html">Scripting</a></li>
+        <li><a href="configuration.html">Configuration</a></li>
+      </ul>
+      <p class="nav-group">Checks</p>
+      <ul>
+        <li><a href="baseline.html">Baseline drift</a></li>
+        <li><a href="compose.html" class="active" aria-current="page">Compose audit</a></li>
+        <li><a href="notifications.html">New-port alerts</a></li>
+      </ul>
+      <p class="nav-group">Context</p>
+      <ul>
+        <li><a href="containers.html">Containers and workers</a></li>
+        <li><a href="firewall.html">Firewall</a></li>
+        <li><a href="traffic.html">Traffic</a></li>
+      </ul>
+      <p class="nav-group">Dashboards</p>
+      <ul>
+        <li><a href="web-dashboard.html">Web dashboard</a></li>
+        <li><a href="cockpit.html">Cockpit add-on</a></li>
+      </ul>
+      <p class="nav-group">Reference</p>
+      <ul>
+        <li><a href="platforms.html">Platform support</a></li>
+        <li><a href="how-it-works.html">How it works</a></li>
+        <li><a href="troubleshooting.html">Troubleshooting</a></li>
+      </ul>
+  </aside>
+  <div class="content">
+    <main>
+<h1>Compose audit</h1>
+<p class="lede">Check a Docker Compose project's published ports against what actually listens on the host.</p>
+
+<h2 id="usage">Usage</h2>
+<pre>portop --compose ~/stacks/shop
+portop --compose ~/stacks/shop --json</pre>
+
+<h2 id="files">Files and variables</h2>
+<p>portop reads the files Docker Compose would load: the first of <code>compose.yaml</code>, <code>compose.yml</code>, <code>docker-compose.yml</code> and <code>docker-compose.yaml</code>, plus the first override found. <code>${VARIABLE}</code>, <code>${VARIABLE:-default}</code> and the other Compose forms are substituted from the <code>.env</code> file next to them and the environment, which wins.</p>
+
+<h2 id="statuses">Statuses</h2>
+<table>
+  <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>expected</code></td><td>The port is held by the matching service or container</td></tr>
+    <tr><td><code>conflict</code></td><td>Something else listens on it</td></tr>
+    <tr><td><code>unused</code></td><td>Nothing listens on it</td></tr>
+    <tr><td><code>dynamic</code></td><td>Compose picks the host port at runtime</td></tr>
+  </tbody>
+</table>
+<p>The command exits 3 when a port is unused or in conflict. With access to Docker, portop reads Docker's published-port table and Compose labels, so a <code>docker-proxy</code> listener is tied back to its service.</p>
+      <nav class="pager" aria-label="Pages"><a class="prev" href="baseline.html"><span>Previous</span>Baseline drift</a><a class="next" href="notifications.html"><span>Next</span>New-port alerts</a></nav>
+    </main>
+    <nav class="page-toc" aria-label="On this page">
+      <p>On this page</p>
+      <ul>
+        <li><a href="#usage">Usage</a></li>
+        <li><a href="#files">Files and variables</a></li>
+        <li><a href="#statuses">Statuses</a></li>
+      </ul>
+    </nav>
+  </div>
+</div>
+<footer class="footer">portop · MIT License · <a href="https://github.com/padovanl/portop/edit/develop/docs-src/compose.html">Edit this page</a></footer>
+</body>
+</html>
