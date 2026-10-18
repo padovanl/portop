@@ -66,3 +66,12 @@ func TestDetailFieldsLayout(t *testing.T) {
 		}
 	}
 }
+
+// A modal covers only its own columns; the table stays visible around it.
+func TestOverlayKeepsTheTableAroundTheModal(t *testing.T) {
+	base := strings.Join([]string{"aaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbb", "cccccccccccccccccccc"}, "\n")
+	got := strings.Split(overlay(base, "XXXX", 20, 3), "\n")
+	if ansi.Strip(got[1]) != "bbbbbbbbXXXXbbbbbbbb" || ansi.Strip(got[0]) != "aaaaaaaaaaaaaaaaaaaa" {
+		t.Fatalf("overlay = %q", got)
+	}
+}

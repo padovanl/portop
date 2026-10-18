@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/padovanl/portop/internal/terminaltext"
 )
@@ -212,7 +213,7 @@ func (m Model) renderHelp() string {
 		{keys.Quit, "quit"},
 	}
 	for _, r := range rows {
-		label := strings.Join(r.binding.Keys(), "/")
+		label := strings.Join(r.binding.Keys(), ", ") // "f, /" rather than "f//"
 		fmt.Fprintf(&b, "%s  %s\n", styleKey.Render(padTrunc(label, 10)), r.desc)
 	}
 	b.WriteString("\n" + styleMuted.Render("Listening port color: ") + styleDanger.Render("every interface") +
@@ -343,18 +344,26 @@ func overlay(base, modal string, width, height int) string {
 		top = 0
 	}
 
-	left := (max(20, width) - lipgloss.Width(modal)) / 2
+	modalWidth := lipgloss.Width(modal)
+	left := (max(20, width) - modalWidth) / 2
 	if left < 0 {
 		left = 0
 	}
-	pad := strings.Repeat(" ", left)
 
+	// The modal replaces only its own columns: what lies left and right of
+	// it on each line stays visible, as it would under a window.
 	for i, line := range modalLines {
 		row := top + i
 		if row < 0 || row >= len(baseLines) {
 			continue
 		}
-		baseLines[row] = pad + line
+		under := baseLines[row]
+		leftPart := ansi.Truncate(under, left, "")
+		if w := ansi.StringWidth(leftPart); w < left {
+			leftPart += strings.Repeat(" ", left-w)
+		}
+		rightPart := ansi.TruncateLeft(under, left+modalWidth, "")
+		baseLines[row] = leftPart + "\x1b[0m" + line + "\x1b[0m" + rightPart
 	}
 	return strings.Join(baseLines, "\n")
 }
