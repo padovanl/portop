@@ -15,6 +15,7 @@ import (
 	"github.com/padovanl/portop/internal/dnscache"
 	"github.com/padovanl/portop/internal/docker"
 	"github.com/padovanl/portop/internal/firewall"
+	"github.com/padovanl/portop/internal/project"
 	"github.com/padovanl/portop/internal/scanner"
 	"github.com/padovanl/portop/internal/systemdinfo"
 	"github.com/padovanl/portop/internal/traffic"
@@ -45,7 +46,12 @@ type Row struct {
 	CPUPercent       float64
 	SystemdUnit      string
 	ContainerName    string
-	FirstSeen        bool // true if this socket was absent from the previous scan
+	// The project the owning process was started from, when one is found
+	// (ResolveProjects), and the row's category (dev, database, web,
+	// container, system, app). Category is empty when projects are off.
+	Project   project.Info
+	Category  string
+	FirstSeen bool // true if this socket was absent from the previous scan
 }
 
 // Exposure says who can reach a socket's local address.
@@ -136,6 +142,8 @@ type Collector struct {
 
 	traffic   map[traffic.Key]traffic.Counter // counters of the previous scan
 	trafficAt time.Time
+
+	projects *project.Resolver
 }
 
 // NewCollector wires up a Collector with real system backends.
@@ -146,6 +154,8 @@ func NewCollector() *Collector {
 		docker: docker.NewClient(),
 		seen:   make(map[Key]bool),
 		users:  make(map[uint32]string),
+
+		projects: project.NewResolver(),
 	}
 }
 
@@ -241,6 +251,7 @@ type Options struct {
 	ResolveDNS      bool
 	ResolveFirewall bool
 	ResolveTraffic  bool
+	ResolveProjects bool
 }
 
 // Collect scans current sockets, resolves owning processes, and enriches
@@ -314,6 +325,10 @@ func (c *Collector) Collect(ctx context.Context, opts Options) ([]Row, error) {
 		labelPublishedPorts(rows, c.docker.PublishedPorts(ctx))
 	}
 
+	if opts.ResolveProjects {
+		c.applyProjects(rows)
+	}
+
 	c.seen = currentKeys
 	c.init = true
 	c.cpu.Retain(cpuByPID)
@@ -326,6 +341,24 @@ func (c *Collector) Collect(ctx context.Context, opts Options) ([]Row, error) {
 	})
 
 	return rows, nil
+}
+
+// applyProjects fills Project and Category. Only listening sockets'
+// owners are looked up: the processes a client connects from are rarely
+// servers, and a project is about what a port serves.
+func (c *Collector) applyProjects(rows []Row) {
+	var pids []int
+	for _, r := range rows {
+		if r.PID != 0 && r.Listening() {
+			pids = append(pids, r.PID)
+		}
+	}
+	projects := c.projects.Resolve(pids)
+	for i := range rows {
+		r := &rows[i]
+		r.Project = projects[r.PID]
+		r.Category = project.Category(r.Project, r.ProcessName, r.Username, r.ContainerName, r.SystemdUnit)
+	}
 }
 
 // portBasedContainers is true where container processes are not visible

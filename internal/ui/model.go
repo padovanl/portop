@@ -105,6 +105,7 @@ type Config struct {
 	ResolveDocker   bool
 	ResolveFirewall bool
 	ResolveTraffic  bool
+	ResolveProjects bool
 	NotifyOnNewPort bool
 
 	// ConfigPath is where the settings screen (",") persists live theme
@@ -267,6 +268,7 @@ func (m Model) collectCmd() tea.Cmd {
 		ResolveDNS:      m.cfg.ResolveDNS,
 		ResolveFirewall: m.cfg.ResolveFirewall,
 		ResolveTraffic:  m.cfg.ResolveTraffic,
+		ResolveProjects: m.cfg.ResolveProjects,
 	}
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
