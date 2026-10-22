@@ -43,6 +43,23 @@ make release # local snapshot release build (deb + rpm + Linux/macOS tar.gz, not
 binary on Linux and macOS. CI runs native macOS unit and end-to-end tests
 on Apple Silicon and Intel runners.
 
+### Desktop app
+
+`desktop/` is a separate Go module (Wails v3) that reuses portop's internal
+packages. Its window is plain HTML, CSS and JavaScript in `desktop/frontend/`,
+with no build step. To work on it without the native toolkit:
+
+```sh
+cd desktop
+go run ./cmd/devserver          # http://127.0.0.1:34115, frontend read from disk
+go test ./backend
+```
+
+The native app needs GTK4 and WebKitGTK 6 headers on Linux
+(`libgtk-4-dev libwebkitgtk-6.0-dev`, Ubuntu 24.04+), Xcode command line tools
+on macOS, nothing extra on Windows. `desktop/build/package.sh VERSION` builds
+and packages it for the current OS, as the Desktop workflow does on release.
+
 ## Documentation
 
 The pages under `docs/docs/` are generated: edit `docs-src/<page>.html`, then

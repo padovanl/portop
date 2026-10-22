@@ -23,11 +23,11 @@
 </div>
 
 portop is an htop-style terminal UI for the TCP and UDP sockets on a machine.
-For every port it shows the process, its systemd unit or Windows service, its
-Docker, Podman or Kubernetes container, who can reach it and what the firewall
-does with it, and it lets you inspect or stop the owner from the keyboard. It
-runs on Linux, macOS and Windows, in the terminal, in a browser or inside
-Cockpit.
+For every port it shows the process, the project and framework it serves, its
+systemd unit or Windows service, its Docker, Podman or Kubernetes container,
+who can reach it and what the firewall does with it, and it lets you inspect or
+stop the owner from the keyboard. It runs on Linux, macOS and Windows, in the
+terminal, as a desktop app, in a browser or inside Cockpit.
 
 ![portop: the port table colored by exposure, filtering to nginx, its details with workers, the kill confirmation, sorting by exposure and the help screen](docs/assets/demo.gif)
 
@@ -40,6 +40,8 @@ Cockpit.
   container behind each socket, read from cgroups with no daemon of its own.
 - One row for a server's master and its workers: `nginx +3`.
 - Bytes per second for every established TCP connection (Linux, macOS).
+- The project and framework behind each server, from its `package.json`,
+  `go.mod`, `pyproject.toml` and others: `storefront Next.js` instead of `node`.
 
 **Know who can reach them**
 - Listening ports colored by exposure: every interface, one address or
@@ -63,9 +65,30 @@ Cockpit.
   what actually listens.
 
 **Use it anywhere**
+- A desktop app with dev servers, a service map, an activity log and a tray
+  menu.
 - `--json` for scripts, a web dashboard with sign-in, TLS and Prometheus
   `/metrics`, and a Cockpit add-on.
 - 13 themes and remappable keys from a live settings screen.
+
+## 🖥️ Desktop app
+
+portop desktop shows the same scan in a window: the dev servers you are running
+with their project, framework and traffic, every socket, a service map of who
+talks to whom, ports opening and closing, and notifications for the ports you
+watch. Stop and restart ask for confirmation, and another user's process goes
+through your system's administrator prompt.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/desktop-overview-dark.png">
+  <img src="docs/assets/desktop-overview-light.png" alt="portop desktop: dev server cards with project, framework, ports and traffic, counters and services">
+</picture>
+
+It is a separate download for Linux (x86-64, Ubuntu 24.04+, Debian 13+,
+Fedora 40+), macOS 12+ and Windows 10/11 on the
+[releases page](https://github.com/padovanl/portop/releases/latest), and
+`sudo apt install portop-desktop` from the APT repository. See
+[Desktop app](https://padovanl.github.io/portop/docs/desktop.html).
 
 ## 📥 Install
 
@@ -77,6 +100,7 @@ Cockpit.
 | Windows | `winget install padovanl.portop`, or the [Microsoft Store](https://apps.microsoft.com/detail/9MZ319F4LW70) |
 | Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh \| sh` |
 | From source | `go install github.com/padovanl/portop/cmd/portop@latest` |
+| Desktop app | [Release downloads](https://github.com/padovanl/portop/releases/latest), or `sudo apt install portop-desktop` |
 
 The APT repository serves amd64, arm64 and armhf:
 
@@ -131,7 +155,9 @@ every flag, the JSON fields, exit codes and what each platform supports.
 | Stop the owner, safely           | ❌ | ❌ | ❌ | ✅ |
 | `--wait` / `--free` for scripts  | ❌ | ❌ | ❌ | ✅ |
 | Baseline drift, Compose audit    | ❌ | ❌ | ❌ | ✅ |
-| Web dashboard, Prometheus        | ❌ | ❌ | ❌ | ✅ |
+| Project and framework            | ❌ | ❌ | ❌ | ✅ |
+| Desktop app, web dashboard       | ❌ | ❌ | ❌ | ✅ |
+| Prometheus metrics               | ❌ | ❌ | ❌ | ✅ |
 | Linux, macOS and Windows         | ✅ | ❌ | ✅ | ✅ |
 
 ## 📚 Documentation
@@ -140,8 +166,8 @@ every flag, the JSON fields, exit codes and what each platform supports.
 - [The table](https://padovanl.github.io/portop/docs/the-table.html): columns, colors, keys
 - [Command line](https://padovanl.github.io/portop/docs/command-line.html) and [scripting](https://padovanl.github.io/portop/docs/scripting.html)
 - [Baseline drift](https://padovanl.github.io/portop/docs/baseline.html) and [Compose audit](https://padovanl.github.io/portop/docs/compose.html)
-- [Containers](https://padovanl.github.io/portop/docs/containers.html), [firewall](https://padovanl.github.io/portop/docs/firewall.html) and [traffic](https://padovanl.github.io/portop/docs/traffic.html)
-- [Web dashboard and metrics](https://padovanl.github.io/portop/docs/web-dashboard.html), [Cockpit add-on](https://padovanl.github.io/portop/docs/cockpit.html)
+- [Projects and frameworks](https://padovanl.github.io/portop/docs/projects.html), [containers](https://padovanl.github.io/portop/docs/containers.html), [firewall](https://padovanl.github.io/portop/docs/firewall.html) and [traffic](https://padovanl.github.io/portop/docs/traffic.html)
+- [Desktop app](https://padovanl.github.io/portop/docs/desktop.html), [web dashboard and metrics](https://padovanl.github.io/portop/docs/web-dashboard.html), [Cockpit add-on](https://padovanl.github.io/portop/docs/cockpit.html)
 - [Configuration](https://padovanl.github.io/portop/docs/configuration.html) and [platform support](https://padovanl.github.io/portop/docs/platforms.html)
 
 The documentation is generated from [`docs-src/`](docs-src) with
