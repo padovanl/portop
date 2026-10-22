@@ -31,6 +31,9 @@
     let selected = null;
     let pendingForce = false;
     let refreshing = false;
+    // Each refresh runs a new portop, which reports byte totals but no
+    // rates; the rates come from the previous refresh's totals.
+    let lastTraffic = new Map();
 
     // Bidirectional controls reorder the text around them, so a process
     // named "\u202Edhss" would read as "sshd"; show them as \uFFFD instead.
@@ -233,11 +236,29 @@
         }
     }
 
+    function addRates(current) {
+        const now = performance.now();
+        const traffic = new Map();
+        for (const row of current) {
+            if (row.rx_bytes === undefined) continue;
+            const key = [row.protocol, row.local_address, row.local_port, row.remote_address, row.remote_port].join(" ");
+            traffic.set(key, { rx: row.rx_bytes, tx: row.tx_bytes, at: now });
+            const before = lastTraffic.get(key);
+            const seconds = before ? (now - before.at) / 1000 : 0;
+            if (row.rx_bytes_per_second === undefined && seconds > 0 && row.rx_bytes >= before.rx && row.tx_bytes >= before.tx) {
+                row.rx_bytes_per_second = (row.rx_bytes - before.rx) / seconds;
+                row.tx_bytes_per_second = (row.tx_bytes - before.tx) / seconds;
+            }
+        }
+        lastTraffic = traffic;
+    }
+
     async function refresh() {
         if (refreshing || document.hidden) return;
         refreshing = true;
         try {
             rows = JSON.parse(await cockpit.spawn(["portop", "--json", "--no-dns"], { err: "message", superuser: "try" }));
+            addRates(rows);
             const listening = rows.filter(isListening).length;
             byId("total-count").textContent = rows.length;
             byId("listen-count").textContent = listening;
