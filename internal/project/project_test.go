@@ -224,3 +224,17 @@ func TestLinuxFactsDropADeletedWorkingDirectory(t *testing.T) {
 		t.Errorf("facts = %+v", got)
 	}
 }
+
+func TestAppDataInstallsAreNotProjects(t *testing.T) {
+	cases := map[string]bool{
+		"C:/Users/u/AppData/Local/Programs/Microsoft VS Code/resources/app": true,
+		"C:/Users/u/AppData/Roaming/npm/node_modules/serve":                 true,
+		"C:/Users/u/AppData/Local/Temp/shop":                                false,
+		"C:/Users/u/source/repos/shop":                                      false,
+	}
+	for dir, dropped := range cases {
+		if got := trimDependencyDir(filepath.FromSlash(dir)) == ""; got != dropped {
+			t.Errorf("trimDependencyDir(%q) dropped = %v, want %v", dir, got, dropped)
+		}
+	}
+}

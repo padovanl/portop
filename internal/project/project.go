@@ -93,11 +93,11 @@ func startDirs(f Facts) []string {
 // AppData, an .app bundle), whose package.json is not the user's project.
 func trimDependencyDir(dir string) string {
 	parts := strings.Split(filepath.ToSlash(dir), "/")
-	for _, p := range parts {
+	for i, p := range parts {
 		switch {
 		case len(p) > 1 && p[0] == '.' && p != ".." && !isDependencyDir(p),
-			strings.EqualFold(p, "AppData"), p == "Library", p == "Applications",
-			strings.HasSuffix(p, ".app"):
+			p == "Library", p == "Applications", strings.HasSuffix(p, ".app"),
+			strings.EqualFold(p, "AppData") && installedUnderAppData(parts[i+1:]):
 			return ""
 		}
 	}
@@ -110,6 +110,20 @@ func trimDependencyDir(dir string) string {
 		}
 	}
 	return dir
+}
+
+// installedUnderAppData is true for the parts of AppData where Windows
+// programs install themselves (Roaming, Local\Programs, Local\Microsoft),
+// not for AppData\Local\Temp and the like.
+func installedUnderAppData(rest []string) bool {
+	if len(rest) == 0 {
+		return false
+	}
+	if strings.EqualFold(rest[0], "Roaming") {
+		return true
+	}
+	return len(rest) > 1 && strings.EqualFold(rest[0], "Local") &&
+		(strings.EqualFold(rest[1], "Programs") || strings.EqualFold(rest[1], "Microsoft"))
 }
 
 func isDependencyDir(name string) bool {
