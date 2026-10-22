@@ -91,6 +91,16 @@ a { color: var(--primary); text-decoration: none; }
 a:hover { text-decoration: underline; }
 img { max-width: 100%; height: auto; }
 [hidden] { display: none !important; }
+
+/* Screenshots taken in both themes: <figure class="themed"> holds an
+   .themed-light and a .themed-dark image; only the current theme's shows. */
+.themed-dark { display: none; }
+:root[data-theme="dark"] .themed-light { display: none; }
+:root[data-theme="dark"] .themed-dark { display: inline; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .themed-light { display: none; }
+  :root:not([data-theme="light"]) .themed-dark { display: inline; }
+}
 svg { flex: none; }
 kbd {
   font: 0.8rem var(--mono);

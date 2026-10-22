@@ -1,7 +1,7 @@
 <h1>Desktop app</h1>
 <p class="lede">portop desktop shows the same information as the terminal UI in a window, with dev servers, a connection map, an activity log and a tray menu. It is a separate download; the <code>portop</code> command does not change.</p>
 
-<figure><img src="../assets/desktop-overview.png" alt="The portop desktop overview: listening, dev server, exposed and traffic counters, dev server cards and services" loading="lazy"><figcaption>The overview: dev servers with their project, framework and traffic, and the other services.</figcaption></figure>
+<figure class="themed"><img class="themed-light" src="../assets/desktop-overview-light.png" alt="The portop desktop overview: listening, dev server, exposed and traffic counters, dev server cards and services" loading="lazy"><img class="themed-dark" src="../assets/desktop-overview-dark.png" alt="The portop desktop overview: listening, dev server, exposed and traffic counters, dev server cards and services" loading="lazy"><figcaption>The overview: dev servers with their project, framework and traffic, and the other services.</figcaption></figure>
 
 <h2 id="install">Install</h2>
 <table>
@@ -29,13 +29,15 @@
 <dl>
   <dt>Overview</dt><dd>Counters for listening ports, dev servers, exposed ports and live traffic; a card for each dev server with its project, framework, ports and traffic; the other services (databases, web servers, containers, system services). Type a port in <em>Free a port</em> to see its owner and stop it.</dd>
   <dt>Ports</dt><dd>Every socket, filtered by state, category or any text (port, process, project, address). Pin ports to keep them on top, or watch them to be notified when they open or close.</dd>
-  <dt>Connections</dt><dd>A graph of the processes, their listening ports and the hosts they are connected to. Local clients link straight to the server they use; dots flow along connections that carry traffic. Drag to move, scroll to zoom, double-click to fit.</dd>
+  <dt>Connections</dt><dd>A service map: every process is a card, and an arrow goes from a client to the server it uses, with the traffic between them. Cards fall into columns by role (entry points, applications, their dependencies, remote hosts); processes that talk to no other process are listed underneath. Hover a card to follow its links, search to highlight, and pause to study a moment.</dd>
   <dt>Activity</dt><dd>Listening ports that opened or closed since the app started, and the list of watched ports.</dd>
   <dt>Settings</dt><dd>Theme, refresh interval, notifications for every new port, keeping the app in the tray, and reduced motion.</dd>
 </dl>
 <p><kbd>Ctrl</kbd>+<kbd>K</kbd> (<kbd>⌘</kbd>+<kbd>K</kbd> on macOS) finds a port from anywhere; <kbd>/</kbd> jumps to the port filter; <kbd>1</kbd> to <kbd>5</kbd> switch views.</p>
 
-<figure><img src="../assets/desktop-connections.png" alt="The connections view: processes, their ports and remote hosts as a graph" loading="lazy"><figcaption>Connections: a local client talking to two dev servers.</figcaption></figure>
+<figure class="themed"><img class="themed-light" src="../assets/desktop-ports-light.png" alt="The ports view: every socket with its process, project, exposure and category" loading="lazy"><img class="themed-dark" src="../assets/desktop-ports-dark.png" alt="The ports view: every socket with its process, project, exposure and category" loading="lazy"><figcaption>Ports: every socket with its process, project and exposure.</figcaption></figure>
+
+<figure class="themed"><img class="themed-light" src="../assets/desktop-connections-light.png" alt="The connections view: processes, their ports and the links between them as a graph" loading="lazy"><img class="themed-dark" src="../assets/desktop-connections-dark.png" alt="The connections view: processes, their ports and the links between them as a graph" loading="lazy"><figcaption>Connections: nginx in front of a Next.js app, which calls an API backed by PostgreSQL and Redis; arrows point from client to server.</figcaption></figure>
 
 <h2 id="actions">Stopping and restarting</h2>
 <p>Stop sends SIGTERM and Force kill sends SIGKILL; Windows has no SIGTERM, so there both end the process at once. Both need the button held for a moment, and both check that the process still has the start time the app read, so a PID reused by another program is never signalled.</p>

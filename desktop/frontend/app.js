@@ -105,7 +105,6 @@ $("map-pause").addEventListener("click", () => {
   $("map-pause").replaceChildren(icon(paused ? "play" : "pause"), h("span", {}, paused ? "Resume" : "Pause"));
   $("map-paused").hidden = !paused;
 });
-$("map-reset").addEventListener("click", () => map.reset());
 $("map-zoom-in").addEventListener("click", () => map.zoom(1.25));
 $("map-zoom-out").addEventListener("click", () => map.zoom(0.8));
 $("map-fit").addEventListener("click", () => map.fitNow());

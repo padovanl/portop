@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>portop</title>
 <link rel="icon" href="logo.png">
 <link rel="stylesheet" href="app.css">
@@ -101,10 +101,9 @@
       <div class="toolbar map-toolbar">
         <label class="search small"><svg><use href="#i-search"/></svg><input id="map-search" placeholder="Highlight a process, port or host" aria-label="Highlight on the map"></label>
         <button class="btn btn-sm" id="map-pause" aria-pressed="false"><svg><use href="#i-pause"/></svg><span>Pause</span></button>
-        <button class="btn btn-sm btn-ghost" id="map-reset"><svg><use href="#i-restart"/></svg>Reset layout</button>
       </div>
       <div class="map-wrap">
-        <canvas id="map"></canvas>
+        <div id="map" class="map-canvas" aria-label="Service map"></div>
         <div class="map-tip" id="map-tip" hidden></div>
         <div class="map-zoom" role="group" aria-label="Zoom">
           <button class="icon-btn" id="map-zoom-in" title="Zoom in">+</button>
@@ -117,10 +116,8 @@
         <span class="cat-dev"><i></i>Dev server</span><span class="cat-database"><i></i>Database</span><span class="cat-web"><i></i>Web server</span>
         <span class="cat-container"><i></i>Container</span><span class="cat-system"><i></i>System</span><span class="cat-app"><i></i>App</span>
         <span class="sep"></span>
-        <span><i class="port all"></i>Port on all interfaces</span><span><i class="port loopback"></i>Loopback port</span><span><i class="remote"></i>Remote host</span>
-        <span class="sep"></span>
-        <span><i class="line local"></i>Local link</span><span><i class="line remote"></i>Remote link</span>
-        <span class="hint">Drag to move · scroll to zoom · click a process for details</span>
+        <span><i class="line local"></i>Client → server on this machine</span><span><i class="line remote"></i>Remote connection</span>
+        <span class="hint">Hover a card to follow its links · click for details · double-click to fit</span>
       </div>
     </section>
 
