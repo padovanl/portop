@@ -190,7 +190,7 @@
         dialog.showModal();
         if (!row.pid) return;
         try {
-            const info = JSON.parse(await cockpit.spawn(["portop", "--inspect-pid", String(row.pid)], { err: "message" }));
+            const info = JSON.parse(await cockpit.spawn(["portop", "--inspect-pid", String(row.pid)], { err: "message", superuser: "try" }));
             if (!selected || selected.row !== row || !dialog.open) return;
             selected.info = info;
             byId("process-status").textContent = "";
@@ -218,7 +218,7 @@
         try {
             const command = ["portop", "--signal-pid", String(row.pid), "--expected-start", info.start_time];
             if (pendingForce) command.push("--force");
-            await cockpit.spawn(command, { err: "message" });
+            await cockpit.spawn(command, { err: "message", superuser: "try" });
             byId("confirm-action").hidden = true;
             byId("terminate").disabled = true;
             byId("force-kill").disabled = true;
@@ -237,7 +237,7 @@
         if (refreshing || document.hidden) return;
         refreshing = true;
         try {
-            rows = JSON.parse(await cockpit.spawn(["portop", "--json", "--no-dns"], { err: "message" }));
+            rows = JSON.parse(await cockpit.spawn(["portop", "--json", "--no-dns"], { err: "message", superuser: "try" }));
             const listening = rows.filter(isListening).length;
             byId("total-count").textContent = rows.length;
             byId("listen-count").textContent = listening;
