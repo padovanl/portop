@@ -1,0 +1,40 @@
+<h1>Projects and frameworks</h1>
+<p class="lede">For every listening process, portop looks for the project it was started from and the framework serving it, so a port reads <em>storefront · Next.js</em> instead of <em>node</em>. Each row also gets a category.</p>
+
+<h2 id="how">How the project is found</h2>
+<p>portop starts from the process's working directory, or from a script on its command line when the process runs from <code>/</code> (a service started as <code>node /srv/app/server.js</code>), and walks up to the nearest project manifest:</p>
+<table>
+  <thead><tr><th>Manifest</th><th>Language</th><th>Frameworks recognised</th></tr></thead>
+  <tbody>
+    <tr><td><code>package.json</code></td><td>Node.js</td><td>Next.js, Nuxt, Astro, Remix, React Router, SvelteKit, Angular, Gatsby, Docusaurus, VitePress, Expo, Electron, NestJS, Vite, Create React App, webpack, Parcel, Express, Fastify, Hono, Koa</td></tr>
+    <tr><td><code>pyproject.toml</code>, <code>requirements.txt</code>, <code>manage.py</code></td><td>Python</td><td>Django, FastAPI, Flask, Streamlit, Starlette, aiohttp</td></tr>
+    <tr><td><code>go.mod</code></td><td>Go</td><td>—</td></tr>
+    <tr><td><code>Cargo.toml</code></td><td>Rust</td><td>Axum, Actix Web, Rocket, Leptos, Tauri</td></tr>
+    <tr><td><code>Gemfile</code></td><td>Ruby</td><td>Rails, Sinatra</td></tr>
+    <tr><td><code>composer.json</code></td><td>PHP</td><td>Laravel, Symfony</td></tr>
+    <tr><td><code>pom.xml</code>, <code>build.gradle(.kts)</code></td><td>Java, Kotlin</td><td>Spring Boot, Ktor</td></tr>
+    <tr><td><code>*.csproj</code>, <code>mix.exs</code>, <code>pubspec.yaml</code>, <code>deno.json</code></td><td>.NET, Elixir, Dart, Deno</td><td>ASP.NET Core, Phoenix</td></tr>
+  </tbody>
+</table>
+<p>The command line refines the framework: <code>vite</code>, <code>next dev</code>, <code>manage.py runserver</code>, <code>uvicorn</code>, <code>rails server</code>, <code>hugo server</code>, <code>python -m http.server</code> and others are recognised even without a manifest. A Next.js project running Storybook shows Storybook on Storybook's port.</p>
+<p>The walk stops at your home directory and never enters system directories. Tools that live in hidden directories, <code>AppData</code>, <code>Library</code> or an app bundle (an editor's language server, say) are not projects, and paths inside <code>node_modules</code> or a virtualenv count as the project that contains them.</p>
+
+<h2 id="categories">Categories</h2>
+<table>
+  <thead><tr><th>Category</th><th>Given to</th></tr></thead>
+  <tbody>
+    <tr><td><code>dev</code></td><td>A process with a project or a recognised framework</td></tr>
+    <tr><td><code>database</code></td><td>PostgreSQL, MySQL, MariaDB, MongoDB, Redis, Valkey, Memcached, ClickHouse, CockroachDB, RabbitMQ, NATS, etcd, MinIO, Meilisearch, Qdrant and similar servers, recognised by process name (servers that run as <code>java</code> are not)</td></tr>
+    <tr><td><code>web</code></td><td>nginx, Apache, Caddy, Traefik, HAProxy, Envoy, Varnish and similar</td></tr>
+    <tr><td><code>container</code></td><td>A process in a container, or a container engine's port forwarder</td></tr>
+    <tr><td><code>system</code></td><td>System services: a service unit or Windows service, or a system account</td></tr>
+    <tr><td><code>app</code></td><td>Anything else, such as desktop applications</td></tr>
+  </tbody>
+</table>
+
+<h2 id="where">Where it appears</h2>
+<p>The <code>PROJECT</code> column of the <a href="the-table.html">table</a> (sortable), the process details, the web dashboard, the Cockpit page and the <a href="desktop.html">desktop app</a>; <code>project</code>, <code>project_root</code>, <code>language</code>, <code>framework</code> and <code>category</code> in <a href="command-line.html#json">JSON</a>. The filter matches project, framework and language, and a category name typed whole (<code>dev</code>) shows that category.</p>
+<p>Turn it off with <code>--no-projects</code> or <code>resolve_projects: false</code>.</p>
+
+<h2 id="platforms">Platform notes</h2>
+<p>On Linux portop reads <code>/proc</code>; on macOS one <code>ps</code> and one <code>lsof</code> call cover every new process; on Windows the working directory is read from the process itself, which Windows allows for your own processes. Detection runs once per process and is cached while it lives.</p>

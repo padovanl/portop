@@ -1,0 +1,57 @@
+<h1>Desktop app</h1>
+<p class="lede">portop desktop shows the same information as the terminal UI in a window, with dev servers, a connection map, an activity log and a tray menu. It is a separate download; the <code>portop</code> command does not change.</p>
+
+<figure><img src="../assets/desktop-overview.png" alt="The portop desktop overview: listening, dev server, exposed and traffic counters, dev server cards and services" loading="lazy"><figcaption>The overview: dev servers with their project, framework and traffic, and the other services.</figcaption></figure>
+
+<h2 id="install">Install</h2>
+<table>
+  <thead><tr><th>System</th><th>Package</th><th>Requires</th></tr></thead>
+  <tbody>
+    <tr><td>Ubuntu, Debian</td><td><code>sudo apt install portop-desktop</code> from the <a href="installation.html#apt">APT repository</a>, or the <code>portop-desktop_*_linux_amd64.deb</code> from the release</td><td>Ubuntu 24.04+, Debian 13+ (GTK4 and WebKitGTK 6, installed as dependencies)</td></tr>
+    <tr><td>Fedora, RHEL</td><td><code>portop-desktop_*_linux_amd64.rpm</code> from the release: <code>sudo dnf install ./portop-desktop_*.rpm</code></td><td>Fedora 40+ (GTK4 and WebKitGTK 6)</td></tr>
+    <tr><td>macOS</td><td><code>portop-desktop_*_macos_universal.zip</code>: unzip and move <em>portop.app</em> to Applications</td><td>macOS 12+, Intel or Apple Silicon</td></tr>
+    <tr><td>Windows</td><td><code>portop-desktop_*_windows_amd64.zip</code> or <code>_arm64.zip</code>: unzip and run <code>portop-desktop.exe</code></td><td>Windows 10 or 11 with the WebView2 runtime (included in both)</td></tr>
+  </tbody>
+</table>
+<p>Downloads are on the <a href="https://github.com/padovanl/portop/releases/latest">latest release</a>, with checksums in <code>portop-desktop_checksums.txt</code> and build provenance you can check with <code>gh attestation verify FILE --repo padovanl/portop</code>.</p>
+
+<div class="admonition warning">
+  <p class="admonition-title">macOS first launch</p>
+  <p>The app is not notarized, so macOS refuses to open it the first time. Right-click <em>portop.app</em>, choose <em>Open</em>, then <em>Open</em> again; or run <code>xattr -dr com.apple.quarantine /Applications/portop.app</code>.</p>
+</div>
+
+<div class="admonition info">
+  <p class="admonition-title">Older Linux releases</p>
+  <p>Ubuntu 22.04 and Debian 12 do not ship WebKitGTK 6, which the app needs. On them, <a href="web-dashboard.html"><code>portop --web</code></a> gives the same information in a browser, and the terminal UI works as before. Linux on ARM gets the terminal UI and the web dashboard; the desktop app is built for x86-64 only.</p>
+</div>
+
+<h2 id="views">Views</h2>
+<dl>
+  <dt>Overview</dt><dd>Counters for listening ports, dev servers, exposed ports and live traffic; a card for each dev server with its project, framework, ports and traffic; the other services (databases, web servers, containers, system services). Type a port in <em>Free a port</em> to see its owner and stop it.</dd>
+  <dt>Ports</dt><dd>Every socket, filtered by state, category or any text (port, process, project, address). Pin ports to keep them on top, or watch them to be notified when they open or close.</dd>
+  <dt>Connections</dt><dd>A graph of the processes, their listening ports and the hosts they are connected to. Local clients link straight to the server they use; dots flow along connections that carry traffic. Drag to move, scroll to zoom, double-click to fit.</dd>
+  <dt>Activity</dt><dd>Listening ports that opened or closed since the app started, and the list of watched ports.</dd>
+  <dt>Settings</dt><dd>Theme, refresh interval, notifications for every new port, keeping the app in the tray, and reduced motion.</dd>
+</dl>
+<p><kbd>Ctrl</kbd>+<kbd>K</kbd> (<kbd>⌘</kbd>+<kbd>K</kbd> on macOS) finds a port from anywhere; <kbd>/</kbd> jumps to the port filter; <kbd>1</kbd> to <kbd>5</kbd> switch views.</p>
+
+<figure><img src="../assets/desktop-connections.png" alt="The connections view: processes, their ports and remote hosts as a graph" loading="lazy"><figcaption>Connections: a local client talking to two dev servers.</figcaption></figure>
+
+<h2 id="actions">Stopping and restarting</h2>
+<p>Stop sends SIGTERM and Force kill sends SIGKILL; Windows has no SIGTERM, so there both end the process at once. Both need the button held for a moment, and both check that the process still has the start time the app read, so a PID reused by another program is never signalled.</p>
+<p>A process of another user (root, a service account) is stopped through your system's administrator prompt: <code>pkexec</code> on Linux, the password dialog on macOS, UAC on Windows. The prompt runs <code>portop-desktop --signal-pid</code>, which repeats the start-time check as administrator. The window itself never runs elevated.</p>
+<p><em>Restart</em> is offered for your own processes whose command and directory portop can read: it stops the process, waits for it to exit, and runs the same command from the same directory in a new terminal window, where its output and errors stay visible.</p>
+
+<h2 id="tray">Tray and notifications</h2>
+<p>The tray icon (the menu bar on macOS) lists the running dev servers, each with <em>Open in browser</em> and <em>Stop</em>, which asks for confirmation. Closing the window keeps portop in the tray unless <em>Keep running in the tray</em> is off. Notifications use the system's own (<code>notify-send</code>, Notification Center, Windows toasts).</p>
+
+<h2 id="privileges">What the app can see</h2>
+<p>The app runs as your user. Like <a href="first-run.html#permissions">portop without sudo</a>, it sees every port but not which process owns the sockets of other users on Linux; those show as <em>hidden</em>, and the overview groups them in one tile. Project detection reads your own processes' working directories only.</p>
+
+<h2 id="data">Settings and data</h2>
+<p>Preferences are saved in <code>desktop.json</code> next to <a href="configuration.html"><code>config.yml</code></a>, readable by your user only. The app makes no network connections of its own: the page is built into the executable, its Content-Security-Policy allows no outside resources, and <em>Open in browser</em> only opens addresses of this machine.</p>
+
+<div class="admonition note">
+  <p class="admonition-title">Built with Wails v3</p>
+  <p>The app uses <a href="https://wails.io">Wails</a> v3, which is in beta; portop pins one release and updates it deliberately. The scanning code is the same as the terminal UI's.</p>
+</div>

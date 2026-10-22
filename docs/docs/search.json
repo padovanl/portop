@@ -11,14 +11,14 @@
   "title": "Introduction",
   "section": "What it answers",
   "anchor": "what-it-answers",
-  "text": "What is using this port? The owning process, its systemd unit or Windows service, its Docker, Podman or Kubernetes container, and the user it runs as. Who can reach it? Whether the port is bound to every interface, one address or loopback only, and what the host firewall does with it. What changed? "
+  "text": "What is using this port? The owning process, the project and framework it serves, its systemd unit or Windows service, its Docker, Podman or Kubernetes container, and the user it runs as. Who can reach it? Whether the port is bound to every interface, one address or loopback only, and what the host "
  },
  {
   "page": "index",
   "title": "Introduction",
   "section": "Where it runs",
   "anchor": "where-it-runs",
-  "text": "The terminal UI , an htop-style table that refreshes every two seconds. The command line , for JSON snapshots, --wait , --free , baselines and Compose audits. A web dashboard with sign-in, TLS and Prometheus metrics, and a Cockpit add-on ."
+  "text": "The terminal UI , an htop-style table that refreshes every two seconds. The command line , for JSON snapshots, --wait , --free , baselines and Compose audits. The desktop app for Linux, macOS and Windows, with dev servers, a connection map, an activity log and a tray menu. A web dashboard with sign-"
  },
  {
   "page": "index",
@@ -308,6 +308,41 @@
   "text": "System Shown with Linux notify-send , when installed macOS Notification Center Windows A toast shown as portop with its icon; Microsoft Store installs show it as Windows PowerShell Without a notifier nothing happens; the table still marks the port. Enable it permanently with watch_new: true ."
  },
  {
+  "page": "projects",
+  "title": "Projects and frameworks",
+  "section": "",
+  "anchor": "",
+  "text": "For every listening process, portop looks for the project it was started from and the framework serving it, so a port reads storefront · Next.js instead of node . Each row also gets a category."
+ },
+ {
+  "page": "projects",
+  "title": "Projects and frameworks",
+  "section": "How the project is found",
+  "anchor": "how",
+  "text": "portop starts from the process's working directory, or from a script on its command line when the process runs from / (a service started as node /srv/app/server.js ), and walks up to the nearest project manifest: Manifest Language Frameworks recognised package.json Node.js Next.js, Nuxt, Astro, Remi"
+ },
+ {
+  "page": "projects",
+  "title": "Projects and frameworks",
+  "section": "Categories",
+  "anchor": "categories",
+  "text": "Category Given to dev A process with a project or a recognised framework database PostgreSQL, MySQL, MariaDB, MongoDB, Redis, Valkey, Memcached, ClickHouse, CockroachDB, RabbitMQ, NATS, etcd, MinIO, Meilisearch, Qdrant and similar servers, recognised by process name (servers that run as java are not"
+ },
+ {
+  "page": "projects",
+  "title": "Projects and frameworks",
+  "section": "Where it appears",
+  "anchor": "where",
+  "text": "The PROJECT column of the table (sortable), the process details, the web dashboard, the Cockpit page and the desktop app ; project , project_root , language , framework and category in JSON . The filter matches project, framework and language, and a category name typed whole ( dev ) shows that categ"
+ },
+ {
+  "page": "projects",
+  "title": "Projects and frameworks",
+  "section": "Platform notes",
+  "anchor": "platforms",
+  "text": "On Linux portop reads /proc ; on macOS one ps and one lsof call cover every new process; on Windows the working directory is read from the process itself, which Windows allows for your own processes. Detection runs once per process and is cached while it lives."
+ },
+ {
   "page": "containers",
   "title": "Containers and workers",
   "section": "",
@@ -385,6 +420,55 @@
   "text": "The TRAFFIC column in the established view (sortable, busiest first), the remote cell of the web dashboard and Cockpit, and rx_bytes / tx_bytes in JSON . Turn it off with --no-traffic or resolve_traffic: false ."
  },
  {
+  "page": "desktop",
+  "title": "Desktop app",
+  "section": "",
+  "anchor": "",
+  "text": "portop desktop shows the same information as the terminal UI in a window, with dev servers, a connection map, an activity log and a tray menu. It is a separate download; the portop command does not change. The overview: dev servers with their project, framework and traffic, and the other services."
+ },
+ {
+  "page": "desktop",
+  "title": "Desktop app",
+  "section": "Install",
+  "anchor": "install",
+  "text": "System Package Requires Ubuntu, Debian sudo apt install portop-desktop from the APT repository , or the portop-desktop_*_linux_amd64.deb from the release Ubuntu 24.04+, Debian 13+ (GTK4 and WebKitGTK 6, installed as dependencies) Fedora, RHEL portop-desktop_*_linux_amd64.rpm from the release: sudo d"
+ },
+ {
+  "page": "desktop",
+  "title": "Desktop app",
+  "section": "Views",
+  "anchor": "views",
+  "text": "Overview Counters for listening ports, dev servers, exposed ports and live traffic; a card for each dev server with its project, framework, ports and traffic; the other services (databases, web servers, containers, system services). Type a port in Free a port to see its owner and stop it. Ports Ever"
+ },
+ {
+  "page": "desktop",
+  "title": "Desktop app",
+  "section": "Stopping and restarting",
+  "anchor": "actions",
+  "text": "Stop sends SIGTERM and Force kill sends SIGKILL; Windows has no SIGTERM, so there both end the process at once. Both need the button held for a moment, and both check that the process still has the start time the app read, so a PID reused by another program is never signalled. A process of another u"
+ },
+ {
+  "page": "desktop",
+  "title": "Desktop app",
+  "section": "Tray and notifications",
+  "anchor": "tray",
+  "text": "The tray icon (the menu bar on macOS) lists the running dev servers, each with Open in browser and Stop , which asks for confirmation. Closing the window keeps portop in the tray unless Keep running in the tray is off. Notifications use the system's own ( notify-send , Notification Center, Windows t"
+ },
+ {
+  "page": "desktop",
+  "title": "Desktop app",
+  "section": "What the app can see",
+  "anchor": "privileges",
+  "text": "The app runs as your user. Like portop without sudo , it sees every port but not which process owns the sockets of other users on Linux; those show as hidden , and the overview groups them in one tile. Project detection reads your own processes' working directories only."
+ },
+ {
+  "page": "desktop",
+  "title": "Desktop app",
+  "section": "Settings and data",
+  "anchor": "data",
+  "text": "Preferences are saved in desktop.json next to config.yml , readable by your user only. The app makes no network connections of its own: the page is built into the executable, its Content-Security-Policy allows no outside resources, and Open in browser only opens addresses of this machine. Built with"
+ },
+ {
   "page": "web-dashboard",
   "title": "Web dashboard",
   "section": "",
@@ -459,7 +543,7 @@
   "title": "Platform support",
   "section": "Features",
   "anchor": "features",
-  "text": "Feature Linux macOS Windows Sockets and owner Yes; sudo for other users' processes Yes; sudo for other users' sockets Yes, every PID Process details Yes No thread count No working directory or open files Stop a process SIGTERM, SIGKILL SIGTERM, SIGKILL Both end the process Service column systemd uni"
+  "text": "Feature Linux macOS Windows Sockets and owner Yes; sudo for other users' processes Yes; sudo for other users' sockets Yes, every PID Process details Yes No thread count Working directory of your own processes; no open files Project and framework Yes Yes Your own processes Stop a process SIGTERM, SIG"
  },
  {
   "page": "platforms",

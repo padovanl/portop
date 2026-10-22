@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Projects and frameworks | portop docs</title>
+<meta name="description" content="For every listening process, portop looks for the project it was started from and the framework serving it, so a port reads storefront · Next.js instead of node . Each row also gets a category.">
+<link rel="icon" href="../assets/logo.png">
+<link rel="stylesheet" href="docs.css">
+<script>try { var t = localStorage.getItem("portop-docs-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<script defer src="docs.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to main content</a>
+<header class="navbar">
+  <button class="navbar-toggle" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Open the menu">
+    <svg viewBox="0 0 30 30" width="26" height="26" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"/></svg>
+  </button>
+  <a class="navbar-brand" href="index.html"><img src="../assets/logo.png" alt="" width="32" height="32"><b>portop</b></a>
+  <nav class="navbar-items" aria-label="Site">
+    <a class="navbar-link active" href="index.html">Docs</a>
+    <a class="navbar-link" href="../">Home</a>
+  </nav>
+  <div class="navbar-right">
+    <a class="navbar-link github" href="https://github.com/padovanl/portop">GitHub<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></svg></a>
+    <button class="theme-toggle" type="button" aria-label="Switch between dark and light mode">
+      <svg class="sun" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12 9c1.65 0 3 1.35 3 3s-1.35 3-3 3-3-1.35-3-3 1.35-3 3-3m0-2c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58a.996.996 0 0 0-1.41 0 .996.996 0 0 0 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37a.996.996 0 0 0-1.41 0 .996.996 0 0 0 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0a.996.996 0 0 0 0-1.41l-1.06-1.06zm1.06-10.96a.996.996 0 0 0 0-1.41.996.996 0 0 0-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36a.996.996 0 0 0 0-1.41.996.996 0 0 0-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M9.37 5.51A7.35 7.35 0 0 0 9.1 7.5c0 4.08 3.32 7.4 7.4 7.4.68 0 1.35-.09 1.99-.27A7.014 7.014 0 0 1 12 19c-3.86 0-7-3.14-7-7 0-2.93 1.81-5.45 4.37-6.49zM12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+    </button>
+    <button class="search-button" type="button" aria-label="Search the docs">
+      <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M14.386 14.386l4.088 4.088-4.088-4.088A7.533 7.533 0 1 1 3.733 3.733a7.533 7.533 0 0 1 10.653 10.653z" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Search</span><kbd class="search-key">Ctrl K</kbd>
+    </button>
+  </div>
+</header>
+<div class="main-wrapper">
+  <aside class="sidebar" id="sidebar" aria-label="Documentation">
+    <nav class="menu">
+      <ul class="menu-list">
+        <li class="menu-category">
+          <button class="menu-caret" type="button" aria-expanded="true">Getting started</button>
+          <ul class="menu-list">
+            <li><a href="index.html" class="menu-link">Introduction</a></li>
+            <li><a href="installation.html" class="menu-link">Installation</a></li>
+            <li><a href="first-run.html" class="menu-link">First run and permissions</a></li>
+          </ul>
+        </li>
+        <li class="menu-category">
+          <button class="menu-caret" type="button" aria-expanded="true">Using portop</button>
+          <ul class="menu-list">
+            <li><a href="the-table.html" class="menu-link">The table</a></li>
+            <li><a href="command-line.html" class="menu-link">Command line</a></li>
+            <li><a href="scripting.html" class="menu-link">Scripting</a></li>
+            <li><a href="configuration.html" class="menu-link">Configuration</a></li>
+          </ul>
+        </li>
+        <li class="menu-category">
+          <button class="menu-caret" type="button" aria-expanded="true">Checks</button>
+          <ul class="menu-list">
+            <li><a href="baseline.html" class="menu-link">Baseline drift</a></li>
+            <li><a href="compose.html" class="menu-link">Compose audit</a></li>
+            <li><a href="notifications.html" class="menu-link">New-port alerts</a></li>
+          </ul>
+        </li>
+        <li class="menu-category active">
+          <button class="menu-caret" type="button" aria-expanded="true">Context</button>
+          <ul class="menu-list">
+            <li><a href="projects.html" class="menu-link active" aria-current="page">Projects and frameworks</a></li>
+            <li><a href="containers.html" class="menu-link">Containers and workers</a></li>
+            <li><a href="firewall.html" class="menu-link">Firewall</a></li>
+            <li><a href="traffic.html" class="menu-link">Traffic</a></li>
+          </ul>
+        </li>
+        <li class="menu-category">
+          <button class="menu-caret" type="button" aria-expanded="true">Apps and dashboards</button>
+          <ul class="menu-list">
+            <li><a href="desktop.html" class="menu-link">Desktop app</a></li>
+            <li><a href="web-dashboard.html" class="menu-link">Web dashboard</a></li>
+            <li><a href="cockpit.html" class="menu-link">Cockpit add-on</a></li>
+          </ul>
+        </li>
+        <li class="menu-category">
+          <button class="menu-caret" type="button" aria-expanded="true">Reference</button>
+          <ul class="menu-list">
+            <li><a href="platforms.html" class="menu-link">Platform support</a></li>
+            <li><a href="how-it-works.html" class="menu-link">How it works</a></li>
+            <li><a href="troubleshooting.html" class="menu-link">Troubleshooting</a></li>
+          </ul>
+        </li>
+      </ul>
+    </nav>
+  </aside>
+  <main class="doc" id="content">
+    <div class="doc-row">
+      <div class="doc-col">
+        <nav class="breadcrumbs" aria-label="Breadcrumbs"><a class="crumb-home" href="index.html" aria-label="Documentation home"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"/></svg></a><span class="crumb">Context</span><span class="crumb current" aria-current="page">Projects and frameworks</span></nav>
+        <details class="toc-mobile"><summary>On this page</summary><ul><li><a href="#how">How the project is found</a></li><li><a href="#categories">Categories</a></li><li><a href="#where">Where it appears</a></li><li><a href="#platforms">Platform notes</a></li></ul></details>
+        <article class="markdown">
+<h1>Projects and frameworks</h1>
+<p class="lede">For every listening process, portop looks for the project it was started from and the framework serving it, so a port reads <em>storefront · Next.js</em> instead of <em>node</em>. Each row also gets a category.</p>
+
+<h2 id="how">How the project is found</h2>
+<p>portop starts from the process's working directory, or from a script on its command line when the process runs from <code>/</code> (a service started as <code>node /srv/app/server.js</code>), and walks up to the nearest project manifest:</p>
+<table>
+  <thead><tr><th>Manifest</th><th>Language</th><th>Frameworks recognised</th></tr></thead>
+  <tbody>
+    <tr><td><code>package.json</code></td><td>Node.js</td><td>Next.js, Nuxt, Astro, Remix, React Router, SvelteKit, Angular, Gatsby, Docusaurus, VitePress, Expo, Electron, NestJS, Vite, Create React App, webpack, Parcel, Express, Fastify, Hono, Koa</td></tr>
+    <tr><td><code>pyproject.toml</code>, <code>requirements.txt</code>, <code>manage.py</code></td><td>Python</td><td>Django, FastAPI, Flask, Streamlit, Starlette, aiohttp</td></tr>
+    <tr><td><code>go.mod</code></td><td>Go</td><td>—</td></tr>
+    <tr><td><code>Cargo.toml</code></td><td>Rust</td><td>Axum, Actix Web, Rocket, Leptos, Tauri</td></tr>
+    <tr><td><code>Gemfile</code></td><td>Ruby</td><td>Rails, Sinatra</td></tr>
+    <tr><td><code>composer.json</code></td><td>PHP</td><td>Laravel, Symfony</td></tr>
+    <tr><td><code>pom.xml</code>, <code>build.gradle(.kts)</code></td><td>Java, Kotlin</td><td>Spring Boot, Ktor</td></tr>
+    <tr><td><code>*.csproj</code>, <code>mix.exs</code>, <code>pubspec.yaml</code>, <code>deno.json</code></td><td>.NET, Elixir, Dart, Deno</td><td>ASP.NET Core, Phoenix</td></tr>
+  </tbody>
+</table>
+<p>The command line refines the framework: <code>vite</code>, <code>next dev</code>, <code>manage.py runserver</code>, <code>uvicorn</code>, <code>rails server</code>, <code>hugo server</code>, <code>python -m http.server</code> and others are recognised even without a manifest. A Next.js project running Storybook shows Storybook on Storybook's port.</p>
+<p>The walk stops at your home directory and never enters system directories. Tools that live in hidden directories, <code>AppData</code>, <code>Library</code> or an app bundle (an editor's language server, say) are not projects, and paths inside <code>node_modules</code> or a virtualenv count as the project that contains them.</p>
+
+<h2 id="categories">Categories</h2>
+<table>
+  <thead><tr><th>Category</th><th>Given to</th></tr></thead>
+  <tbody>
+    <tr><td><code>dev</code></td><td>A process with a project or a recognised framework</td></tr>
+    <tr><td><code>database</code></td><td>PostgreSQL, MySQL, MariaDB, MongoDB, Redis, Valkey, Memcached, ClickHouse, CockroachDB, RabbitMQ, NATS, etcd, MinIO, Meilisearch, Qdrant and similar servers, recognised by process name (servers that run as <code>java</code> are not)</td></tr>
+    <tr><td><code>web</code></td><td>nginx, Apache, Caddy, Traefik, HAProxy, Envoy, Varnish and similar</td></tr>
+    <tr><td><code>container</code></td><td>A process in a container, or a container engine's port forwarder</td></tr>
+    <tr><td><code>system</code></td><td>System services: a service unit or Windows service, or a system account</td></tr>
+    <tr><td><code>app</code></td><td>Anything else, such as desktop applications</td></tr>
+  </tbody>
+</table>
+
+<h2 id="where">Where it appears</h2>
+<p>The <code>PROJECT</code> column of the <a href="the-table.html">table</a> (sortable), the process details, the web dashboard, the Cockpit page and the <a href="desktop.html">desktop app</a>; <code>project</code>, <code>project_root</code>, <code>language</code>, <code>framework</code> and <code>category</code> in <a href="command-line.html#json">JSON</a>. The filter matches project, framework and language, and a category name typed whole (<code>dev</code>) shows that category.</p>
+<p>Turn it off with <code>--no-projects</code> or <code>resolve_projects: false</code>.</p>
+
+<h2 id="platforms">Platform notes</h2>
+<p>On Linux portop reads <code>/proc</code>; on macOS one <code>ps</code> and one <code>lsof</code> call cover every new process; on Windows the working directory is read from the process itself, which Windows allows for your own processes. Detection runs once per process and is cached while it lives.</p>
+        </article>
+        <div class="doc-footer"><a class="edit-link" href="https://github.com/padovanl/portop/edit/develop/docs-src/projects.html"><svg viewBox="0 0 40 40" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"/></svg>Edit this page</a></div>
+        <nav class="pagination-nav" aria-label="Docs pages"><a class="pagination-link prev" href="notifications.html"><span class="sublabel">Previous</span><span class="label">« New-port alerts</span></a><a class="pagination-link next" href="containers.html"><span class="sublabel">Next</span><span class="label">Containers and workers »</span></a></nav>
+      </div>
+      <div class="toc-col">
+    <nav class="toc" aria-label="On this page">
+      <ul>
+        <li><a href="#how">How the project is found</a></li>
+        <li><a href="#categories">Categories</a></li>
+        <li><a href="#where">Where it appears</a></li>
+        <li><a href="#platforms">Platform notes</a></li>
+      </ul>
+    </nav>
+      </div>
+    </div>
+  </main>
+</div>
+<footer class="footer">
+  <div class="footer-links">
+    <div><p class="footer-title">Docs</p><ul><li><a href="installation.html">Installation</a></li><li><a href="the-table.html">The table</a></li><li><a href="command-line.html">Command line</a></li><li><a href="desktop.html">Desktop app</a></li></ul></div>
+    <div><p class="footer-title">Community</p><ul><li><a href="https://github.com/padovanl/portop/issues">Issues</a></li><li><a href="https://github.com/padovanl/portop/blob/main/PRIVACY.md">Privacy</a></li><li><a href="https://github.com/padovanl/portop/blob/main/CONTRIBUTING.md">Contributing</a></li></ul></div>
+    <div><p class="footer-title">More</p><ul><li><a href="../">Project page</a></li><li><a href="https://github.com/padovanl/portop/releases">Releases</a></li><li><a href="https://github.com/padovanl/portop">GitHub</a></li></ul></div>
+  </div>
+  <p class="footer-copyright">portop is released under the MIT License.</p>
+</footer>
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-box" role="dialog" aria-modal="true" aria-label="Search the docs">
+    <form class="search-form" role="search" onsubmit="return false">
+      <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M14.386 14.386l4.088 4.088-4.088-4.088A7.533 7.533 0 1 1 3.733 3.733a7.533 7.533 0 0 1 10.653 10.653z" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <input id="search" type="search" placeholder="Search docs" autocomplete="off" spellcheck="false" aria-label="Search docs">
+      <button class="search-cancel" type="button">Cancel</button>
+    </form>
+    <div class="search-results" id="search-results"></div>
+    <div class="search-footer"><span><kbd>↵</kbd> to select</span><span><kbd>↓</kbd><kbd>↑</kbd> to navigate</span><span><kbd>esc</kbd> to close</span></div>
+  </div>
+</div>
+</body>
+</html>
