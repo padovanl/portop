@@ -70,6 +70,9 @@ nfpms:
         dst: /usr/share/doc/portop/README.md
       - src: LICENSE
         dst: /usr/share/doc/portop/LICENSE
+      # The Cockpit add-on: Cockpit lists it under Tools once installed.
+      - src: cockpit/portop/
+        dst: /usr/share/cockpit/portop/
 
 checksum:
   name_template: "checksums.txt"

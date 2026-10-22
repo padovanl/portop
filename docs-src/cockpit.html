@@ -2,7 +2,16 @@
 <p class="lede">The dashboard inside <a href="https://cockpit-project.org">Cockpit</a>, using its login and your permissions. Linux only.</p>
 
 <h2 id="install">Install</h2>
-<pre>mkdir -p ~/.local/share/cockpit
-cp -r cockpit/portop ~/.local/share/cockpit/portop   # from a portop checkout</pre>
-<p>Open <em>Tools → Ports (portop)</em>. portop must be installed on the host; the page calls <code>portop --json</code>, <code>--inspect-pid</code> and <code>--signal-pid</code> through Cockpit's bridge, so there is no extra service to expose. Installing it under <code>/usr/share/cockpit/portop</code> makes it available to every user.</p>
+<p>The <code>.deb</code> and <code>.rpm</code> packages (and the <a href="installation.html#apt">APT repository</a>) install the page under <code>/usr/share/cockpit/portop</code>, so it is ready as soon as portop is. Open <em>Tools → Ports (portop)</em>.</p>
+<p>With any other install method (Snap, Homebrew, <code>go install</code>, a release archive), copy the page from the source tree. For every user:</p>
+<pre>git clone https://github.com/padovanl/portop.git
+sudo cp -r portop/cockpit/portop /usr/share/cockpit/portop</pre>
+<p>or only for yourself, without root:</p>
+<pre>git clone https://github.com/padovanl/portop.git
+mkdir -p ~/.local/share/cockpit
+cp -r portop/cockpit/portop ~/.local/share/cockpit/portop</pre>
+<p>The page calls <code>portop --json</code>, <code>--inspect-pid</code> and <code>--signal-pid</code> through Cockpit's bridge, so <code>portop</code> must be on the host's <code>PATH</code> and there is no extra service to expose.</p>
 <figure><img src="../assets/cockpit.png" alt="portop inside Cockpit under Tools" loading="lazy"><figcaption>portop under Tools in Cockpit.</figcaption></figure>
+
+<h2 id="permissions">Administrative access</h2>
+<p>The page runs portop as root when Cockpit's <em>Administrative access</em> is on, and as your own user when it is off. Without it, ports owned by other users show no process, and Terminate and Force kill are unavailable, as with <a href="first-run.html#permissions">portop without sudo</a>. The page refreshes every two seconds and picks up a change of the switch on its own.</p>

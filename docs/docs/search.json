@@ -431,7 +431,14 @@
   "title": "Cockpit add-on",
   "section": "Install",
   "anchor": "install",
-  "text": "mkdir -p ~/.local/share/cockpit cp -r cockpit/portop ~/.local/share/cockpit/portop # from a portop checkout Open Tools → Ports (portop) . portop must be installed on the host; the page calls portop --json , --inspect-pid and --signal-pid through Cockpit's bridge, so there is no extra service to expo"
+  "text": "The .deb and .rpm packages (and the APT repository ) install the page under /usr/share/cockpit/portop , so it is ready as soon as portop is. Open Tools → Ports (portop) . With any other install method (Snap, Homebrew, go install , a release archive), copy the page from the source tree. For every use"
+ },
+ {
+  "page": "cockpit",
+  "title": "Cockpit add-on",
+  "section": "Administrative access",
+  "anchor": "permissions",
+  "text": "The page runs portop as root when Cockpit's Administrative access is on, and as your own user when it is off. Without it, ports owned by other users show no process, and Terminate and Force kill are unavailable, as with portop without sudo . The page refreshes every two seconds and picks up a change"
  },
  {
   "page": "platforms",
