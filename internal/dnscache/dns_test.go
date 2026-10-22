@@ -121,3 +121,25 @@ func TestLookupCacheIsBounded(t *testing.T) {
 		t.Fatalf("cache holds %d entries, want at most %d", n, maxEntries)
 	}
 }
+
+// A resolver that answers a PTR query with the query name itself has no
+// host name to give; a real name after it is still used.
+func TestLookupIgnoresReverseZoneNames(t *testing.T) {
+	r := New(time.Second)
+	r.lookup = func(ctx context.Context, addr string) ([]string, error) {
+		switch addr {
+		case "165.56.149.34":
+			return []string{"34.149.56.165.in-addr.arpa."}, nil
+		case "2001:db8::1":
+			return []string{"1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.IP6.ARPA.", "host.example."}, nil
+		}
+		return nil, errors.New("no such host")
+	}
+	for addr, want := range map[string]string{"165.56.149.34": "", "2001:db8::1": "host.example"} {
+		r.Lookup(addr)
+		waitUntil(t, func() bool { _, ok := r.Lookup(addr); return ok })
+		if name, _ := r.Lookup(addr); name != want {
+			t.Errorf("Lookup(%s) = %q, want %q", addr, name, want)
+		}
+	}
+}
