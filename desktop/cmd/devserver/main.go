@@ -30,6 +30,7 @@ func main() {
 	addr := flag.String("addr", "127.0.0.1:34115", "listen address")
 	dir := flag.String("frontend", "frontend", "frontend directory")
 	settings := flag.String("settings", "", "settings file (default: a temporary one)")
+	hideSelf := flag.Bool("hide-self", false, "leave this server's own socket out (for screenshots)")
 	flag.Parse()
 	if *settings == "" {
 		f, err := os.CreateTemp("", "portop-desktop-*.json")
@@ -42,6 +43,9 @@ func main() {
 	}
 
 	b := backend.New(*settings)
+	if *hideSelf {
+		b.HidePID = os.Getpid()
+	}
 	var mu sync.Mutex
 	clients := map[chan []byte]bool{}
 	broadcast := func(name string, data any) {

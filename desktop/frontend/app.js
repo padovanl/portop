@@ -96,6 +96,20 @@ function movePill() {
 }
 document.querySelector(".nav").addEventListener("click", (e) => { const b = e.target.closest(".nav-item"); if (b) show(b.dataset.view); });
 
+$("map-search").addEventListener("input", (e) => map.search(e.target.value));
+$("map-pause").addEventListener("click", () => {
+  const paused = $("map-pause").getAttribute("aria-pressed") !== "true";
+  map.setPaused(paused);
+  if (!paused && state.snap) map.update(state.snap.rows);
+  $("map-pause").setAttribute("aria-pressed", String(paused));
+  $("map-pause").replaceChildren(icon(paused ? "play" : "pause"), h("span", {}, paused ? "Resume" : "Pause"));
+  $("map-paused").hidden = !paused;
+});
+$("map-reset").addEventListener("click", () => map.reset());
+$("map-zoom-in").addEventListener("click", () => map.zoom(1.25));
+$("map-zoom-out").addEventListener("click", () => map.zoom(0.8));
+$("map-fit").addEventListener("click", () => map.fitNow());
+
 /* ---------- Overview ---------- */
 
 function devGroups(rows) {
@@ -664,6 +678,12 @@ function onSnapshot(snap) {
   renderWatch();
   updateFreeOwner();
   map.update(snap.rows);
+  if (!map.paused) {
+    const st = map.stats();
+    $("map-processes").textContent = st.processes;
+    $("map-links").textContent = st.links;
+    $("map-remotes").textContent = st.remotes;
+  }
   if (!$("palette").hidden) renderPalette();
 }
 

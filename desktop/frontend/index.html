@@ -96,12 +96,31 @@
     <section class="view" id="view-map" aria-label="Map">
       <header class="view-head">
         <div><h1>Connections</h1><p class="subtitle">Processes, their listening ports and the hosts they are connected to</p></div>
-        <div class="map-legend" id="map-legend"></div>
+        <div class="map-stats"><span><b id="map-processes">0</b> processes</span><span><b id="map-links">0</b> links</span><span><b id="map-remotes">0</b> remote hosts</span></div>
       </header>
+      <div class="toolbar map-toolbar">
+        <label class="search small"><svg><use href="#i-search"/></svg><input id="map-search" placeholder="Highlight a process, port or host" aria-label="Highlight on the map"></label>
+        <button class="btn btn-sm" id="map-pause" aria-pressed="false"><svg><use href="#i-pause"/></svg><span>Pause</span></button>
+        <button class="btn btn-sm btn-ghost" id="map-reset"><svg><use href="#i-restart"/></svg>Reset layout</button>
+      </div>
       <div class="map-wrap">
         <canvas id="map"></canvas>
         <div class="map-tip" id="map-tip" hidden></div>
-        <div class="map-hint">Drag to move · scroll to zoom · double-click to fit · click a process for details</div>
+        <div class="map-zoom" role="group" aria-label="Zoom">
+          <button class="icon-btn" id="map-zoom-in" title="Zoom in">+</button>
+          <button class="icon-btn" id="map-zoom-out" title="Zoom out">−</button>
+          <button class="icon-btn" id="map-fit" title="Fit the graph"><svg><use href="#i-fit"/></svg></button>
+        </div>
+        <div class="map-paused" id="map-paused" hidden>Paused · the map shows the last scan</div>
+      </div>
+      <div class="map-legend">
+        <span class="cat-dev"><i></i>Dev server</span><span class="cat-database"><i></i>Database</span><span class="cat-web"><i></i>Web server</span>
+        <span class="cat-container"><i></i>Container</span><span class="cat-system"><i></i>System</span><span class="cat-app"><i></i>App</span>
+        <span class="sep"></span>
+        <span><i class="port all"></i>Port on all interfaces</span><span><i class="port loopback"></i>Loopback port</span><span><i class="remote"></i>Remote host</span>
+        <span class="sep"></span>
+        <span><i class="line local"></i>Local link</span><span><i class="line remote"></i>Remote link</span>
+        <span class="hint">Drag to move · scroll to zoom · click a process for details</span>
       </div>
     </section>
 
@@ -198,6 +217,9 @@
   <symbol id="i-app" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18"/></symbol>
   <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></symbol>
   <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5v14l11-7z"/></symbol>
+  <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/></symbol>
   <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
 </svg>
 </body>

@@ -38,6 +38,9 @@ type Backend struct {
 
 	// Version is shown in Settings; set by the shell.
 	Version string
+	// HidePID leaves one process out of every scan (the development
+	// server's own socket); 0 hides nothing.
+	HidePID int
 
 	// OnSnapshot receives every new snapshot; OnNotify shows a desktop
 	// notification. Both are set by the shell before Start.
@@ -178,6 +181,9 @@ func (b *Backend) scan(ctx context.Context) {
 	scanCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	rows, err := b.collector.Collect(scanCtx, opts)
 	cancel()
+	if b.HidePID != 0 {
+		rows = hidePID(rows, b.HidePID)
+	}
 	now := time.Now()
 	snap := Snapshot{Time: now}
 	if err != nil {
@@ -229,6 +235,25 @@ func (b *Backend) scan(ctx context.Context) {
 	if b.OnSnapshot != nil {
 		b.OnSnapshot(snap)
 	}
+}
+
+// hidePID drops a process's sockets and the local connections to its
+// listening ports.
+func hidePID(rows []app.Row, pid int) []app.Row {
+	ports := map[uint16]bool{}
+	for _, r := range rows {
+		if r.PID == pid && r.Listening() {
+			ports[r.LocalPort] = true
+		}
+	}
+	kept := rows[:0]
+	for _, r := range rows {
+		if r.PID == pid || (r.RemotePort != 0 && ports[r.RemotePort] && r.RemoteAddr.IsLoopback()) {
+			continue
+		}
+		kept = append(kept, r)
+	}
+	return kept
 }
 
 func appendPoint(h []TrafficPoint, p TrafficPoint) []TrafficPoint {

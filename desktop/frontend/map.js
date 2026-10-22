@@ -25,7 +25,51 @@ export class MapView {
     this.running = false;
     this.hover = null;
     this.localAddrs = new Set();
+    this.query = "";
+    this.paused = false;
     this.bind();
+  }
+
+  // search dims every node that does not match q (process, project,
+  // port or host), and their links.
+  search(q) { this.query = q.trim().toLowerCase(); }
+
+  matches(n) {
+    if (!this.query) return true;
+    const r = n.row || {};
+    return [n.label, n.sub, r.process, r.project, r.framework, r.local_port, r.pid].some((v) => String(v ?? "").toLowerCase().includes(this.query));
+  }
+
+  setPaused(p) { this.paused = p; }
+
+  // reset scatters the nodes again and refits the view.
+  reset() {
+    for (const n of this.nodes.values()) {
+      if (n.id === "host") continue;
+      const a = Math.random() * Math.PI * 2, d = 80 + Math.random() * 220;
+      n.x = Math.cos(a) * d; n.y = Math.sin(a) * d; n.vx = n.vy = 0;
+    }
+    this.alpha = 1;
+    this.userView = false;
+  }
+
+  zoom(f) {
+    const w = this.canvas.clientWidth / 2, h = this.canvas.clientHeight / 2;
+    const [wx, wy] = this.toWorld(w, h);
+    this.userView = true;
+    this.view.k = Math.min(3, Math.max(0.3, this.view.k * f));
+    this.view.x = w - wx * this.view.k; this.view.y = h - wy * this.view.k;
+  }
+
+  fitNow() { this.userView = false; }
+
+  stats() {
+    let processes = 0, remotes = 0;
+    for (const n of this.nodes.values()) {
+      if (n.kind === "proc") processes++;
+      if (n.kind === "remote") remotes++;
+    }
+    return { processes, remotes, links: this.edges.filter((e) => e.kind === "local" || e.kind === "remote").length };
   }
 
   colorFor(cat) {
@@ -34,6 +78,7 @@ export class MapView {
   }
 
   update(rows) {
+    if (this.paused) return;
     // Local addresses: any address a socket on this machine listens on.
     this.localAddrs = new Set(rows.filter((r) => r.listening).map((r) => r.local_address));
     const want = new Map();
@@ -50,10 +95,20 @@ export class MapView {
       // Sockets whose owner portop cannot see share one node.
       const pid = r.pid ? "p:" + r.pid : "hidden";
       const b = brand(r);
-      if (r.pid) add(pid, { kind: "proc", label: clean(r.project || r.process || "PID " + r.pid), sub: r.framework || r.process || "", cat: r.category, pid: r.pid, row: r, color: r.category === "dev" ? b.color : null, conns: 0 });
+      // Dev servers go by their project; services by their process.
+      const name = r.category === "dev" ? r.project || r.process : r.process || r.project;
+      if (r.pid) add(pid, { kind: "proc", label: clean(name || "PID " + r.pid), sub: r.framework || r.process || "", cat: r.category, pid: r.pid, row: r, color: r.category === "dev" ? b.color : null, conns: 0 });
       else add(pid, { kind: "proc", label: "other users", sub: "owners hidden without administrator rights", cat: "system", pid: 0, row: null, conns: 0 });
-      const port = add("l:" + r.protocol + ":" + r.local_port + ":" + (r.pid || 0), { kind: "port", label: ":" + r.local_port, proto: r.protocol, scope: r.scope, row: r });
-      edges.push({ a: pid, b: port, len: 42, k: 0.5, kind: "own" });
+      const portId = "l:" + r.protocol + ":" + r.local_port + ":" + (r.pid || 0);
+      // One node per port: the IPv4 and IPv6 sockets of a server share it,
+      // with the widest exposure.
+      const known = want.get(portId);
+      if (known) {
+        if (r.scope === "all" || (r.scope === "address" && known.scope === "loopback")) known.scope = r.scope;
+        continue;
+      }
+      const port = add(portId, { kind: "port", label: ":" + r.local_port, proto: r.protocol, scope: r.scope, row: r, owner: pid });
+      edges.push({ a: pid, b: port, len: 50, k: 0.5, kind: "own" });
       listenerByPort.set(r.local_port, port);
     }
     for (const id of [...want.keys()]) {
@@ -65,7 +120,7 @@ export class MapView {
       if (r.state !== "ESTABLISHED" || !r.remote_port) continue;
       const from = r.pid ? "p:" + r.pid : null;
       if (from && !want.has(from)) {
-        add(from, { kind: "proc", label: clean(r.project || r.process || "unknown"), sub: r.process || "", cat: r.category, pid: r.pid, row: r, conns: 0 });
+        add(from, { kind: "proc", label: clean((r.category === "dev" ? r.project : "") || r.process || "PID " + r.pid), sub: r.process || "", cat: r.category, pid: r.pid, row: r, conns: 0 });
         edges.push({ a: "host", b: from, len: 240, k: 0.02, kind: "host" });
       }
       const traffic = (r.rx_rate || 0) + (r.tx_rate || 0);
@@ -110,8 +165,19 @@ export class MapView {
       const dist = a ? 40 : id === "host" ? 0 : 120 + Math.random() * 80;
       next.set(id, { id, ...props, x: (a ? a.x : 0) + Math.cos(ang) * dist, y: (a ? a.y : 0) + Math.sin(ang) * dist, vx: 0, vy: 0, born: performance.now() });
     }
+    const sockets = new Map();
+    for (const r of rows) {
+      const id = r.pid ? "p:" + r.pid : r.listening ? "hidden" : null;
+      if (id) sockets.set(id, (sockets.get(id) || 0) + 1);
+    }
     for (const n of next.values()) {
-      if (n.kind === "proc") n.conns = edges.filter((e) => (e.a === n.id || e.b === n.id) && e.kind !== "host").length;
+      if (n.kind === "proc") {
+        n.conns = edges.filter((e) => (e.a === n.id || e.b === n.id) && (e.kind === "local" || e.kind === "remote")).length;
+        n.ports = edges.filter((e) => e.a === n.id && e.kind === "own").length;
+        n.sockets = sockets.get(n.id) || 0;
+        n.caption = [n.row?.framework || "", n.conns ? `${n.conns} link${n.conns > 1 ? "s" : ""}` : ""].filter(Boolean).join(" · ");
+      }
+      if (n.kind === "remote") n.caption = n.sub;
       n.r = n.kind === "host" ? 24 : n.kind === "proc" ? 11 + Math.min(14, Math.sqrt(n.conns) * 3) : n.kind === "port" ? 5 : 7;
     }
     this.nodes = next;
@@ -126,7 +192,7 @@ export class MapView {
     this.resize();
     const loop = (t) => {
       if (!this.running) return;
-      this.tick();
+      if (!this.paused) this.tick();
       this.draw(t);
       requestAnimationFrame(loop);
     };
@@ -145,7 +211,9 @@ export class MapView {
   }
 
   tick() {
-    const nodes = [...this.nodes.values()];
+    // Ports are not simulated: they sit on an arc above their process, so
+    // they never cover its name and caption below.
+    const nodes = [...this.nodes.values()].filter((n) => n.kind !== "port");
     // Keep the graph gently alive, but settle fast after changes.
     this.alpha = Math.max(0.02, this.alpha * 0.985);
     const a = this.alpha;
@@ -160,14 +228,21 @@ export class MapView {
         const d = Math.sqrt(d2);
         const charge = (p.kind === "port" || q.kind === "port" ? 500 : 2600) * a / d2;
         // Leave room for the labels under the nodes.
-        const min = p.r + q.r + (p.kind === "port" || q.kind === "port" ? 14 : 46);
+        const both = p.kind === "proc" && q.kind === "proc";
+        const portProc = (p.kind === "port" && q.kind === "proc") || (q.kind === "port" && p.kind === "proc");
+        const min = p.r + q.r + (both ? 100 : portProc ? 36 : p.kind === "port" || q.kind === "port" ? 22 : 50);
         const push = d < min ? (min - d) * 0.25 : 0;
         const fx = (dx / d) * (charge + push), fy = (dy / d) * (charge + push);
         p.vx -= fx; p.vy -= fy; q.vx += fx; q.vy += fy;
       }
     }
     for (const e of this.edges) {
-      const p = this.nodes.get(e.a), q = this.nodes.get(e.b);
+      if (e.kind === "own") continue;
+      let p = this.nodes.get(e.a), q = this.nodes.get(e.b);
+      // A link to a port pulls the port's process.
+      if (p.kind === "port") p = this.nodes.get(p.owner) || p;
+      if (q.kind === "port") q = this.nodes.get(q.owner) || q;
+      if (p === q) continue;
       const dx = q.x - p.x, dy = q.y - p.y;
       const d = Math.sqrt(dx * dx + dy * dy) || 1;
       const f = (d - e.len) * e.k * a;
@@ -180,6 +255,28 @@ export class MapView {
       n.vx -= n.x * 0.004 * a; n.vy -= n.y * 0.004 * a;
       n.vx *= 0.82; n.vy *= 0.82;
       n.x += n.vx; n.y += n.vy;
+    }
+    this.placePorts();
+  }
+
+  placePorts() {
+    const byOwner = new Map();
+    for (const n of this.nodes.values()) {
+      if (n.kind !== "port") continue;
+      const list = byOwner.get(n.owner) || [];
+      list.push(n);
+      byOwner.set(n.owner, list);
+    }
+    for (const [owner, ports] of byOwner) {
+      const o = this.nodes.get(owner);
+      if (!o) continue;
+      ports.sort((a, b) => (a.row?.local_port || 0) - (b.row?.local_port || 0));
+      const n = ports.length, spread = Math.min(Math.PI * 0.9, 0.55 * (n - 1));
+      ports.forEach((p, i) => {
+        const ang = -Math.PI / 2 + (n === 1 ? 0 : -spread / 2 + (spread * i) / (n - 1));
+        const dist = o.r + 22;
+        p.x = o.x + Math.cos(ang) * dist; p.y = o.y + Math.sin(ang) * dist;
+      });
     }
   }
 
@@ -209,7 +306,11 @@ export class MapView {
     ctx.save();
     ctx.translate(this.view.x, this.view.y);
     ctx.scale(this.view.k, this.view.k);
-    const hl = this.hover ? this.neighbours(this.hover) : null;
+    let hl = this.hover ? this.neighbours(this.hover) : null;
+    if (!hl && this.query) {
+      hl = new Set();
+      for (const n of this.nodes.values()) if (this.matches(n)) for (const id of this.neighbours(n.id)) hl.add(id);
+    }
 
     for (const e of this.edges) {
       const p = this.nodes.get(e.a), q = this.nodes.get(e.b);
@@ -218,7 +319,7 @@ export class MapView {
       const base = e.kind === "host" ? 0.06 : e.kind === "own" ? 0.35 : e.kind === "local" ? 0.55 : 0.28;
       ctx.globalAlpha = dim ? 0.04 : Math.min(0.9, base + (traffic > 0 ? 0.2 : 0));
       ctx.strokeStyle = e.kind === "local" ? cssVar("--violet") : e.kind === "remote" ? cssVar("--azure") : light ? "#5a6a90" : "#9fb0d8";
-      ctx.lineWidth = (e.kind === "own" ? 1.2 : 1) + Math.min(3, Math.log10(1 + traffic / 1000));
+      ctx.lineWidth = (e.kind === "own" ? 1 : 0.9) + Math.min(2, Math.log10(1 + traffic / 1000) * 0.7);
       ctx.setLineDash(e.kind === "host" ? [3, 6] : []);
       ctx.beginPath();
       const mx = (p.x + q.x) / 2 - (q.y - p.y) * 0.08, my = (p.y + q.y) / 2 + (q.x - p.x) * 0.08;
@@ -247,10 +348,20 @@ export class MapView {
         const c = n.color || this.colorFor(n.cat);
         const g = ctx.createRadialGradient(n.x - r / 3, n.y - r / 3, 1, n.x, n.y, r);
         g.addColorStop(0, c); g.addColorStop(1, shade(c));
-        ctx.shadowColor = c; ctx.shadowBlur = this.hover === n.id ? 26 : 14;
+        ctx.shadowColor = c; ctx.shadowBlur = this.hover === n.id ? 18 : 6;
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI * 2); ctx.fill();
         ctx.shadowBlur = 0;
         ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = 1; ctx.stroke();
+        if (n.sockets > 1 && r > 8) {
+          // Socket count badge.
+          const t = String(n.sockets), bx = n.x + r * 0.72, by = n.y + r * 0.62;
+          ctx.font = "600 9px ui-monospace, monospace";
+          const bw = ctx.measureText(t).width + 7;
+          ctx.fillStyle = light ? "#fff" : "#0b1426"; ctx.strokeStyle = c; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.roundRect(bx - bw / 2, by - 6.5, bw, 13, 4); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = cssVar("--text"); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillText(t, bx, by + 0.5);
+        }
       } else if (n.kind === "port") {
         ctx.fillStyle = n.scope === "all" ? cssVar("--amber") : n.scope === "loopback" ? cssVar("--mint") : cssVar("--azure");
         ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI * 2); ctx.fill();
@@ -263,6 +374,17 @@ export class MapView {
     ctx.textAlign = "center"; ctx.textBaseline = "top";
     for (const n of this.nodes.values()) {
       if (n.kind === "host") continue;
+      if (n.kind === "port") {
+        const dim = hl && !hl.has(n.id);
+        if (this.view.k < 0.8 && !hl) continue;
+        ctx.globalAlpha = dim ? 0.15 : 0.85;
+        ctx.font = "11px ui-monospace, monospace";
+        ctx.fillStyle = cssVar("--muted");
+        ctx.textAlign = "left"; ctx.textBaseline = "middle";
+        ctx.fillText(n.label, n.x + n.r + 4, n.y);
+        ctx.textAlign = "center"; ctx.textBaseline = "top";
+        continue;
+      }
       const dim = hl && !hl.has(n.id);
       if (n.kind === "port" && this.view.k < 0.8 && !hl) continue;
       if (n.kind === "remote" && this.view.k < 0.6 && !hl) continue;
@@ -271,6 +393,11 @@ export class MapView {
       ctx.fillStyle = n.kind === "proc" ? cssVar("--text") : cssVar("--muted");
       const label = n.label.length > 26 ? n.label.slice(0, 25) + "…" : n.label;
       ctx.fillText(label, n.x, n.y + n.r + 5);
+      if (n.caption && (n.kind === "proc" || (n.kind === "remote" && this.view.k >= 0.8)) && (!hl || hl.has(n.id))) {
+        ctx.font = "10.5px ui-monospace, monospace";
+        ctx.fillStyle = cssVar("--faint");
+        ctx.fillText(n.caption, n.x, n.y + n.r + 21);
+      }
     }
     ctx.restore();
     ctx.globalAlpha = 1;
@@ -327,7 +454,8 @@ export class MapView {
     const c = this.canvas;
     let drag = null;
     c.addEventListener("pointerdown", (ev) => {
-      const n = this.hit(ev.offsetX, ev.offsetY);
+      let n = this.hit(ev.offsetX, ev.offsetY);
+      if (n?.kind === "port") n = this.nodes.get(n.owner) || n;
       drag = { n, x: ev.offsetX, y: ev.offsetY, vx: this.view.x, vy: this.view.y, moved: false };
       if (n && n.id !== "host") n.fixed = true;
       c.setPointerCapture(ev.pointerId);
@@ -340,6 +468,7 @@ export class MapView {
         if (drag.n && drag.n.id !== "host") {
           const [wx, wy] = this.toWorld(ev.offsetX, ev.offsetY);
           drag.n.x = wx; drag.n.y = wy;
+          this.placePorts();
           this.alpha = Math.max(this.alpha, 0.3);
         } else {
           this.userView = true;
