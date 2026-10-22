@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=portop
+GenericName=Port monitor
+Comment=See which process is using each port, and stop it
+Exec=portop-desktop
+Icon=portop-desktop
+Terminal=false
+Categories=Development;Network;System;Monitor;
+Keywords=port;process;network;socket;listen;kill;dev server;
+StartupNotify=true

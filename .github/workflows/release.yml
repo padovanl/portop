@@ -112,10 +112,24 @@ jobs:
 
   # apt.lucapadovan.dev is rebuilt from the GitHub releases by
   # padovanl/packages; this only starts that workflow.
+  # The desktop app's packages are built on each OS and attached to the
+  # release; the APT job waits for them so portop-desktop is published too.
+  desktop:
+    name: Desktop app
+    needs: release
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/desktop.yml
+    with:
+      tag: ${{ github.ref_name }}
+
   apt:
     name: APT repository
-    needs: release
-    if: ${{ !contains(github.ref_name, '-') }}
+    needs: [release, desktop]
+    # Publish the CLI even if the desktop build failed.
+    if: ${{ always() && needs.release.result == 'success' && !contains(github.ref_name, '-') }}
     runs-on: ubuntu-latest
     env:
       # Fine-grained token with Actions: read and write on padovanl/packages.

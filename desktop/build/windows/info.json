@@ -1,0 +1,15 @@
+{
+	"fixed": {
+		"file_version": "@VERSION@"
+	},
+	"info": {
+		"0409": {
+			"ProductVersion": "@VERSION@",
+			"CompanyName": "Luca Padovan",
+			"FileDescription": "portop desktop",
+			"LegalCopyright": "MIT License",
+			"ProductName": "portop",
+			"Comments": "Which process is using each port"
+		}
+	}
+}
