@@ -63,6 +63,7 @@ const (
 	sortByIface
 	sortByUser
 	sortByTraffic
+	sortByProject
 	sortModeCount
 )
 
@@ -90,6 +91,8 @@ func (s sortMode) String() string {
 		return "user"
 	case sortByTraffic:
 		return "traffic"
+	case sortByProject:
+		return "project"
 	default:
 		return "port"
 	}

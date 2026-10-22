@@ -78,7 +78,7 @@
             (selectedState === "all" || (selectedState === "LISTEN" ? isListening(row) : row.state === selectedState)) &&
             terms.every(term => [row.local_port, row.local_address, row.remote_port, row.remote_address,
                 row.remote_host, row.pid, row.process, row.protocol, row.state,
-                row.systemd_unit, row.container].some(value =>
+                row.systemd_unit, row.container, row.project, row.framework].some(value =>
                 String(value || "").toLowerCase().includes(term))));
         const fragment = document.createDocumentFragment();
 
@@ -100,6 +100,8 @@
             const workers = row.workers ? row.workers.length : 0;
             if (row.pid) subline(process, "PID " + row.pid + (workers ? ` · +${workers} worker${workers > 1 ? "s" : ""}` : "") + (row.user ? " · " + row.user : ""));
             else if (row.user) subline(process, row.user);
+            const project = [row.project, row.framework].filter(Boolean).join(" · ");
+            if (project) subline(process, project);
             cell(tr, row.pid ? row.cpu_percent.toFixed(1) + "%" : "—", row.pid ? "" : "muted");
             const owner = cell(tr, row.systemd_unit || row.container || "—", row.systemd_unit || row.container ? "" : "muted");
             if (row.systemd_unit && row.container) subline(owner, row.container);
@@ -165,6 +167,8 @@
         field(fields, "Process", row.process);
         field(fields, "User", row.user);
         field(fields, "Workers", row.workers && row.workers.length ? row.workers.join(", ") : "");
+        field(fields, "Project", [row.project, row.framework, row.language].filter(Boolean).join(" · "));
+        field(fields, "Project dir", row.project_root || "");
         field(fields, "PID", row.pid || "—");
         field(fields, "CPU", row.pid ? row.cpu_percent.toFixed(1) + "%" : "—");
         field(fields, "Systemd unit", row.systemd_unit);

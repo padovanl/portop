@@ -121,7 +121,12 @@ func (st *settingsStore) set(s Settings) (Settings, error) {
 	if err != nil {
 		return s, err
 	}
-	return s, userfile.Write(path, append(b, '\n'))
+	if err := userfile.Write(path, append(b, '\n')); err != nil {
+		return s, err
+	}
+	// Watched and pinned ports describe what the user runs; keep them
+	// readable by the user only.
+	return s, os.Chmod(path, 0o600)
 }
 
 // Settings returns the current preferences.

@@ -201,3 +201,26 @@ func TestParseDarwinOutput(t *testing.T) {
 		t.Errorf("parseLsofCwd = %v", cwds)
 	}
 }
+
+func TestLinuxFactsDropADeletedWorkingDirectory(t *testing.T) {
+	if procRootForTest == nil {
+		t.Skip("Linux only")
+	}
+	root := t.TempDir()
+	pidDir := filepath.Join(root, "42")
+	if err := os.MkdirAll(pidDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write(t, pidDir, "cmdline", "node\x00server.js\x00")
+	write(t, pidDir, "comm", "node\n")
+	if err := os.Symlink("/srv/app (deleted)", filepath.Join(pidDir, "cwd")); err != nil {
+		t.Fatal(err)
+	}
+	old := *procRootForTest
+	*procRootForTest = root
+	t.Cleanup(func() { *procRootForTest = old })
+	got := processFacts([]int{42})[42]
+	if got.Cwd != "" || got.Cmdline != "node server.js" || got.Name != "node" {
+		t.Errorf("facts = %+v", got)
+	}
+}

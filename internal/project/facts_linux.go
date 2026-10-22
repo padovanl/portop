@@ -24,6 +24,12 @@ func processFacts(pids []int) map[int]Facts {
 		}
 		f.Exe, _ = os.Readlink(base + "/exe")
 		f.Cwd, _ = os.Readlink(base + "/cwd")
+		// A directory removed since the process entered it reads
+		// "/path (deleted)"; walking up from there would find whatever
+		// project contains the old path.
+		if strings.HasSuffix(f.Cwd, " (deleted)") {
+			f.Cwd = ""
+		}
 		out[pid] = f
 	}
 	return out

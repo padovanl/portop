@@ -105,6 +105,10 @@ func (r Row) matchesTerm(term string) bool {
 		strings.Contains(strings.ToLower(r.Username), term) ||
 		strings.Contains(strings.ToLower(r.SystemdUnit), term) ||
 		strings.Contains(strings.ToLower(r.ContainerName), term) ||
+		strings.Contains(strings.ToLower(r.Project.Name), term) ||
+		strings.Contains(strings.ToLower(r.Project.Framework), term) ||
+		strings.Contains(strings.ToLower(r.Project.Language), term) ||
+		(r.Category != "" && r.Category == term) ||
 		strings.Contains(strings.ToLower(r.LocalAddr.String()), term) ||
 		(r.RemotePort != 0 && strings.Contains(strings.ToLower(r.RemoteAddr.String()), term))
 }
