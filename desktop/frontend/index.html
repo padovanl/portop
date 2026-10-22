@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
+<title>portop</title>
+<link rel="icon" href="logo.png">
+<link rel="stylesheet" href="app.css">
+<script type="module" src="app.js"></script>
+</head>
+<body>
+<div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="drag-strip"></div>
+    <div class="brand">
+      <img src="logo.png" alt="" width="30" height="30">
+      <div><strong>portop</strong><span id="host">—</span></div>
+    </div>
+    <nav class="nav" aria-label="Views">
+      <span class="nav-pill" aria-hidden="true"></span>
+      <button class="nav-item active" data-view="overview"><svg><use href="#i-overview"/></svg><span>Overview</span></button>
+      <button class="nav-item" data-view="ports"><svg><use href="#i-ports"/></svg><span>Ports</span><em id="nav-ports">0</em></button>
+      <button class="nav-item" data-view="map"><svg><use href="#i-map"/></svg><span>Connections</span></button>
+      <button class="nav-item" data-view="activity"><svg><use href="#i-activity"/></svg><span>Activity</span><em id="nav-activity" hidden>0</em></button>
+      <button class="nav-item" data-view="settings"><svg><use href="#i-settings"/></svg><span>Settings</span></button>
+    </nav>
+    <button class="palette-hint" id="open-palette"><svg><use href="#i-search"/></svg><span>Find a port</span><kbd id="palette-key">Ctrl K</kbd></button>
+    <div class="live" id="live"><span class="pulse"></span><span id="live-text">Connecting…</span></div>
+  </aside>
+
+  <main class="main">
+    <section class="view active" id="view-overview" aria-label="Overview">
+      <header class="view-head">
+        <div>
+          <h1>Overview</h1>
+          <p class="subtitle" id="overview-sub">Listening ports, dev servers and services on this machine</p>
+        </div>
+        <form class="free-port" id="free-form" autocomplete="off">
+          <svg><use href="#i-bolt"/></svg>
+          <input id="free-input" inputmode="numeric" placeholder="Free a port… e.g. 3000" aria-label="Port to free">
+          <span class="free-owner" id="free-owner"></span>
+          <button type="submit" class="btn btn-danger btn-sm" id="free-button" disabled>Stop</button>
+        </form>
+      </header>
+
+      <div class="kpis">
+        <article class="kpi" data-tone="azure"><header><svg><use href="#i-ports"/></svg>Listening</header><strong data-count="listening">0</strong><p id="kpi-listening-sub">ports open</p></article>
+        <article class="kpi" data-tone="violet"><header><svg><use href="#i-code"/></svg>Dev servers</header><strong data-count="dev_servers">0</strong><p id="kpi-dev-sub">running now</p></article>
+        <article class="kpi" data-tone="amber"><header><svg><use href="#i-globe"/></svg>Exposed</header><strong data-count="exposed">0</strong><p id="kpi-exposed-sub">reachable from the network</p></article>
+        <article class="kpi kpi-traffic" data-tone="mint">
+          <header><svg><use href="#i-pulse"/></svg>Live traffic</header>
+          <div class="rates"><span><b>↓</b><strong id="rx-rate">0 B/s</strong></span><span><b>↑</b><strong id="tx-rate">0 B/s</strong></span></div>
+          <svg class="area" id="traffic-chart" viewBox="0 0 300 70" preserveAspectRatio="none"></svg>
+        </article>
+      </div>
+
+      <div class="section-head">
+        <h2>Dev servers</h2>
+        <button class="btn btn-ghost btn-sm" id="stop-all" hidden><svg><use href="#i-stop"/></svg>Stop all</button>
+      </div>
+      <div class="cards" id="dev-cards"></div>
+      <div class="empty" id="dev-empty" hidden>
+        <h3>No dev servers running</h3>
+        <p>Start one (<code>npm run dev</code>, <code>go run .</code>, <code>manage.py runserver</code>…) and it shows up here with its project and framework.</p>
+      </div>
+
+      <div class="section-head"><h2>Services</h2><div class="category-bar" id="category-bar"></div></div>
+      <div class="tiles" id="service-tiles"></div>
+      <p class="muted empty-line" id="services-empty" hidden>No databases, web servers or other services are listening.</p>
+    </section>
+
+    <section class="view" id="view-ports" aria-label="Ports">
+      <header class="view-head">
+        <div><h1>Ports</h1><p class="subtitle">Every TCP and UDP socket, with its process and project</p></div>
+        <label class="search"><svg><use href="#i-search"/></svg><input id="filter" placeholder="Port, process, project, address…" aria-label="Filter"><kbd>/</kbd></label>
+      </header>
+      <div class="toolbar">
+        <div class="segmented" id="state-filter" role="tablist">
+          <button class="active" data-state="listen">Listening <em id="count-listen">0</em></button>
+          <button data-state="established">Connected <em id="count-established">0</em></button>
+          <button data-state="all">All <em id="count-all">0</em></button>
+        </div>
+        <div class="chips" id="category-chips"></div>
+      </div>
+      <div class="table" id="ports-table">
+        <div class="thead">
+          <span>Port</span><span>Process</span><span>Project</span><span>Remote / traffic</span><span>Owner</span><span></span>
+        </div>
+        <div class="tbody" id="ports-body"></div>
+      </div>
+      <div class="empty small" id="ports-empty" hidden><h3>Nothing matches</h3><p>Try another filter.</p></div>
+    </section>
+
+    <section class="view" id="view-map" aria-label="Map">
+      <header class="view-head">
+        <div><h1>Connections</h1><p class="subtitle">Processes, their listening ports and the hosts they are connected to</p></div>
+        <div class="map-legend" id="map-legend"></div>
+      </header>
+      <div class="map-wrap">
+        <canvas id="map"></canvas>
+        <div class="map-tip" id="map-tip" hidden></div>
+        <div class="map-hint">Drag to move · scroll to zoom · double-click to fit · click a process for details</div>
+      </div>
+    </section>
+
+    <section class="view" id="view-activity" aria-label="Activity">
+      <header class="view-head">
+        <div><h1>Activity</h1><p class="subtitle">Ports opened and closed since portop started</p></div>
+        <div class="segmented" id="event-filter">
+          <button class="active" data-kind="all">All</button><button data-kind="opened">Opened</button><button data-kind="closed">Closed</button>
+        </div>
+      </header>
+      <div class="activity">
+        <ol class="timeline" id="timeline"></ol>
+        <aside class="panel watch">
+          <h2><svg><use href="#i-bell"/></svg>Watched ports</h2>
+          <p class="muted">portop notifies you when one of these opens or closes.</p>
+          <form id="watch-form" class="inline-form" autocomplete="off"><input id="watch-input" inputmode="numeric" placeholder="Add a port" aria-label="Port to watch"><button class="btn btn-sm">Watch</button></form>
+          <ul id="watch-list" class="watch-list"></ul>
+        </aside>
+      </div>
+      <div class="empty small" id="timeline-empty"><h3>Quiet so far</h3><p>Ports that open or close while portop is running appear here.</p></div>
+    </section>
+
+    <section class="view" id="view-settings" aria-label="Settings">
+      <header class="view-head"><div><h1>Settings</h1></div></header>
+      <div class="settings">
+        <div class="setting"><div><h3>Appearance</h3><p>Follow the system, or pick a theme.</p></div>
+          <div class="segmented" id="theme-choice"><button data-theme="system">System</button><button data-theme="dark">Dark</button><button data-theme="light">Light</button></div></div>
+        <div class="setting"><div><h3>Refresh every <b id="interval-label">2 s</b></h3><p>How often portop scans the sockets.</p></div>
+          <input type="range" id="interval" min="500" max="10000" step="500"></div>
+        <div class="setting"><div><h3>Notify about every new port</h3><p>Watched ports always notify.</p></div><label class="switch"><input type="checkbox" id="notify-new"><span></span></label></div>
+        <div class="setting"><div><h3>Keep running in the tray</h3><p>Closing the window leaves portop in the system tray or menu bar.</p></div><label class="switch"><input type="checkbox" id="close-to-tray"><span></span></label></div>
+        <div class="setting"><div><h3>Reduce motion</h3><p>Turn off animations.</p></div><label class="switch"><input type="checkbox" id="reduce-motion"><span></span></label></div>
+        <div class="about panel">
+          <img src="logo.png" alt="" width="44" height="44">
+          <div><h3>portop desktop <span id="version"></span></h3><p id="about-line">—</p></div>
+          <a class="btn btn-ghost btn-sm" href="https://padovanl.github.io/portop/docs/desktop.html" data-external>Documentation</a>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-panel" role="dialog" aria-label="Process details">
+    <button class="icon-btn drawer-close" id="drawer-close" aria-label="Close"><svg><use href="#i-x"/></svg></button>
+    <div id="drawer-body"></div>
+  </div>
+</aside>
+
+<div class="modal" id="confirm" hidden>
+  <div class="modal-card" role="alertdialog" aria-labelledby="confirm-title">
+    <div class="modal-icon"><svg><use href="#i-stop"/></svg></div>
+    <h2 id="confirm-title">Stop process?</h2>
+    <p id="confirm-text"></p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="confirm-cancel">Cancel</button>
+      <button class="btn btn-danger hold" id="confirm-ok"><span class="hold-fill"></span><span class="hold-label">Hold to stop</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="palette" id="palette" hidden>
+  <div class="palette-card">
+    <label class="palette-input"><svg><use href="#i-search"/></svg><input id="palette-input" placeholder="Type a port, process or project" autocomplete="off"></label>
+    <ul id="palette-list"></ul>
+    <footer><span><kbd>↑</kbd><kbd>↓</kbd> move</span><span><kbd>Enter</kbd> details</span><span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> open</span><span><kbd>Esc</kbd> close</span></footer>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-overview" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></symbol>
+  <symbol id="i-ports" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="18" cy="17" r="2"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="8" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8.2 7.2 15.7 7.6M7.3 8.2l3.6 7.6M16.9 10.2l-3.6 5.7"/></symbol>
+  <symbol id="i-activity" viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+  <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h3l2-5 4 10 2-5h7"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2.5"/></symbol>
+  <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-restart" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7L4 8.6M4 4v4.6h4.6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15zM10 20a2 2 0 0 0 4 0"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></symbol>
+  <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></symbol>
+  <symbol id="i-server" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8"/></symbol>
+  <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></symbol>
+  <symbol id="i-app" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+</svg>
+</body>
+</html>
