@@ -167,8 +167,8 @@
         field(fields, "Process", row.process);
         field(fields, "User", row.user);
         field(fields, "Workers", row.workers && row.workers.length ? row.workers.join(", ") : "");
-        field(fields, "Project", [row.project, row.framework, row.language].filter(Boolean).join(" · "));
-        field(fields, "Project dir", row.project_root || "");
+        if (row.project || row.framework) field(fields, "Project", [row.project, row.framework, row.language].filter(Boolean).join(" · "));
+        if (row.project_root) field(fields, "Project dir", row.project_root);
         field(fields, "PID", row.pid || "—");
         field(fields, "CPU", row.pid ? row.cpu_percent.toFixed(1) + "%" : "—");
         field(fields, "Systemd unit", row.systemd_unit);
