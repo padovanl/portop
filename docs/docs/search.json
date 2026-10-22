@@ -436,6 +436,13 @@
  {
   "page": "cockpit",
   "title": "Cockpit add-on",
+  "section": "Using the page",
+  "anchor": "using",
+  "text": "The table refreshes every two seconds, with the same tabs and filter as the web dashboard . Established connections show their traffic rate under the remote address, worked out from the byte counts of two refreshes in a row (see Traffic ). Details shows the socket and the owning process; Terminate a"
+ },
+ {
+  "page": "cockpit",
+  "title": "Cockpit add-on",
   "section": "Administrative access",
   "anchor": "permissions",
   "text": "The page runs portop as root when Cockpit's Administrative access is on, and as your own user when it is off. Without it, ports owned by other users show no process, and Terminate and Force kill are unavailable, as with portop without sudo . The page refreshes every two seconds and picks up a change"

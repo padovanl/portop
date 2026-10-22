@@ -82,7 +82,10 @@ sudo cp -r portop/cockpit/portop /usr/share/cockpit/portop</pre>
 mkdir -p ~/.local/share/cockpit
 cp -r portop/cockpit/portop ~/.local/share/cockpit/portop</pre>
 <p>The page calls <code>portop --json</code>, <code>--inspect-pid</code> and <code>--signal-pid</code> through Cockpit's bridge, so <code>portop</code> must be on the host's <code>PATH</code> and there is no extra service to expose.</p>
-<figure><img src="../assets/cockpit.png" alt="portop inside Cockpit under Tools" loading="lazy"><figcaption>portop under Tools in Cockpit.</figcaption></figure>
+
+<h2 id="using">Using the page</h2>
+<p>The table refreshes every two seconds, with the same tabs and filter as the <a href="web-dashboard.html">web dashboard</a>. Established connections show their traffic rate under the remote address, worked out from the byte counts of two refreshes in a row (see <a href="traffic.html">Traffic</a>). <em>Details</em> shows the socket and the owning process; <em>Terminate</em> and <em>Force kill</em> send SIGTERM or SIGKILL after a confirmation, and only if the process still has the start time portop read, so a reused PID is never signaled.</p>
+<figure><img src="../assets/cockpit.png" alt="portop inside Cockpit under Tools" loading="lazy"><figcaption>portop under Tools in Cockpit, with Administrative access on.</figcaption></figure>
 
 <h2 id="permissions">Administrative access</h2>
 <p>The page runs portop as root when Cockpit's <em>Administrative access</em> is on, and as your own user when it is off. Without it, ports owned by other users show no process, and Terminate and Force kill are unavailable, as with <a href="first-run.html#permissions">portop without sudo</a>. The page refreshes every two seconds and picks up a change of the switch on its own.</p>
@@ -92,6 +95,7 @@ cp -r portop/cockpit/portop ~/.local/share/cockpit/portop</pre>
       <p>On this page</p>
       <ul>
         <li><a href="#install">Install</a></li>
+        <li><a href="#using">Using the page</a></li>
         <li><a href="#permissions">Administrative access</a></li>
       </ul>
     </nav>
