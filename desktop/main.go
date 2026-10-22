@@ -252,7 +252,7 @@ func (t *trayMenu) confirmStop(d devServer) {
 	}
 	q := t.app.Dialog.Question().
 		SetTitle("Stop " + d.name + "?").
-		SetMessage(fmt.Sprintf("portop sends SIGTERM to PID %d. Its connections will close.", d.pid))
+		SetMessage(fmt.Sprintf("portop %s PID %d. Its connections will close.", stopVerb(), d.pid))
 	q.AddButton("Stop").OnClick(func() {
 		if err := t.b.Stop(d.pid, info.Started, false); err != nil {
 			notify.Send("portop", fmt.Sprintf("Could not stop %s: %v", d.name, err))
@@ -260,4 +260,12 @@ func (t *trayMenu) confirmStop(d devServer) {
 	})
 	q.AddButton("Cancel").SetAsDefault().SetAsCancel()
 	q.Show()
+}
+
+// stopVerb says what Stop does here: Windows has no SIGTERM.
+func stopVerb() string {
+	if runtime.GOOS == "windows" {
+		return "ends"
+	}
+	return "sends SIGTERM to"
 }

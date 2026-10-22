@@ -74,7 +74,7 @@ jobs:
         run: |
           version="${{ inputs.tag }}"
           version="${version:-0.0.0-dev+${GITHUB_SHA::7}}"
-          ./build/package.sh "$version"
+          bash ./build/package.sh "$version"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: portop-desktop-${{ runner.os }}

@@ -397,9 +397,11 @@ async function stopRow(r, el, force = false) {
   let info;
   try { info = await processOf(r); } catch (e) { toast(e.message, true); return; }
   const name = clean(info.project || info.name || r.process);
+  const windows = state.about?.os === "windows";
+  const how = windows ? "End " : force ? "Send SIGKILL to " : "Send SIGTERM to ";
   const ok = await confirmHold({
     title: force ? "Force kill?" : "Stop " + name + "?",
-    text: [force ? "Send SIGKILL to " : "Send SIGTERM to ", h("b", {}, name), ` (PID ${r.pid}). Its connections will close.`, info.own ? "" : " It belongs to another user, so your system will ask for an administrator password."],
+    text: [how, h("b", {}, name), ` (PID ${r.pid}). Its connections will close.`, info.own ? "" : " It belongs to another user, so your system will ask for an administrator password."],
     label: force ? "Hold to kill" : "Hold to stop",
   });
   if (!ok) return;
@@ -433,7 +435,7 @@ async function restart(r, el) {
 
 $("stop-all").addEventListener("click", async () => {
   const groups = devGroups(state.snap.rows);
-  const ok = await confirmHold({ title: "Stop every dev server?", text: ["portop sends SIGTERM to ", h("b", {}, `${groups.length} dev servers`), ": ", groups.map((g) => clean(g.row.project || g.row.process)).join(", "), "."], label: "Hold to stop all" });
+  const ok = await confirmHold({ title: "Stop every dev server?", text: [state.about?.os === "windows" ? "portop ends " : "portop sends SIGTERM to ", h("b", {}, `${groups.length} dev servers`), ": ", groups.map((g) => clean(g.row.project || g.row.process)).join(", "), "."], label: "Hold to stop all" });
   if (!ok) return;
   const targets = [];
   for (const g of groups) {
