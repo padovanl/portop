@@ -85,3 +85,27 @@ func TestMetricsEndpoint(t *testing.T) {
 		t.Fatalf("after %d failures: %d, want the lockout", maxLoginFailures, rec.Code)
 	}
 }
+
+// The read-only API takes Basic auth too (portop desktop connects that
+// way); actions do not.
+func TestReadOnlyAPIBasicAuth(t *testing.T) {
+	h := metricsHandler(newWebAuth("admin", "correct horse", "host"))
+	get := func(method, path string, auth bool) int {
+		req := httptest.NewRequest(method, "http://127.0.0.1"+path, nil)
+		if auth {
+			req.SetBasicAuth("admin", "correct horse")
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	if code := get(http.MethodGet, "/api/ports", false); code != http.StatusUnauthorized {
+		t.Errorf("ports without credentials: %d", code)
+	}
+	if code := get(http.MethodGet, "/api/ports", true); code != http.StatusOK {
+		t.Errorf("ports with Basic auth: %d", code)
+	}
+	if code := get(http.MethodPost, "/api/process/1/signal", true); code != http.StatusUnauthorized {
+		t.Errorf("an action with Basic auth: %d, want refused", code)
+	}
+}

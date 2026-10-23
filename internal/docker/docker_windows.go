@@ -51,7 +51,6 @@ func (c *Client) PublishedPorts(ctx context.Context) []PublishedPort {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	cmd := hostcmd.Hide(exec.CommandContext(ctx, cli, "ps", "--all", "--no-trunc", "--format", "{{json .}}"))
-	hideWindow(cmd)
 	out, err := cmd.Output()
 	psAt = time.Now()
 	if err != nil {
