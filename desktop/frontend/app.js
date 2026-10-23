@@ -27,7 +27,7 @@ const state = {
   riskOnly: false,
   recent: [],
   editors: [],
-  caps: { docker: true, editor: true, terminal: true, dialogs: true, autostart: true, shortcut: true },
+  caps: { docker: true, editor: true, terminal: true, dialogs: true, autostart: true, shortcut: true, admin: false, elevate: false },
 };
 
 /* ---------- Icons: the project's favicon, the application's, or its language's ---------- */
@@ -72,6 +72,7 @@ function applyCaps() {
   for (const [cap, on] of Object.entries(c)) if (typeof on === "boolean") document.body.classList.toggle("no-" + cap, !on);
   $("recent-terminal-note").hidden = c.terminal;
   $("editor-none").hidden = c.editor;
+  renderElevation();
 }
 
 const isMac = /Mac/.test(navigator.platform);
@@ -242,6 +243,7 @@ function renderOverview() {
     { values: series.map((p) => p.tx), color: cssVar("--azure") },
   ], { min: 2048 });
   renderAlerts(snap);
+  renderElevation();
 
   const groups = devGroups(snap.rows);
   $("dev-empty").hidden = groups.length > 0;
@@ -438,7 +440,7 @@ function updatePortRow(el, r) {
         : h("div", { class: "proc-ico hidden-owner" }, icon("lock")),
       h("div", { class: "cell-main" },
         r.process ? h("b", {}, clean(r.process)) : h("b", { class: "unknown" }, r.pid ? "PID " + r.pid : "owner hidden"),
-        h("small", {}, r.pid ? `PID ${r.pid}${r.user ? " · " + clean(r.user) : ""}` : r.user ? clean(r.user) : "run portop as administrator to see it"))),
+        h("small", {}, r.pid ? `PID ${r.pid}${r.user ? " · " + clean(r.user) : ""}` : r.user ? clean(r.user) : state.caps.elevate ? "another user's: use Show all" : "run portop as administrator to see it"))),
     h("div", { class: "cell-main" },
       r.project || r.framework ? h("b", {}, withIcon(h("span", { class: "fw-dot", style: { "--fw": b.color } }), r, "project"), clean(r.project || r.framework)) : h("b", { class: "unknown" }, "—"),
       h("small", {}, [r.framework && r.project ? r.framework : "", r.language].filter(Boolean).join(" · ") || " ")),
@@ -518,7 +520,7 @@ async function stopRow(r, el, force = false) {
   const how = windows ? "End " : force ? "Send SIGKILL to " : "Send SIGTERM to ";
   const ok = await confirmHold({
     title: force ? "Force kill?" : "Stop " + name + "?",
-    text: [how, h("b", {}, name), ` (PID ${r.pid}). Its connections will close.`, info.own ? "" : " It belongs to another user, so your system will ask for an administrator password."],
+    text: [how, h("b", {}, name), ` (PID ${r.pid}). Its connections will close.`, info.own || state.snap?.elevated ? "" : " It belongs to another user, so your system will ask for an administrator password."],
     label: force ? "Hold to kill" : "Hold to stop",
   });
   if (!ok) return;
@@ -594,7 +596,9 @@ async function openDetails(r) {
   body.replaceChildren(head, h("p", { class: "muted" }, "Loading process details…"));
   if (!r.pid) {
     body.replaceChildren(head,
-      h("div", { class: "note" }, icon("lock"), h("span", {}, "portop cannot see which process owns this socket. It belongs to another user or a protected process; run the portop CLI with sudo, or as administrator, to see it.")),
+      h("div", { class: "note" }, icon("lock"), h("span", {}, state.caps.elevate
+        ? ["portop cannot see which process owns this socket: it belongs to another user or a protected process. ", h("button", { class: "btn btn-sm", onclick: elevate }, "Show every user's processes")]
+        : "portop cannot see which process owns this socket. It belongs to another user or a protected process; run portop as administrator to see it.")),
       h("div", { class: "d-section" }, h("h3", {}, "Sockets"), socketList));
     return;
   }
@@ -622,7 +626,7 @@ async function openDetails(r) {
         h("span", { class: "badge cat cat-container" }, clean(r.container)),
         h("button", { class: "btn btn-sm needs-docker", onclick: () => openContainer(r.container) }, icon("box"), "Logs and actions"))) : null,
     r.at_risk ? h("div", { class: "note risk" }, icon("globe"), h("span", {}, "This port listens on the network and the firewall does not block it. If only this machine needs it, bind it to 127.0.0.1.")) : null,
-    !info.own && !state.host ? h("div", { class: "note" }, icon("shield"), h("span", {}, `Owned by ${clean(info.user || "another user")}: stopping it asks for an administrator password.`)) : null,
+    !info.own && !state.host ? h("div", { class: "note" }, icon("shield"), h("span", {}, `Owned by ${clean(info.user || "another user")}` + (state.snap?.elevated ? ": stopped through the administrator view." : ": stopping it asks for an administrator password."))) : null,
     h("div", { class: "d-section" }, h("div", { class: "d-title" }, h("h3", {}, "Traffic"),
       state.host ? null : h("span", { class: "segmented tiny" },
         h("button", { class: "active", onclick: (e) => drawSpan(e, chart, r.pid, "short", hist) }, "3 min"),
@@ -808,6 +812,11 @@ function renderAlerts(snap) {
       icon("globe"), h("span", {}, h("b", {}, `${names.length} port${names.length === 1 ? "" : "s"} reachable from the network: `), names.slice(0, 4).join(", ") + (names.length > 4 ? "…" : "")),
       h("span", { class: "go" }, "Show")));
   }
+  if (!state.host && !snap.elevated && state.caps.elevate && snap.hidden > 0) {
+    rows.push(h("div", { class: "alert-row admin", onclick: elevate },
+      icon("lock"), h("span", {}, h("b", {}, `${snap.hidden} listening socket${snap.hidden === 1 ? "" : "s"} of other users`), " (root, services): portop cannot see their process"),
+      h("span", { class: "go" }, "Show all")));
+  }
   if (!state.host && snap.baseline_changes > 0) {
     rows.push(h("div", { class: "alert-row drift", onclick: () => show("activity") },
       icon("shield"), h("span", {}, h("b", {}, `${snap.baseline_changes} change${snap.baseline_changes === 1 ? "" : "s"} since the baseline`), " (listening ports added or gone)"),
@@ -815,6 +824,37 @@ function renderAlerts(snap) {
   }
   $("alerts").replaceChildren(...rows);
 }
+
+/* ---------- Administrator view ---------- */
+
+async function elevate() {
+  if (state.elevating) return;
+  state.elevating = true;
+  renderElevation();
+  toast("Waiting for the administrator password…");
+  try {
+    await call("Elevate");
+    toast("Showing every user's processes");
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    state.elevating = false;
+    renderElevation();
+  }
+}
+async function dropElevation() {
+  try { await call("DropElevation"); toast("Back to your own processes"); } catch (e) { toast(e.message, true); }
+}
+function renderElevation() {
+  const on = !!state.snap?.elevated && !state.host;
+  $("admin-badge").hidden = !on;
+  $("admin-note").hidden = !state.caps.admin;
+  const btn = $("elevate-btn");
+  btn.textContent = on ? "Stop" : state.elevating ? "Waiting…" : "Show all";
+  btn.disabled = !!state.elevating;
+}
+$("elevate-btn").addEventListener("click", () => (state.snap?.elevated ? dropElevation() : elevate()));
+$("admin-badge").addEventListener("click", dropElevation);
 
 $("risk-filter").addEventListener("click", () => { state.riskOnly = !state.riskOnly; renderPorts(); });
 

@@ -30,6 +30,7 @@
     </nav>
     <button class="palette-hint" id="open-palette"><svg><use href="#i-search"/></svg><span>Find a port</span><kbd id="palette-key">Ctrl K</kbd></button>
     <div class="live" id="live"><span class="pulse"></span><span id="live-text">Connecting…</span></div>
+    <button class="admin-badge" id="admin-badge" hidden title="Back to your own processes"><svg><use href="#i-shield"/></svg><span>Administrator view</span><em>Stop</em></button>
   </aside>
 
   <main class="main">
@@ -193,6 +194,9 @@
           <div class="segmented" id="theme-choice"><button data-theme="system">System</button><button data-theme="dark">Dark</button><button data-theme="light">Light</button></div></div>
         <div class="setting"><div><h3>Refresh every <b id="interval-label">2 s</b></h3><p>How often portop scans the sockets.</p></div>
           <div class="range-wrap"><small>0.5 s</small><input type="range" id="interval" min="500" max="10000" step="500" aria-label="Refresh interval"><small>10 s</small></div></div>
+        <div class="setting local-only needs-elevate"><div><h3>Every user's processes</h3><p>Asks for the administrator password once, then shows the processes of root, services and other users, with their details, and stops them without asking again. Ends when portop quits.</p></div>
+          <button class="btn btn-sm" id="elevate-btn">Show all</button></div>
+        <div class="setting local-only" id="admin-note" hidden><div><h3>Every user's processes</h3><p>portop runs as administrator, so it already sees every process.</p></div></div>
         <div class="setting local-only needs-autostart"><div><h3>Start at login</h3><p>portop starts in the tray when you sign in.</p></div><label class="switch"><input type="checkbox" id="auto-start"><span></span></label></div>
         <div class="setting local-only needs-shortcut"><div><h3>Global shortcut</h3><p>Shows portop and its port finder from any app.</p></div>
           <div class="shortcut"><kbd id="shortcut-label">None</kbd><button class="btn btn-sm" id="shortcut-record">Change</button><button class="btn btn-sm btn-ghost" id="shortcut-clear">Clear</button></div></div>

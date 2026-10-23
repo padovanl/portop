@@ -130,6 +130,10 @@ kbd {
   font-size: 11px; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--line-strong);
   background: var(--glass-2); color: var(--muted);
 }
+.admin-badge { display: flex; align-items: center; gap: 8px; margin: 0 4px 2px; padding: 8px 10px; border-radius: 10px; font: 600 12px var(--sans); color: var(--amber); background: color-mix(in srgb, var(--amber) 12%, transparent); border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent); cursor: pointer; }
+.admin-badge svg { width: 15px; height: 15px; flex: none; }
+.admin-badge em { margin-left: auto; font-style: normal; font-weight: 500; opacity: 0.8; }
+.admin-badge:hover em { text-decoration: underline; }
 .live { margin-top: auto; display: flex; align-items: center; gap: 9px; padding: 10px; color: var(--faint); font-size: 12px; }
 .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 0 0 rgba(52, 227, 164, 0.6); animation: pulse 2s infinite; }
 .live.error .pulse { background: var(--rose); animation: none; }
@@ -579,7 +583,7 @@ input[type="range"] { width: 220px; accent-color: var(--azure); }
 }
 @media (max-width: 820px) {
   .shell { grid-template-columns: 70px 1fr; }
-  .brand div, .nav-item span, .nav-item em, .palette-hint span, .palette-hint kbd, .live span:last-child { display: none; }
+  .brand div, .nav-item span, .nav-item em, .palette-hint span, .palette-hint kbd, .live span:last-child, .admin-badge span, .admin-badge em { display: none; }
   .brand { padding-left: 10px; }
   .view { padding: 22px 18px; }
   .free-port, .search { min-width: 0; width: 100%; }
@@ -605,6 +609,8 @@ body.remote .local-only { display: none !important; }
 .alert-row.risk svg { color: var(--rose); }
 .alert-row.drift { background: color-mix(in srgb, var(--amber) 9%, transparent); border-color: color-mix(in srgb, var(--amber) 30%, transparent); }
 .alert-row.drift svg { color: var(--amber); }
+.alert-row.admin { background: color-mix(in srgb, var(--azure) 9%, transparent); border-color: color-mix(in srgb, var(--azure) 30%, transparent); }
+.alert-row.admin svg { color: var(--azure); }
 .alert-row .go { margin-left: auto; color: var(--muted); font-size: 12px; }
 .segmented.tiny { margin-left: auto; padding: 2px; border-radius: 8px; }
 .segmented.tiny button { padding: 2px 7px; font-size: 11px; border-radius: 6px; }
@@ -676,7 +682,7 @@ body.remote .local-only { display: none !important; }
 
 /* Features the system lacks are hidden (see Capabilities). */
 body.no-docker .needs-docker, body.no-editor .needs-editor, body.no-terminal .needs-terminal,
-body.no-autostart .needs-autostart, body.no-shortcut .needs-shortcut { display: none !important; }
+body.no-autostart .needs-autostart, body.no-shortcut .needs-shortcut, body.no-elevate .needs-elevate { display: none !important; }
 .cap-note { margin-top: 6px; font-size: 12.5px; color: var(--amber); }
 .monogram.has-icon, .ico.has-icon, .map-icon.has-icon { background: none; box-shadow: none; }
 .monogram.has-icon img, .map-icon.has-icon img { width: 100%; height: 100%; object-fit: contain; border-radius: 8px; }

@@ -23,6 +23,19 @@ func processArgv(pid int) []string {
 	return strings.Split(strings.TrimRight(string(b), "\x00"), "\x00")
 }
 
+// isAdmin is true when the window itself runs as root.
+func isAdmin() bool { return os.Geteuid() == 0 }
+
+// elevateAvailable is true where runElevated can ask for rights: macOS
+// always, Linux when pkexec is installed.
+func elevateAvailable() bool {
+	if runtime.GOOS == "darwin" {
+		return true
+	}
+	_, err := exec.LookPath("pkexec")
+	return err == nil
+}
+
 // runElevated runs this executable with args as root: pkexec on Linux,
 // the administrator password dialog on macOS.
 func runElevated(args []string) error {

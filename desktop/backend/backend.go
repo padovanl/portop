@@ -46,6 +46,7 @@ type Backend struct {
 	lastRows []app.Row
 	recent   *recentStore
 	remote   remoteState
+	elev     elevation
 	docker   *docker.Client
 	saveAt   time.Time
 
@@ -85,6 +86,8 @@ type Snapshot struct {
 	Events  []events.Event         `json:"new_events"`
 	Error   string                 `json:"error,omitempty"`
 	Hidden  int                    `json:"hidden"` // listening sockets whose owner portop cannot see
+	// Elevated is true while the administrator helper scans (see Elevate).
+	Elevated bool `json:"elevated"`
 	// BaselineChanges counts listening ports added or removed since the
 	// baseline was saved; -1 when there is no baseline.
 	BaselineChanges int `json:"baseline_changes"`
@@ -219,13 +222,26 @@ func (b *Backend) Events() []events.Event {
 	return append([]events.Event{}, b.log.Events()...)
 }
 
+// collect scans through the administrator helper while there is one, and
+// as this user otherwise or when the helper stops answering.
+func (b *Backend) collect(ctx context.Context, opts app.Options) ([]app.Row, error) {
+	if c := b.helper(); c != nil {
+		rows, err := c.rows(ctx)
+		if err == nil {
+			return rows, nil
+		}
+		b.dropHelper(c)
+	}
+	return b.collector.Collect(ctx, opts)
+}
+
 func (b *Backend) scan(ctx context.Context) {
 	opts := app.Options{
 		ResolveSystemd: true, ResolveDocker: true, ResolveDNS: true,
 		ResolveFirewall: true, ResolveTraffic: true, ResolveProjects: true,
 	}
 	scanCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
-	rows, err := b.collector.Collect(scanCtx, opts)
+	rows, err := b.collect(scanCtx, opts)
 	cancel()
 	if b.HidePID != 0 {
 		rows = hidePID(rows, b.HidePID)
@@ -238,6 +254,7 @@ func (b *Backend) scan(ctx context.Context) {
 	fresh := b.log.Update(rows, now)
 	snap.Events = append([]events.Event{}, fresh...)
 	snap.Rows, snap.Summary, snap.Hidden = convert(rows)
+	snap.Elevated = b.helper() != nil
 
 	b.mu.Lock()
 	point := TrafficPoint{Time: now.UnixMilli(), RX: snap.Summary.RXRate, TX: snap.Summary.TXRate}

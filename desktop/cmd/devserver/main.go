@@ -19,15 +19,22 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/padovanl/portop/desktop/backend"
+	"github.com/padovanl/portop/internal/cli"
 )
 
 const servicePrefix = "github.com/padovanl/portop/desktop/backend.Backend."
 
 func main() {
+	// Show all runs this executable as administrator, as the app does.
+	if len(os.Args) == 4 && os.Args[1] == "--elevated-helper" {
+		parent, _ := strconv.Atoi(os.Args[3])
+		os.Exit(cli.ServeHelper(os.Args[2], parent, os.Stderr))
+	}
 	addr := flag.String("addr", "127.0.0.1:34115", "listen address")
 	dir := flag.String("frontend", "frontend", "frontend directory")
 	settings := flag.String("settings", "", "settings file (default: a temporary one)")

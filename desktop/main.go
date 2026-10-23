@@ -11,6 +11,7 @@ import (
 	"os"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -37,6 +38,12 @@ func main() {
 	// path is the CLI's own, which checks the process start time.
 	if len(os.Args) > 1 && os.Args[1] == "--signal-pid" {
 		os.Exit(cli.Run(os.Args[1:], os.Stdout, os.Stderr))
+	}
+	// "Show all processes" runs this executable as administrator with
+	// --elevated-helper DIR PARENT-PID; see backend.Elevate.
+	if len(os.Args) == 4 && os.Args[1] == "--elevated-helper" {
+		parent, _ := strconv.Atoi(os.Args[3])
+		os.Exit(cli.ServeHelper(os.Args[2], parent, os.Stderr))
 	}
 	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
 		fmt.Println("portop desktop " + version)
@@ -68,6 +75,8 @@ func main() {
 		Services:    []application.Service{application.NewService(b)},
 		Assets:      application.AssetOptions{Handler: application.AssetFileServerFS(front)},
 		Mac:         application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: false},
+		// The administrator helper would also notice within seconds.
+		OnShutdown: b.DropElevation,
 		SingleInstance: &application.SingleInstanceOptions{
 			UniqueID:               "dev.lucapadovan.portop.desktop",
 			OnSecondInstanceLaunch: func(application.SecondInstanceData) { showWindow() },

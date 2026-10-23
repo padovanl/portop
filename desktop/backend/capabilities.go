@@ -15,12 +15,17 @@ type Capabilities struct {
 	Dialogs   bool   `json:"dialogs"`   // native save and folder dialogs
 	Autostart bool   `json:"autostart"` // start at login
 	Shortcut  bool   `json:"shortcut"`  // a global shortcut can be registered
+	Admin     bool   `json:"admin"`     // the window already runs as administrator
+	Elevate   bool   `json:"elevate"`   // administrator rights can be asked for (see Elevate)
 }
 
 // Capabilities reports what is available here.
 func (b *Backend) Capabilities() Capabilities {
 	native := b.OnSettings != nil
+	admin := isAdmin()
 	return Capabilities{
+		Admin:     admin,
+		Elevate:   !admin && elevateAvailable(),
 		OS:        runtime.GOOS,
 		Docker:    b.docker.Available(),
 		Editor:    b.settings.get().Editor != "" || len(b.Editors()) > 0,

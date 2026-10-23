@@ -31,6 +31,13 @@ type ProcessInfo struct {
 // Process returns the details of pid.
 func (b *Backend) Process(pid int) (ProcessInfo, error) {
 	info, err := procinfo.Load(pid)
+	// Another user's process hides its folder and command line; the
+	// administrator helper can read them.
+	if c := b.helper(); c != nil && (err != nil || !ownProcess(info.User)) {
+		if full, herr := c.process(pid); herr == nil {
+			info, err = full, nil
+		}
+	}
 	if err != nil {
 		return ProcessInfo{}, err
 	}
@@ -45,9 +52,10 @@ func (b *Backend) Process(pid int) (ProcessInfo, error) {
 }
 
 // Stop signals pid if it still has the start time the window showed.
-// When the user may not signal it, it asks for administrator rights
-// (pkexec, the macOS password dialog or UAC) and runs portop's own
-// --signal-pid, which checks the start time again.
+// When the user may not signal it, the administrator helper does, if it
+// runs; otherwise it asks for administrator rights (pkexec, the macOS
+// password dialog or UAC) and runs portop's own --signal-pid. Both check
+// the start time again.
 func (b *Backend) Stop(pid int, started string, force bool) error {
 	expected, err := time.Parse(time.RFC3339Nano, started)
 	if err != nil {
@@ -57,6 +65,11 @@ func (b *Backend) Stop(pid int, started string, force bool) error {
 	if err == nil || !errors.Is(err, os.ErrPermission) {
 		b.Refresh()
 		return friendly(err)
+	}
+	if c := b.helper(); c != nil {
+		err = c.signal(pid, started, force)
+		b.Refresh()
+		return err
 	}
 	args := []string{"--signal-pid", strconv.Itoa(pid), "--expected-start", started}
 	if force {

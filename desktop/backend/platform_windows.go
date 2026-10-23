@@ -47,6 +47,13 @@ const (
 	errorCancelled        = 1223
 )
 
+// isAdmin is true when the window was started with "Run as
+// administrator".
+func isAdmin() bool { return windows.GetCurrentProcessToken().IsElevated() }
+
+// elevateAvailable is always true: UAC asks.
+func elevateAvailable() bool { return true }
+
 // runElevated runs this executable with args through a UAC prompt and
 // waits for it.
 func runElevated(args []string) error {
@@ -81,7 +88,7 @@ func runElevated(args []string) error {
 		return err
 	}
 	if code != 0 {
-		return fmt.Errorf("the process could not be stopped even as administrator (exit code %d)", code)
+		return fmt.Errorf("portop as administrator failed (exit code %d)", code)
 	}
 	return nil
 }
