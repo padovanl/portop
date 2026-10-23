@@ -438,7 +438,14 @@
   "title": "Desktop app",
   "section": "Views",
   "anchor": "views",
-  "text": "Overview Counters for listening ports, dev servers, exposed ports and live traffic; a card for each dev server with its project, framework, ports and traffic; the other services (databases, web servers, containers, system services). Type a port in Free a port to see its owner and stop it. Ports Ever"
+  "text": "Overview Counters for listening ports, dev servers, exposed ports and live traffic; warnings for exposed ports , changes since the baseline and hidden owners; a card for each dev server with its project, framework, ports and traffic; the other services (databases, web servers, containers, system ser"
+ },
+ {
+  "page": "desktop",
+  "title": "Desktop app",
+  "section": "Keyboard",
+  "anchor": "keys",
+  "text": "Keys Action Ctrl + K ( ⌘ + K on macOS) Find a port from anywhere in the window Ctrl + Alt + P ( ⌘ + ⌥ + P ) Show portop and its port finder from any app (the global shortcut ; change it in Settings) / Go to the port filter 1 to 6 Switch views Esc Close the finder, a dialog or the details panel Ports"
  },
  {
   "page": "desktop",
@@ -450,16 +457,79 @@
  {
   "page": "desktop",
   "title": "Desktop app",
+  "section": "Process details",
+  "anchor": "details",
+  "text": "Click any row or card for the details: command line, working directory, user, start time, CPU and memory, the process's sockets, and its traffic over the last minutes or the last hour ( 3 min and 1 h above the chart; the hour is kept in 30-second points while the app runs). From there you can open i"
+ },
+ {
+  "page": "desktop",
+  "title": "Desktop app",
   "section": "Stopping and restarting",
   "anchor": "actions",
-  "text": "Stop sends SIGTERM and Force kill sends SIGKILL; Windows has no SIGTERM, so there both end the process at once. Both need the button held for a moment, and both check that the process still has the start time the app read, so a PID reused by another program is never signalled. A process of another u"
+  "text": "Stop sends SIGTERM and Force kill sends SIGKILL; Windows has no SIGTERM, so there both end the process at once. Both need the button held for a moment, and both check that the process still has the start time the app read, so a PID reused by another program is never signalled. Stop all above the dev"
+ },
+ {
+  "page": "desktop",
+  "title": "Desktop app",
+  "section": "Projects and your editor",
+  "anchor": "projects",
+  "text": "Every dev server portop sees is remembered with its folder and the command that started it, up to 40 of them. In Projects , a stopped one starts again with Start , in a new terminal window, from the same folder and with the same command; Forget removes it. The list is kept in desktop-recent.json nex"
+ },
+ {
+  "page": "desktop",
+  "title": "Desktop app",
+  "section": "Docker Compose",
+  "anchor": "compose",
+  "text": "Check a Compose project… reads a project's compose files, as portop --compose does, and lists each published port: listening as expected, taken by another program, or not listening. Projects checked before are a click away."
+ },
+ {
+  "page": "desktop",
+  "title": "Desktop app",
+  "section": "Containers",
+  "anchor": "containers",
+  "text": "A port that belongs to a container shows a box button. It opens the container: Start , Stop and Restart (through the Docker or Podman API; stopping and restarting ask to hold the button), and its last 300 lines of output. The button is hidden when no container engine answers."
+ },
+ {
+  "page": "desktop",
+  "title": "Desktop app",
+  "section": "Exposed ports",
+  "anchor": "exposure",
+  "text": "A dev server, database or container that listens on every interface (or on a network address) and that the firewall does not block can be reached from the network, which is usually a mistake: a database bound to 0.0.0.0 during development, say. Such ports are marked at risk , listed above the overvi"
+ },
+ {
+  "page": "desktop",
+  "title": "Desktop app",
+  "section": "Baseline",
+  "anchor": "baseline",
+  "text": "The baseline is the set of listening ports you expect, the same file portop --save-baseline and --diff use. Save current ports as baseline , in Activity, records it; from then on the overview says how many ports were added or have gone, and Activity lists them. Activity: what opened and closed, the "
+ },
+ {
+  "page": "desktop",
+  "title": "Desktop app",
+  "section": "Export",
+  "anchor": "export",
+  "text": "Export JSON and CSV , in Ports, save the sockets as a file: JSON with the fields of portop --json , CSV for a spreadsheet (values that a spreadsheet would read as a formula are escaped)."
+ },
+ {
+  "page": "desktop",
+  "title": "Desktop app",
+  "section": "Other machines",
+  "anchor": "remote",
+  "text": "The window can show the ports of another machine that runs portop --web --web-auth . Add it in Settings with a name, its address and user; choose it in the machine menu at the top left, type the dashboard password, and the views show that machine, read only. The password stays in memory until the ap"
  },
  {
   "page": "desktop",
   "title": "Desktop app",
   "section": "Tray",
   "anchor": "tray",
-  "text": "The tray icon (the menu bar on macOS) lists the running dev servers, each with Open in browser and Stop , which asks for confirmation. Closing the window keeps portop in the tray unless Keep running in the tray is off."
+  "text": "The tray icon (the menu bar on macOS) lists the running dev servers, each with Open in browser and Stop , which asks for confirmation, and Start a recent project . Closing the window keeps portop in the tray unless Keep running in the tray is off."
+ },
+ {
+  "page": "desktop",
+  "title": "Desktop app",
+  "section": "Start at login and global shortcut",
+  "anchor": "login",
+  "text": "Start at login starts portop in the tray when you sign in (a login item on macOS, an autostart entry on Linux, the Run key on Windows). The global shortcut shows the window and its port finder from any app. Wayland gives applications no global shortcuts, so on a Wayland session the setting is hidden"
  },
  {
   "page": "desktop",
@@ -471,16 +541,23 @@
  {
   "page": "desktop",
   "title": "Desktop app",
-  "section": "What the app can see",
-  "anchor": "privileges",
-  "text": "The app runs as your user. Like portop without sudo , it sees every port but not which process owns the sockets of other users on Linux; those show as hidden , and the overview groups them in one tile. Project detection reads your own processes' working directories only."
+  "section": "Administrator view",
+  "anchor": "admin",
+  "text": "The app runs as your user. Like portop without sudo , it then sees every port but not which process owns the sockets of root, services and other users, nor their details; those show as hidden , and the overview groups them in one tile. Show all , in Settings or on the overview's warning, asks for th"
+ },
+ {
+  "page": "desktop",
+  "title": "Desktop app",
+  "section": "Features your system lacks",
+  "anchor": "availability",
+  "text": "The app checks what works where it runs and hides what cannot: container buttons without a Docker or Podman engine, Restart and Start without a terminal to open, the global shortcut on Wayland, Show all on Linux without pkexec . When a feature is missing for a reason you can fix, Settings says so; w"
  },
  {
   "page": "desktop",
   "title": "Desktop app",
   "section": "Settings and data",
   "anchor": "data",
-  "text": "Preferences are saved in desktop.json next to config.yml , readable by your user only. The app makes no network connections of its own: the page is built into the executable, its Content-Security-Policy allows no outside resources, and Open in browser only opens addresses of this machine. Built with"
+  "text": "Preferences are saved in desktop.json next to config.yml , and recent projects in desktop-recent.json , both readable by your user only. The page is built into the executable and its Content-Security-Policy allows no outside resources. The app connects only to machines you add under other machines ,"
  },
  {
   "page": "web-dashboard",
