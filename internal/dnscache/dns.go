@@ -7,6 +7,7 @@ package dnscache
 import (
 	"context"
 	"net"
+	"strings"
 	"sync"
 	"time"
 )
@@ -111,8 +112,19 @@ func (r *Resolver) resolve(ip string) {
 
 	names, err := r.lookup(ctx, ip)
 	name := ""
-	if err == nil && len(names) > 0 {
-		name = trimTrailingDot(names[0])
+	if err == nil {
+		for _, n := range names {
+			n = trimTrailingDot(n)
+			// Some resolvers answer a PTR query with its own question
+			// (34.149.56.165.in-addr.arpa) when there is no real name;
+			// that is no host name.
+			lower := strings.ToLower(n)
+			if n == "" || strings.HasSuffix(lower, ".in-addr.arpa") || strings.HasSuffix(lower, ".ip6.arpa") {
+				continue
+			}
+			name = n
+			break
+		}
 	}
 
 	r.mu.Lock()
