@@ -33,24 +33,36 @@ const state = {
 /* ---------- Icons: the project's favicon, the application's, or its language's ---------- */
 
 const iconCache = new Map();
-function iconFor(row) {
-  if (state.host || (!row.pid && !row.project_root && !row.root)) return Promise.resolve("");
-  const pid = row.running === false ? 0 : row.pid || 0;
-  const key = `${pid}|${row.project_root || row.root || ""}`;
-  if (!iconCache.has(key)) iconCache.set(key, call("Icon", pid, row.project_root || row.root || "").catch(() => ""));
+// backendIcon asks for a project's favicon (pid 0) or a program's own icon
+// (root ""); remote hosts have none to give.
+function backendIcon(pid, root) {
+  if (state.host || (!pid && !root)) return Promise.resolve("");
+  const key = `${pid}|${root}`;
+  if (!iconCache.has(key)) iconCache.set(key, call("Icon", pid, root).catch(() => ""));
   return iconCache.get(key);
 }
-// withIcon swaps a monogram for the icon once it is known. A process
-// with no icon of its own (nginx, PostgreSQL, a script) gets the bundled
-// logo of its server, framework or language.
-function withIcon(el, row) {
-  iconFor(row).then((url) => {
-    const logo = url ? null : logoFor(row);
-    if (!(url || logo) || !el.isConnected) return;
+const asIcon = (url) => (url ? { url } : null);
+// resolveIcon finds a row's icon. "process" is the program's: its own
+// icon, else the bundled logo of the server or runtime (node, nginx).
+// "project" is the project's: its favicon, else its framework's or
+// language's logo. "auto" puts the project first when there is one.
+async function resolveIcon(row, mode) {
+  const root = row.project_root || row.root || "";
+  const pid = row.running === false ? 0 : row.pid || 0;
+  const fromProject = async () => asIcon(await backendIcon(0, root)) || logoFor(row, "project");
+  const fromProcess = async () => asIcon(await backendIcon(pid, "")) || logoFor(row, "process");
+  if (mode === "process") return fromProcess();
+  if (mode === "project") return fromProject();
+  return root || row.framework ? (await fromProject()) || fromProcess() : (await fromProcess()) || fromProject();
+}
+// withIcon swaps a monogram for the icon once it is known.
+function withIcon(el, row, mode = "auto") {
+  resolveIcon(row, mode).then((found) => {
+    if (!found || !el.isConnected) return;
     el.classList.add("has-icon");
-    el.classList.toggle("logo-icon", !!logo);
-    el.classList.toggle("dark-logo", !!logo?.dark);
-    el.replaceChildren(h("img", { src: url || logo.url, alt: "" }));
+    el.classList.toggle("logo-icon", !!found.key);
+    el.classList.toggle("dark-logo", !!found.dark);
+    el.replaceChildren(h("img", { src: found.url, alt: "" }));
   });
   return el;
 }
@@ -328,7 +340,7 @@ function updateTile(el, g) {
   el.className = "tile cat-" + r.category;
   const ports = [...g.ports].sort((a, b) => a - b);
   el.replaceChildren(
-    withIcon(h("div", { class: "ico" }, icon(CATEGORIES[r.category]?.icon || "app")), r),
+    withIcon(h("div", { class: "ico" }, icon(CATEGORIES[r.category]?.icon || "app")), r, "process"),
     h("div", {},
       h("b", {}, clean(r.container || r.process || (r.pid ? "PID " + r.pid : "owner hidden"))),
       h("small", {}, ports.slice(0, 4).map((p) => ":" + p).join(" ") + (ports.length > 4 ? ` +${ports.length - 4}` : "") + (r.unit ? " · " + r.unit : ""))),
@@ -401,6 +413,9 @@ function createPortRow() {
   return el;
 }
 
+// procBrand is the monogram of a program, by its own name.
+const procBrand = (r) => brand({ process: r.process });
+
 function updatePortRow(el, r) {
   el.__r = r;
   const pinned = isPinned(r.local_port), watched = isWatched(r.local_port);
@@ -419,13 +434,13 @@ function updatePortRow(el, r) {
       pinned ? h("span", { class: "pin", title: "Pinned" }, icon("star")) : null,
       h("div", {}, h("strong", {}, ":" + r.local_port), h("small", {}, `${r.protocol}${r.ipv6 ? "6" : "4"} · ${clean(r.local_address)}`))),
     h("div", { class: "cell-proc" },
-      r.pid ? withIcon(h("div", { class: "monogram proc-ico", style: { "--fw": b.color } }, b.mono), r)
+      r.pid ? withIcon(h("div", { class: "monogram proc-ico", style: { "--fw": procBrand(r).color } }, procBrand(r).mono), r, "process")
         : h("div", { class: "proc-ico hidden-owner" }, icon("lock")),
       h("div", { class: "cell-main" },
         r.process ? h("b", {}, clean(r.process)) : h("b", { class: "unknown" }, r.pid ? "PID " + r.pid : "owner hidden"),
         h("small", {}, r.pid ? `PID ${r.pid}${r.user ? " · " + clean(r.user) : ""}` : r.user ? clean(r.user) : "run portop as administrator to see it"))),
     h("div", { class: "cell-main" },
-      r.project || r.framework ? h("b", {}, h("span", { class: "fw-dot", style: { "--fw": b.color } }), clean(r.project || r.framework)) : h("b", { class: "unknown" }, "—"),
+      r.project || r.framework ? h("b", {}, withIcon(h("span", { class: "fw-dot", style: { "--fw": b.color } }), r, "project"), clean(r.project || r.framework)) : h("b", { class: "unknown" }, "—"),
       h("small", {}, [r.framework && r.project ? r.framework : "", r.language].filter(Boolean).join(" · ") || " ")),
     h("div", { class: "cell-main" },
       r.listening ? h("div", {}, h("span", { class: "badge " + r.scope }, scopeLabel), r.at_risk ? h("span", { class: "badge risk", style: { marginLeft: "6px" }, title: "Reachable from the network and not blocked by the firewall" }, "at risk") : r.firewall ? h("span", { class: "badge state", style: { marginLeft: "6px" } }, "fw: " + r.firewall) : null)

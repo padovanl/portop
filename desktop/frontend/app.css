@@ -344,6 +344,8 @@ h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
 .badge.state { background: var(--line); color: var(--muted); }
 .badge.cat { background: color-mix(in srgb, var(--cat) 16%, transparent); color: var(--cat); }
 .cell-main { min-width: 0; }
+.fw-dot.has-icon { width: 18px; height: 18px; border-radius: 4px; background: none; box-shadow: none; vertical-align: -4px; }
+.fw-dot.has-icon img { width: 100%; height: 100%; object-fit: contain; }
 .cell-proc { display: flex; align-items: center; gap: 11px; min-width: 0; }
 .proc-ico { width: 30px; height: 30px; border-radius: 9px; font-size: 11.5px; box-shadow: none; }
 .proc-ico.hidden-owner { display: grid; place-items: center; flex: none; color: var(--faint); background: var(--glass-2); }

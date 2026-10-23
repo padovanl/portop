@@ -40,14 +40,12 @@
 <figure class="themed"><img class="themed-light" src="../assets/desktop-connections-light.png" alt="The connections view: processes, their ports and the links between them as a graph" loading="lazy"><img class="themed-dark" src="../assets/desktop-connections-dark.png" alt="The connections view: processes, their ports and the links between them as a graph" loading="lazy"><figcaption>Connections: nginx in front of a Next.js app, which calls an API backed by PostgreSQL and Redis; arrows point from client to server.</figcaption></figure>
 
 <h2 id="icons">Icons</h2>
-<p>Each process shows the first icon found:</p>
-<ol>
-  <li>its project's favicon or logo (<code>favicon.svg</code>, <code>public/favicon.png</code>, <code>static/logo.svg</code> and similar);</li>
-  <li>its application's icon: the <code>.desktop</code> entry's icon on Linux, the app bundle's on macOS, the one inside the <code>.exe</code> on Windows;</li>
-  <li>a bundled logo: of the server, for programs that ship no icon (nginx, Apache, Caddy, PostgreSQL, MySQL, MariaDB, MongoDB, Redis, Docker, Grafana, Ollama and about forty more); otherwise of the framework (Vite, Next.js, Django, Rails, Laravel…); otherwise of the language, which for a script is its interpreter's (Python, PHP, Ruby, Bash, Node.js, Go, Rust, PowerShell…).</li>
-  <li>otherwise a colored monogram.</li>
-</ol>
-<p>The logos come with the app, from <a href="https://devicon.dev">Devicon</a> (MIT) and <a href="https://simpleicons.org">Simple Icons</a> (CC0), so nothing is downloaded and no one learns what runs on your machine. The names and logos belong to their owners. <code>scripts/gen-logos.py</code> lists them all.</p>
+<p>A program and a project each have an icon. In the ports table the <em>Process</em> column shows the program's (node, nginx, Chrome) and the <em>Project</em> column the project's; dev server cards and the connections map show the project's when there is one.</p>
+<ul>
+  <li><strong>A program's icon</strong> is its own when the system has one (the <code>.desktop</code> entry's on Linux, the app bundle's on macOS, the one inside the <code>.exe</code> on Windows); otherwise a bundled logo found by its name: runtimes (node, python, java, php, ruby, dotnet…), servers and databases that ship no icon (nginx, Apache, Caddy, PostgreSQL, MySQL, MongoDB, Redis, Kafka, Elasticsearch, Grafana, Docker…), editors (VS Code, JetBrains IDEs, Cursor, Zed, Neovim…) and common apps (Chrome, Firefox, Spotify, Discord, Slack, Steam…); for a script, its interpreter's language.</li>
+  <li><strong>A project's icon</strong> is its favicon or logo (<code>favicon.svg</code>, <code>public/favicon.png</code>, <code>static/logo.svg</code> and similar), otherwise its framework's logo (Vite, Next.js, Django, Rails, Laravel…), otherwise its language's.</li>
+</ul>
+<p>Anything else gets a colored monogram. The logos come with the app, about 180 of them, from <a href="https://devicon.dev">Devicon</a> (MIT) and <a href="https://simpleicons.org">Simple Icons</a> (CC0), so nothing is downloaded and no one learns what runs on your machine. The names and logos belong to their owners; <code>scripts/gen-logos.py</code> lists them all.</p>
 
 <h2 id="actions">Stopping and restarting</h2>
 <p>Stop sends SIGTERM and Force kill sends SIGKILL; Windows has no SIGTERM, so there both end the process at once. Both need the button held for a moment, and both check that the process still has the start time the app read, so a PID reused by another program is never signalled.</p>

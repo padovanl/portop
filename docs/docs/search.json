@@ -445,7 +445,7 @@
   "title": "Desktop app",
   "section": "Icons",
   "anchor": "icons",
-  "text": "Each process shows the first icon found: its project's favicon or logo ( favicon.svg , public/favicon.png , static/logo.svg and similar); its application's icon: the .desktop entry's icon on Linux, the app bundle's on macOS, the one inside the .exe on Windows; a bundled logo: of the server, for prog"
+  "text": "A program and a project each have an icon. In the ports table the Process column shows the program's (node, nginx, Chrome) and the Project column the project's; dev server cards and the connections map show the project's when there is one. A program's icon is its own when the system has one (the .de"
  },
  {
   "page": "desktop",

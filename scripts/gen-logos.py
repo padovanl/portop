@@ -47,6 +47,46 @@ LOGOS = {
     "consul": ("devicon", "consul"), "nomad": ("devicon", "nomad"), "ollama": ("si", "ollama"),
     "mosquitto": ("si", "eclipsemosquitto"), "cloudflare": ("devicon", "cloudflare"),
     "tailscale": ("si", "tailscale"), "jupyter": ("devicon", "jupyter"),
+    "tomcat": ("devicon", "tomcat"), "jetty": ("si", "eclipsejetty"), "nodered": ("devicon", "nodered"),
+    "gitea": ("si", "gitea"), "forgejo": ("devicon", "forgejo"), "gitlab": ("devicon", "gitlab"),
+    "sonarqube": ("devicon", "sonarqube"),
+    "keycloak": ("si", "keycloak"), "jaeger": ("si", "jaeger"), "elasticsearch": ("devicon", "elasticsearch"),
+    "kibana": ("devicon", "kibana"), "logstash": ("devicon", "logstash"), "opensearch": ("si", "opensearch"),
+    "fluentd": ("si", "fluentd"), "fluentbit": ("si", "fluentbit"), "victoriametrics": ("si", "victoriametrics"),
+    "kafka": ("devicon", "apachekafka"), "pulsar": ("si", "apachepulsar"), "scylladb": ("si", "scylladb"),
+    "couchbase": ("devicon", "couchbase"), "couchdb": ("devicon", "couchdb"), "arangodb": ("si", "arangodb"),
+    "dgraph": ("si", "dgraph"), "duckdb": ("devicon", "duckdb"), "ceph": ("si", "ceph"), "milvus": ("si", "milvus"),
+    "solr": ("si", "apachesolr"), "mssql": ("devicon", "microsoftsqlserver"),
+    "firebird": ("devicon", "firebird"), "tidb": ("si", "tidb"), "pocketbase": ("si", "pocketbase"),
+    "appwrite": ("devicon", "appwrite"), "supabase": ("devicon", "supabase"), "hasura": ("si", "hasura"),
+    "firebase": ("devicon", "firebase"), "stripe": ("si", "stripe"), "nextcloud": ("si", "nextcloud"), "jellyfin": ("si", "jellyfin"), "emby": ("si", "emby"), "sonarr": ("si", "sonarr"),
+    "radarr": ("si", "radarr"), "qbittorrent": ("si", "qbittorrent"), "deluge": ("si", "deluge"),
+    "syncthing": ("si", "syncthing"), "transmission": ("si", "transmission"), "homeassistant": ("si", "homeassistant"),
+    "pihole": ("si", "pihole"), "adguard": ("si", "adguard"), "openvpn": ("si", "openvpn"), "wireguard": ("si", "wireguard"),
+    "zerotier": ("si", "zerotier"), "portainer": ("devicon", "portainer"), "rancher": ("devicon", "rancher"),
+    "k3s": ("devicon", "k3s"), "nginxproxymanager": ("si", "nginxproxymanager"), "erlang": ("devicon", "erlang"),
+    # Editors and developer tools
+    "vscode": ("devicon", "vscode"), "cursor": ("si", "cursor"), "windsurf": ("si", "windsurf"), "zed": ("si", "zedindustries"),
+    "intellij": ("devicon", "intellij"), "webstorm": ("devicon", "webstorm"), "pycharm": ("devicon", "pycharm"),
+    "goland": ("devicon", "goland"), "rider": ("devicon", "rider"), "clion": ("devicon", "clion"),
+    "phpstorm": ("devicon", "phpstorm"), "rubymine": ("devicon", "rubymine"), "datagrip": ("devicon", "datagrip"),
+    "androidstudio": ("devicon", "androidstudio"), "xcode": ("devicon", "xcode"), "sublimetext": ("si", "sublimetext"),
+    "neovim": ("devicon", "neovim"), "vim": ("devicon", "vim"), "emacs": ("si", "gnuemacs"), "git": ("devicon", "git"),
+    "github": ("devicon", "github"), "jetbrains": ("devicon", "jetbrains"), "android": ("devicon", "android"),
+    "postman": ("devicon", "postman"), "insomnia": ("devicon", "insomnia"), "wireshark": ("si", "wireshark"),
+    "terraform": ("devicon", "terraform"), "vagrant": ("devicon", "vagrant"), "virtualbox": ("si", "virtualbox"), "qemu": ("si", "qemu"), "lmstudio": ("si", "lmstudio"), "rstudio": ("devicon", "rstudio"),
+    "dbeaver": ("devicon", "dbeaver"), "npm": ("devicon", "npm"), "pnpm": ("devicon", "pnpm"), "yarn": ("devicon", "yarn"),
+    # Desktop apps that hold sockets
+    "chrome": ("si", "googlechrome"), "firefox": ("devicon", "firefox"), "brave": ("si", "brave"), "opera": ("devicon", "opera"),
+    "vivaldi": ("si", "vivaldi"), "safari": ("devicon", "safari"), "spotify": ("si", "spotify"), "discord": ("si", "discord"),
+    "slack": ("devicon", "slack"), "telegram": ("si", "telegram"), "whatsapp": ("si", "whatsapp"),
+    "signal": ("si", "signal"), "steam": ("si", "steam"), "epicgames": ("si", "epicgames"), "battlenet": ("si", "battledotnet"),
+    "dropbox": ("si", "dropbox"), "googledrive": ("si", "googledrive"), "1password": ("si", "1password"),
+    "bitwarden": ("si", "bitwarden"), "keepassxc": ("si", "keepassxc"), "obsidian": ("si", "obsidian"),
+    "notion": ("devicon", "notion"), "figma": ("devicon", "figma"), "vlc": ("si", "vlcmediaplayer"), "obs": ("si", "obsstudio"),
+    "thunderbird": ("si", "thunderbird"), "anydesk": ("si", "anydesk"), "teamviewer": ("si", "teamviewer"),
+    "rustdesk": ("si", "rustdesk"), "mullvad": ("si", "mullvad"), "protonvpn": ("si", "protonvpn"), "nordvpn": ("si", "nordvpn"),
+    "nvidia": ("si", "nvidia"), "razer": ("si", "razer"), "steelseries": ("si", "steelseries"),
     # Frameworks
     "vite": ("devicon", "vitejs"), "nextjs": ("devicon", "nextjs"), "nuxt": ("devicon", "nuxtjs"),
     "astro": ("devicon", "astro"), "remix": ("devicon", "remix"), "svelte": ("devicon", "svelte"),
@@ -68,7 +108,13 @@ LOGOS = {
     "powershell": ("devicon", "powershell"),
 }
 
-# Process names (lowercase, without .exe) of servers that ship no icon.
+# Left out, being only a wordmark at icon size: Nexus, JFrog, Oracle,
+# VMware, Zoom, Plex, ngrok, Koa; or missing from both sets: HAProxy,
+# Squid, Varnish, OpenSSH, Microsoft's apps (Windows has their icons).
+
+# Process names (lowercase, without .exe and a macOS " Helper" suffix):
+# servers that ship no icon, runtimes, editors and common apps (whose
+# own icon a remote host or a Linux name mismatch can hide).
 PROCESSES = {
     "nginx": "nginx", "openresty": "nginx", "apache2": "apache", "httpd": "apache", "caddy": "caddy",
     "traefik": "traefik", "envoy": "envoy",
@@ -82,7 +128,60 @@ PROCESSES = {
     "grafana": "grafana", "grafana-server": "grafana", "prometheus": "prometheus", "jenkins": "jenkins",
     "vault": "vault", "consul": "consul", "nomad": "nomad", "ollama": "ollama", "mosquitto": "mosquitto",
     "cloudflared": "cloudflare", "tailscaled": "tailscale",
+    # Runtimes: the program itself, whatever project it runs
+    "node": "nodejs", "nodejs": "nodejs", "deno": "deno", "bun": "bun", "python": "python", "pythonw": "python",
+    "py": "python", "pypy": "python", "php": "php", "php-fpm": "php", "php-cgi": "php", "ruby": "ruby",
+    "java": "java", "javaw": "java", "dotnet": "dotnet", "beam.smp": "erlang", "erl": "erlang", "elixir": "elixir",
+    "iex": "elixir", "perl": "perl", "lua": "lua", "luajit": "lua", "bash": "bash", "pwsh": "powershell",
+    "powershell": "powershell", "dart": "dart", "go": "go",
+    # More servers
+    "gitea": "gitea", "forgejo": "forgejo", "gitlab-workhorse": "gitlab", "gitaly": "gitlab", "node-red": "nodered",
+    "jaeger": "jaeger", "jaeger-all-in-one": "jaeger", "opensearch": "opensearch", "fluentd": "fluentd", "td-agent": "fluentd",
+    "fluent-bit": "fluentbit", "victoria-metrics": "victoriametrics", "victoria-metrics-prod": "victoriametrics",
+    "vmagent": "victoriametrics", "scylla": "scylladb", "arangod": "arangodb", "dgraph": "dgraph", "duckdb": "duckdb",
+    "milvus": "milvus", "sqlservr": "mssql", "fbserver": "firebird",
+    "firebird": "firebird", "fb_inet_server": "firebird", "tidb-server": "tidb", "pocketbase": "pocketbase",
+    "graphql-engine": "hasura", "stripe": "stripe", "firebase": "firebase", "supabase": "supabase", "jellyfin": "jellyfin", "emby": "emby", "embyserver": "emby",
+    "sonarr": "sonarr", "radarr": "radarr", "qbittorrent": "qbittorrent", "qbittorrent-nox": "qbittorrent",
+    "deluge": "deluge", "deluged": "deluge", "deluge-web": "deluge", "syncthing": "syncthing",
+    "transmission": "transmission", "transmission-daemon": "transmission", "transmission-gtk": "transmission",
+    "transmission-qt": "transmission", "hass": "homeassistant", "home-assistant": "homeassistant", "pihole-ftl": "pihole",
+    "adguardhome": "adguard", "openvpn": "openvpn", "wireguard": "wireguard", "zerotier-one": "zerotier",
+    "portainer": "portainer", "rancher": "rancher", "k3s-server": "k3s", "k3s-agent": "k3s",
+    # Editors and developer tools
+    "code": "vscode", "code-insiders": "vscode", "code - insiders": "vscode", "visual studio code": "vscode",
+    "cursor": "cursor", "windsurf": "windsurf", "zed": "zed", "zed-editor": "zed", "idea": "intellij", "idea64": "intellij",
+    "intellij idea": "intellij", "webstorm": "webstorm", "webstorm64": "webstorm", "pycharm": "pycharm", "pycharm64": "pycharm",
+    "goland": "goland", "goland64": "goland", "rider": "rider", "rider64": "rider", "clion": "clion", "clion64": "clion",
+    "phpstorm": "phpstorm", "phpstorm64": "phpstorm", "rubymine": "rubymine", "rubymine64": "rubymine",
+    "datagrip": "datagrip", "datagrip64": "datagrip", "studio": "androidstudio", "studio64": "androidstudio",
+    "android studio": "androidstudio", "xcode": "xcode", "sublime_text": "sublimetext", "sublime text": "sublimetext",
+    "nvim": "neovim", "vim": "vim", "emacs": "emacs", "git": "git", "gh": "github", "github desktop": "github",
+    "jetbrains-toolbox": "jetbrains", "jetbrains toolbox": "jetbrains", "adb": "android", "postman": "postman",
+    "insomnia": "insomnia", "wireshark": "wireshark", "dumpcap": "wireshark", "terraform": "terraform", "vagrant": "vagrant",
+    "virtualbox": "virtualbox", "vboxheadless": "virtualbox", "vboxsvc": "virtualbox", "lm studio": "lmstudio",
+    "lms": "lmstudio", "rstudio": "rstudio", "rsession": "rstudio", "dbeaver": "dbeaver", "npm": "npm", "pnpm": "pnpm",
+    "yarn": "yarn",
+    # Desktop apps
+    "chrome": "chrome", "google chrome": "chrome", "google-chrome": "chrome", "firefox": "firefox", "firefox-esr": "firefox",
+    "firefox-bin": "firefox", "brave": "brave", "brave browser": "brave", "brave-browser": "brave", "opera": "opera",
+    "vivaldi": "vivaldi", "vivaldi-bin": "vivaldi", "safari": "safari", "spotify": "spotify", "discord": "discord",
+    "discordptb": "discord", "discordcanary": "discord", "slack": "slack",
+    "telegram": "telegram", "telegram-desktop": "telegram", "whatsapp": "whatsapp", "signal": "signal",
+    "signal-desktop": "signal", "steam": "steam", "steamwebhelper": "steam", "steamservice": "steam",
+    "epicgameslauncher": "epicgames", "epicwebhelper": "epicgames", "battle.net": "battlenet", "dropbox": "dropbox",
+    "google drive": "googledrive", "googledrivefs": "googledrive", "1password": "1password", "bitwarden": "bitwarden",
+    "keepassxc": "keepassxc", "obsidian": "obsidian", "notion": "notion", "figma": "figma", "figma_agent": "figma",
+    "figma agent": "figma", "vlc": "vlc", "obs": "obs", "obs64": "obs", "obs-studio": "obs", "thunderbird": "thunderbird",
+    "anydesk": "anydesk", "teamviewer": "teamviewer", "teamviewer_service": "teamviewer", "teamviewerd": "teamviewer",
+    "rustdesk": "rustdesk", "mullvad-daemon": "mullvad", "mullvad vpn": "mullvad", "mullvad-vpn": "mullvad",
+    "protonvpn": "protonvpn", "proton vpn": "protonvpn", "nordvpn": "nordvpn", "nordvpnd": "nordvpn",
+    "nvcontainer": "nvidia", "nvidia share": "nvidia", "nvidia web helper": "nvidia", "razer synapse": "razer",
+    "razer synapse service": "razer", "steelseriesgg": "steelseries", "steelseriesengine": "steelseries",
 }
+
+# Name prefixes for families of processes (qemu-system-x86_64, ceph-osd).
+PREFIXES = {"postgres": "postgresql", "qemu-": "qemu", "ceph-": "ceph", "ollama": "ollama", "razer": "razer"}
 
 # Framework names as the backend reports them.
 FRAMEWORKS = {
@@ -161,7 +260,7 @@ def main():
         svgs[key] = svg
         print(f"{key:18} {source:8} {len(svg):6} bytes{'  dark' if key in dark else ''}")
 
-    for table in (PROCESSES, FRAMEWORKS, LANGUAGES):
+    for table in (PROCESSES, PREFIXES, FRAMEWORKS, LANGUAGES):
         for k, v in table.items():
             assert v in LOGOS, f"{k} points to unknown logo {v}"
 
@@ -180,17 +279,31 @@ const SVG = {{
         f.write("};\n\n")
         f.write(f"// Logos drawn in black or near-black, shown inverted (keeping their hue) in the dark theme.\nconst DARK = new Set({json.dumps(sorted(dark))});\n\n")
         f.write(f"const PROCESSES = {json.dumps(PROCESSES)};\n")
+        f.write(f"const PREFIXES = {json.dumps(PREFIXES)};\n")
         f.write(f"const FRAMEWORKS = {json.dumps(FRAMEWORKS)};\n")
         f.write(f"const LANGUAGES = {json.dumps(LANGUAGES)};\n")
         f.write("""
 const urls = new Map();
 
-// logoFor picks a logo for a row: its server by process name, then its
-// framework, then its language. It returns null when none fits.
-export function logoFor(row) {
-  const proc = (row.process || "").toLowerCase().replace(/\\.exe$/, "");
-  const key = PROCESSES[proc] || (proc.startsWith("postgres") ? "postgresql" : "") ||
-    FRAMEWORKS[row.framework] || LANGUAGES[row.language];
+// processKey names the program: "Google Chrome Helper (Renderer)" is
+// Chrome, python3.12 is Python, and Linux cuts names to 15 characters.
+function processKey(name) {
+  let n = (name || "").toLowerCase().replace(/\.exe$/, "").replace(/ helper\b.*$/, "").trim();
+  if (!n) return "";
+  if (PROCESSES[n]) return PROCESSES[n];
+  const bare = n.replace(/[\d.]+$/, "");
+  if (bare !== n && PROCESSES[bare]) return PROCESSES[bare];
+  for (const [prefix, key] of Object.entries(PREFIXES)) if (n.startsWith(prefix)) return key;
+  if (n.length === 15) for (const [full, key] of Object.entries(PROCESSES)) if (full.startsWith(n)) return key;
+  return "";
+}
+
+// logoFor picks a bundled logo for a row: "process" by the program's name
+// then its language, "project" by framework then language. It returns
+// null when none fits.
+export function logoFor(row, mode) {
+  const key = mode === "process" ? processKey(row.process) || LANGUAGES[row.language]
+    : FRAMEWORKS[row.framework] || LANGUAGES[row.language];
   if (!key) return null;
   if (!urls.has(key)) urls.set(key, "data:image/svg+xml;charset=utf-8," + encodeURIComponent(SVG[key]));
   return { key, url: urls.get(key), dark: DARK.has(key) };
