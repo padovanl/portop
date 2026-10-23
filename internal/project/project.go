@@ -137,6 +137,9 @@ func isDependencyDir(name string) bool {
 // isSystemDir is true for directories that never hold a user's project,
 // where daemons usually run from.
 func isSystemDir(dir string) bool {
+	if home, err := os.UserHomeDir(); err == nil && strings.EqualFold(filepath.Clean(home), filepath.Clean(dir)) {
+		return true // a server started from ~ is not "the home project"
+	}
 	d := strings.ToLower(filepath.ToSlash(dir))
 	if runtime.GOOS == "windows" {
 		if len(d) <= 3 { // C:/
@@ -156,9 +159,6 @@ func isSystemDir(dir string) bool {
 		if d == p || strings.HasPrefix(d, p+"/") {
 			return true
 		}
-	}
-	if home, err := os.UserHomeDir(); err == nil && strings.EqualFold(filepath.Clean(home), filepath.Clean(dir)) {
-		return true // a server started from ~ is not "the home project"
 	}
 	return false
 }
