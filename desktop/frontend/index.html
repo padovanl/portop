@@ -18,11 +18,13 @@
       <img src="logo.png" alt="" width="30" height="30">
       <div><strong>portop</strong><span id="host">—</span></div>
     </div>
+    <label class="host-switch"><svg><use href="#i-server"/></svg><select id="host-select" aria-label="Machine"></select></label>
     <nav class="nav" aria-label="Views">
       <span class="nav-pill" aria-hidden="true"></span>
       <button class="nav-item active" data-view="overview"><svg><use href="#i-overview"/></svg><span>Overview</span></button>
       <button class="nav-item" data-view="ports"><svg><use href="#i-ports"/></svg><span>Ports</span><em id="nav-ports">0</em></button>
       <button class="nav-item" data-view="map"><svg><use href="#i-map"/></svg><span>Connections</span></button>
+      <button class="nav-item local-only" data-view="projects"><svg><use href="#i-folder"/></svg><span>Projects</span></button>
       <button class="nav-item" data-view="activity"><svg><use href="#i-activity"/></svg><span>Activity</span><em id="nav-activity" hidden>0</em></button>
       <button class="nav-item" data-view="settings"><svg><use href="#i-settings"/></svg><span>Settings</span></button>
     </nav>
@@ -31,26 +33,31 @@
   </aside>
 
   <main class="main">
+    <div class="remote-banner" id="remote-banner" hidden><svg><use href="#i-globe"/></svg><span>Viewing <b id="remote-name"></b> through its portop dashboard, read only.</span><button class="btn btn-sm" id="remote-back">Back to this machine</button></div>
     <section class="view active" id="view-overview" aria-label="Overview">
       <header class="view-head">
         <div>
           <h1>Overview</h1>
           <p class="subtitle" id="overview-sub">Listening ports, dev servers and services on this machine</p>
         </div>
-        <form class="free-port" id="free-form" autocomplete="off">
+        <form class="free-port local-only" id="free-form" autocomplete="off">
           <svg><use href="#i-bolt"/></svg>
           <input id="free-input" inputmode="numeric" placeholder="Free a port… e.g. 3000" aria-label="Port to free">
           <span class="free-owner" id="free-owner"></span>
+          <span class="free-next" id="free-next"></span>
           <button type="submit" class="btn btn-danger btn-sm" id="free-button" disabled>Stop</button>
         </form>
       </header>
+
+      <div class="alerts" id="alerts"></div>
 
       <div class="kpis">
         <article class="kpi" data-tone="azure"><header><svg><use href="#i-ports"/></svg>Listening</header><strong data-count="listening">0</strong><p id="kpi-listening-sub">ports open</p></article>
         <article class="kpi" data-tone="violet"><header><svg><use href="#i-code"/></svg>Dev servers</header><strong data-count="dev_servers">0</strong><p id="kpi-dev-sub">running now</p></article>
         <article class="kpi" data-tone="amber"><header><svg><use href="#i-globe"/></svg>Exposed</header><strong data-count="exposed">0</strong><p id="kpi-exposed-sub">reachable from the network</p></article>
         <article class="kpi kpi-traffic" data-tone="mint">
-          <header><svg><use href="#i-pulse"/></svg>Live traffic</header>
+          <header><svg><use href="#i-pulse"/></svg>Live traffic
+            <span class="segmented tiny local-only" id="traffic-span"><button class="active" data-span="short">3 min</button><button data-span="long">1 h</button></span></header>
           <div class="rates"><span><b>↓</b><strong id="rx-rate">0 B/s</strong></span><span><b>↑</b><strong id="tx-rate">0 B/s</strong></span></div>
           <svg class="area" id="traffic-chart" viewBox="0 0 300 70" preserveAspectRatio="none"></svg>
         </article>
@@ -58,7 +65,7 @@
 
       <div class="section-head">
         <h2>Dev servers</h2>
-        <button class="btn btn-ghost btn-sm" id="stop-all" hidden><svg><use href="#i-stop"/></svg>Stop all</button>
+        <button class="btn btn-ghost btn-sm local-only" id="stop-all" hidden><svg><use href="#i-stop"/></svg>Stop all</button>
       </div>
       <div class="cards" id="dev-cards"></div>
       <div class="empty" id="dev-empty" hidden>
@@ -83,6 +90,11 @@
           <button data-state="all">All <em id="count-all">0</em></button>
         </div>
         <div class="chips" id="category-chips"></div>
+        <button class="chip risk" id="risk-filter" hidden><i></i>At risk <em>0</em></button>
+        <div class="export">
+          <button class="btn btn-sm btn-ghost" id="export-json" title="Save these sockets as JSON (the fields of portop --json)">Export JSON</button>
+          <button class="btn btn-sm btn-ghost" id="export-csv" title="Save these sockets as CSV">CSV</button>
+        </div>
       </div>
       <div class="table" id="ports-table">
         <div class="thead">
@@ -121,6 +133,25 @@
       </div>
     </section>
 
+    <section class="view" id="view-projects" aria-label="Projects">
+      <header class="view-head">
+        <div><h1>Projects</h1><p class="subtitle">Dev servers portop has seen, and Docker Compose projects to check</p></div>
+      </header>
+      <div class="section-head first"><h2>Recent projects</h2><p class="muted">Start one again in a terminal, from the folder and with the command it last ran with.</p></div>
+      <div class="cards" id="recent-cards"></div>
+      <div class="empty" id="recent-empty"><h3>No projects yet</h3><p>Dev servers you start (<code>npm run dev</code>, <code>go run .</code>…) are remembered here, with their folder and command.</p></div>
+
+      <div class="section-head"><h2>Docker Compose</h2>
+        <button class="btn btn-sm" id="compose-pick"><svg><use href="#i-box"/></svg>Check a Compose project…</button></div>
+      <p class="muted section-note">portop reads the project's compose files, and checks each published port: listening as expected, taken by another program, or not listening.</p>
+      <div class="chips" id="compose-recent"></div>
+      <div class="table compose" id="compose-table" hidden>
+        <div class="thead"><span>Status</span><span>Service</span><span>Port</span><span>Owner</span><span>Note</span></div>
+        <div class="tbody" id="compose-body"></div>
+      </div>
+      <p class="muted section-note" id="compose-files"></p>
+    </section>
+
     <section class="view" id="view-activity" aria-label="Activity">
       <header class="view-head">
         <div><h1>Activity</h1><p class="subtitle">Ports opened and closed since portop started</p></div>
@@ -141,6 +172,12 @@
           <form id="watch-form" class="inline-form" autocomplete="off"><input id="watch-input" inputmode="numeric" placeholder="Add a port" aria-label="Port to watch"><button class="btn btn-sm">Watch</button></form>
           <ul id="watch-list" class="watch-list"></ul>
         </aside>
+        <aside class="panel watch baseline local-only">
+          <h2><svg><use href="#i-shield"/></svg>Baseline</h2>
+          <p class="muted" id="baseline-status">No baseline saved.</p>
+          <button class="btn btn-sm" id="baseline-save">Save current ports as the baseline</button>
+          <ul id="baseline-list" class="watch-list"></ul>
+        </aside>
       </div>
       <div class="empty small" id="timeline-empty"><h3>Quiet so far</h3><p>Ports that open or close while portop is running appear here.</p></div>
     </section>
@@ -153,13 +190,28 @@
           <div class="segmented" id="theme-choice"><button data-theme="system">System</button><button data-theme="dark">Dark</button><button data-theme="light">Light</button></div></div>
         <div class="setting"><div><h3>Refresh every <b id="interval-label">2 s</b></h3><p>How often portop scans the sockets.</p></div>
           <input type="range" id="interval" min="500" max="10000" step="500"></div>
+        <div class="setting local-only"><div><h3>Start at login</h3><p>portop starts in the tray when you sign in.</p></div><label class="switch"><input type="checkbox" id="auto-start"><span></span></label></div>
+        <div class="setting local-only"><div><h3>Global shortcut</h3><p>Shows portop and its port finder from any app.</p></div>
+          <div class="shortcut"><kbd id="shortcut-label">None</kbd><button class="btn btn-sm" id="shortcut-record">Change</button><button class="btn btn-sm btn-ghost" id="shortcut-clear">Clear</button></div></div>
+        <div class="setting local-only"><div><h3>Editor</h3><p>Opens a project folder from its card or details.</p></div>
+          <select id="editor-select" class="select"></select></div>
         <h2 class="settings-group">Notifications</h2>
+        <div class="setting"><div><h3>Warn about exposed ports</h3><p>A dev server, database or container listening on the network, without a firewall block, is flagged and notified.</p></div><label class="switch"><input type="checkbox" id="notify-exposed"><span></span></label></div>
         <div class="setting"><div><h3>Notify about new ports</h3><p>A new port must stay open a few seconds and pass the filters below. Watched ports always notify, opening and closing.</p></div><label class="switch"><input type="checkbox" id="notify-new"><span></span></label></div>
         <div class="setting stack"><div><h3>Which new ports</h3><p>Also used by the Relevant view of Activity. Apps and system services are off by default: browsers and music players open short-lived ports all the time.</p></div>
           <div class="chips" id="notify-cats"></div></div>
         <div class="setting"><div><h3>Include UDP ports</h3><p>Most UDP ports are short-lived (video calls, device discovery).</p></div><label class="switch"><input type="checkbox" id="notify-udp"><span></span></label></div>
         <div class="setting stack"><div><h3>Muted processes</h3><p>Never notified and left out of Relevant activity. Mute a process from its entry in Activity.</p></div>
           <ul class="muted-list" id="muted-list"></ul></div>
+        <h2 class="settings-group">Remote machines</h2>
+        <div class="setting stack"><div><h3>portop dashboards on other machines</h3><p>Shows another machine's ports, read only, from its <code>portop --web --web-auth</code> dashboard. The password is asked when you connect and never saved.</p></div>
+          <ul class="host-list" id="host-list"></ul>
+          <form class="inline-form host-form" id="host-form" autocomplete="off">
+            <input id="host-name" placeholder="Name (web-01)" aria-label="Name">
+            <input id="host-url" placeholder="https://web-01:8088" aria-label="Address">
+            <input id="host-user" placeholder="User" aria-label="User">
+            <button class="btn btn-sm">Add</button>
+          </form></div>
         <h2 class="settings-group">Window</h2>
         <div class="setting"><div><h3>Keep running in the tray</h3><p>Closing the window leaves portop in the system tray or menu bar.</p></div><label class="switch"><input type="checkbox" id="close-to-tray"><span></span></label></div>
         <div class="setting"><div><h3>Reduce motion</h3><p>Turn off animations.</p></div><label class="switch"><input type="checkbox" id="reduce-motion"><span></span></label></div>
@@ -197,6 +249,13 @@
     <label class="palette-input"><svg><use href="#i-search"/></svg><input id="palette-input" placeholder="Type a port, process or project" autocomplete="off"></label>
     <ul id="palette-list"></ul>
     <footer><span><kbd>↑</kbd><kbd>↓</kbd> move</span><span><kbd>Enter</kbd> details</span><span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> open</span><span><kbd>Esc</kbd> close</span></footer>
+  </div>
+</div>
+
+<div class="modal" id="sheet" hidden>
+  <div class="modal-card sheet" role="dialog" aria-labelledby="sheet-title">
+    <div class="sheet-head"><h2 id="sheet-title"></h2><button class="icon-btn" id="sheet-close" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
+    <div id="sheet-body"></div>
   </div>
 </div>
 

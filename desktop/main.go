@@ -43,6 +43,8 @@ func main() {
 		return
 	}
 
+	// --hidden starts in the tray: that is how autostart launches it.
+	hidden := len(os.Args) > 1 && os.Args[1] == "--hidden"
 	b := backend.New("")
 	b.Version = version
 	front, err := fs.Sub(assets, "frontend")
@@ -87,6 +89,7 @@ func main() {
 			Backdrop:                application.MacBackdropTranslucent,
 		},
 		Windows: application.WindowsWindow{BackdropType: application.Mica},
+		Hidden:  hidden,
 	})
 	// Closing the window keeps portop in the tray, unless the user turned
 	// that off.
@@ -118,7 +121,16 @@ func main() {
 		notify.Send(title, body)
 		app.Event.Emit("notify", map[string]string{"title": title, "body": body})
 	}
+	b.SaveDialog = func(title, name string) (string, error) {
+		return app.Dialog.SaveFile().SetMessage(title).SetFilename(name).PromptForSingleSelection()
+	}
+	b.FolderDialog = func(title string) (string, error) {
+		return app.Dialog.OpenFile().SetTitle(title).CanChooseDirectories(true).CanChooseFiles(false).PromptForSingleSelection()
+	}
+	shell := &shellSettings{app: app, show: func() { showWindow(); app.Event.Emit("palette", true) }}
+	b.OnSettings = shell.apply
 	app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
+		shell.apply(b.Settings())
 		b.Start(context.Background())
 	})
 
@@ -195,7 +207,11 @@ func (t *trayMenu) update(s backend.Snapshot) {
 // build replaces the menu when the list of dev servers changed.
 func (t *trayMenu) build(s backend.Snapshot) {
 	servers := devServers(s)
+	recent := t.b.Recent()
 	var sig strings.Builder
+	for _, r := range recent {
+		fmt.Fprintf(&sig, "r%s:%v;", r.ID, r.Running)
+	}
 	for _, d := range servers {
 		fmt.Fprintf(&sig, "%d:%s:%v;", d.pid, d.name, d.ports)
 	}
@@ -235,6 +251,28 @@ func (t *trayMenu) build(s backend.Snapshot) {
 		}
 	}
 	menu.AddSeparator()
+	var stopped []backend.RecentProject
+	for _, r := range recent {
+		if !r.Running && len(stopped) < 10 {
+			stopped = append(stopped, r)
+		}
+	}
+	if len(stopped) > 0 {
+		sub := menu.AddSubmenu("Start a recent project")
+		for _, r := range stopped {
+			r := r
+			label := r.Name
+			if r.Framework != "" {
+				label += " (" + r.Framework + ")"
+			}
+			sub.Add(label).OnClick(func(*application.Context) {
+				if err := t.b.Launch(r.ID); err != nil {
+					notify.Send("portop", err.Error())
+				}
+			})
+		}
+	}
+	menu.AddSeparator()
 	menu.Add("Ports").OnClick(func(*application.Context) { t.show(); t.app.Event.Emit("navigate", "ports") })
 	menu.Add("Map").OnClick(func(*application.Context) { t.show(); t.app.Event.Emit("navigate", "map") })
 	menu.AddSeparator()
@@ -268,4 +306,43 @@ func stopVerb() string {
 		return "ends"
 	}
 	return "sends SIGTERM to"
+}
+
+// shellSettings applies the preferences that belong to the native shell:
+// starting at login and the global shortcut.
+type shellSettings struct {
+	app      *application.App
+	show     func()
+	mu       sync.Mutex
+	shortcut string
+}
+
+func (s *shellSettings) apply(st backend.Settings) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if status, err := s.app.Autostart.Status(); err == nil {
+		switch {
+		case st.AutoStart && !status.Enabled:
+			err = s.app.Autostart.EnableWithOptions(application.AutostartOptions{Arguments: []string{"--hidden"}})
+		case !st.AutoStart && status.Enabled:
+			err = s.app.Autostart.Disable()
+		}
+		if err != nil {
+			s.app.Event.Emit("notify", map[string]string{"title": "Start at login", "body": err.Error()})
+		}
+	}
+	if st.Shortcut == s.shortcut {
+		return
+	}
+	if s.shortcut != "" {
+		_ = s.app.GlobalShortcut.Unregister(s.shortcut)
+		s.shortcut = ""
+	}
+	if st.Shortcut != "" {
+		if err := s.app.GlobalShortcut.Register(st.Shortcut, s.show); err != nil {
+			s.app.Event.Emit("notify", map[string]string{"title": "Global shortcut", "body": st.Shortcut + " is not available: " + err.Error()})
+			return
+		}
+		s.shortcut = st.Shortcut
+	}
 }

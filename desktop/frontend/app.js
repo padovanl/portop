@@ -18,6 +18,14 @@ const state = {
   eventScope: "relevant",
   unseen: 0,
   drawerPid: null,
+  host: null, // a remote machine's name, or null for this one
+  localSnap: null,
+  remoteTimer: null,
+  trafficSpan: "short",
+  longTraffic: [],
+  riskOnly: false,
+  recent: [],
+  editors: [],
 };
 
 const isMac = /Mac/.test(navigator.platform);
@@ -68,6 +76,11 @@ function renderSettings() {
   muted.replaceChildren(...(s.muted.length ? s.muted.map((m) => h("li", {}, clean(m),
     h("button", { class: "icon-btn", title: "Unmute " + m, onclick: () => saveSettings({ muted: state.settings.muted.filter((x) => x !== m) }) }, icon("x")))) : [h("li", { class: "none" }, "None")]));
   $("close-to-tray").checked = s.close_to_tray;
+  $("auto-start").checked = s.auto_start;
+  $("notify-exposed").checked = s.notify_exposed;
+  if (!recordingShortcut) $("shortcut-label").textContent = s.shortcut ? prettyShortcut(s.shortcut) : "None";
+  renderEditorSelect();
+  renderHosts();
   $("reduce-motion").checked = s.reduce_motion;
   setReduceMotion(s.reduce_motion);
   document.documentElement.classList.toggle("reduce-motion", s.reduce_motion);
@@ -79,6 +92,8 @@ $("interval").addEventListener("change", (e) => saveSettings({ interval_ms: Numb
 $("notify-new").addEventListener("change", (e) => saveSettings({ notify_new: e.target.checked }));
 $("notify-udp").addEventListener("change", (e) => saveSettings({ notify_udp: e.target.checked }));
 $("close-to-tray").addEventListener("change", (e) => saveSettings({ close_to_tray: e.target.checked }));
+$("auto-start").addEventListener("change", (e) => saveSettings({ auto_start: e.target.checked }));
+$("notify-exposed").addEventListener("change", (e) => saveSettings({ notify_exposed: e.target.checked }));
 $("reduce-motion").addEventListener("change", (e) => saveSettings({ reduce_motion: e.target.checked }));
 
 const isWatched = (port) => state.settings?.watched.includes(port);
@@ -106,7 +121,8 @@ function show(view) {
   for (const v of document.querySelectorAll(".view")) v.classList.toggle("active", v.id === "view-" + view);
   movePill();
   if (view === "map") { requestAnimationFrame(() => { map.resize(); map.start(); }); } else map.stop();
-  if (view === "activity") { state.unseen = 0; $("nav-activity").hidden = true; }
+  if (view === "activity") { state.unseen = 0; $("nav-activity").hidden = true; renderBaseline(); }
+  if (view === "projects") renderRecent();
 }
 function movePill() {
   const active = document.querySelector(".nav-item.active");
@@ -160,7 +176,8 @@ function serviceGroups(rows) {
 function renderOverview() {
   const { snap } = state;
   const s = snap.summary;
-  if (state.about) $("overview-sub").textContent = `${state.about.host} · ${state.about.os}/${state.about.arch} · updated ${clock(snap.time)}`;
+  if (state.host) $("overview-sub").textContent = `${state.host} · remote, read only · updated ${clock(snap.time)}`;
+  else if (state.about) $("overview-sub").textContent = `${state.about.host} · ${state.about.os}/${state.about.arch} · updated ${clock(snap.time)}`;
   for (const el of document.querySelectorAll("[data-count]")) countUp(el, s[el.dataset.count]);
   document.querySelector('.kpi[data-tone="amber"]').classList.toggle("alert", s.exposed > 0);
   $("kpi-exposed-sub").textContent = s.exposed ? "reachable from the network" : "nothing exposed";
@@ -168,10 +185,12 @@ function renderOverview() {
   $("kpi-dev-sub").textContent = s.dev_servers ? "running now" : "none right now";
   $("rx-rate").textContent = rate(s.rx_rate);
   $("tx-rate").textContent = rate(s.tx_rate);
+  const series = state.trafficSpan === "long" && !state.host ? state.longTraffic : snap.traffic;
   area($("traffic-chart"), [
-    { values: snap.traffic.map((p) => p.rx), color: cssVar("--mint") },
-    { values: snap.traffic.map((p) => p.tx), color: cssVar("--azure") },
+    { values: series.map((p) => p.rx), color: cssVar("--mint") },
+    { values: series.map((p) => p.tx), color: cssVar("--azure") },
   ], { min: 2048 });
+  renderAlerts(snap);
 
   const groups = devGroups(snap.rows);
   $("dev-empty").hidden = groups.length > 0;
@@ -210,7 +229,7 @@ function updateCard(el, g) {
   const r = g.row;
   const b = brand(r);
   el.style.setProperty("--fw", b.color);
-  const sig = JSON.stringify([r.project, r.framework, r.language, r.process, [...g.ports.keys()], [...g.ports.values()].map((p) => p.scope)]);
+  const sig = JSON.stringify([state.host, r.project, r.framework, r.language, r.process, [...g.ports.keys()], [...g.ports.values()].map((p) => p.scope + p.at_risk)]);
   if (el.__sig !== sig) {
     el.__sig = sig;
     el.replaceChildren(
@@ -219,14 +238,16 @@ function updateCard(el, g) {
         h("div", { class: "card-title" },
           h("h3", {}, clean(r.project || r.process)),
           h("p", {}, r.framework ? h("b", {}, r.framework) : null, r.framework && r.language ? " · " : "", r.language || (r.framework ? "" : r.process))),
+        [...g.ports.values()].some((p) => p.at_risk) ? h("span", { class: "badge risk risk-tag", title: "Listening on the network and not blocked by the firewall" }, "exposed") : null,
         h("span", { class: "live-dot", title: "Listening" })),
       h("div", { class: "port-chips" }, [...g.ports.values()].map((p) =>
-        h("button", { class: "port-chip", title: p.url ? "Open " + p.url : p.protocol + " " + p.local_port, onclick: () => p.url ? openURL(p.url) : openDetails(p) },
-          h("span", { class: "scope scope-" + p.scope }), ":" + p.local_port, p.url ? icon("open") : null))),
+        h("button", { class: "port-chip", title: p.url && !state.host ? "Open " + p.url : p.protocol + " " + p.local_port, onclick: () => p.url && !state.host ? openURL(p.url) : openDetails(p) },
+          h("span", { class: "scope scope-" + p.scope }), ":" + p.local_port, p.url && !state.host ? icon("open") : null))),
       h("div", { class: "card-foot" },
         h("span", { class: "mono" }, "PID " + r.pid),
         spark([], b.color),
-        h("div", { class: "card-actions" },
+        h("div", { class: "card-actions local-only" },
+          r.project_root ? h("button", { class: "icon-btn", title: "Open in editor", onclick: () => openEditor(r.project_root) }, icon("code")) : null,
           r.project_root ? h("button", { class: "icon-btn", title: "Open folder", onclick: () => call("OpenFolder", r.project_root).catch((e) => toast(e.message, true)) }, icon("folder")) : null,
           h("button", { class: "icon-btn", title: "Restart in a terminal", onclick: () => restart(r, el) }, icon("restart")),
           h("button", { class: "icon-btn danger", title: "Stop", onclick: () => stopRow(r, el) }, icon("stop")))),
@@ -286,9 +307,10 @@ function updateFreeOwner() {
   const owner = port ? ownerOfPort(port) : null;
   const out = $("free-owner");
   $("free-button").disabled = !owner || !owner.pid;
-  if (!port) { out.textContent = ""; return; }
-  if (!owner) { out.textContent = "free"; return; }
+  if (!port) { out.textContent = ""; $("free-next").replaceChildren(); return; }
+  if (!owner) { out.textContent = "free"; $("free-next").replaceChildren(); return; }
   out.replaceChildren(h("b", {}, clean(owner.project || owner.process || "hidden")), owner.pid ? ` · PID ${owner.pid}` : " (no permission)");
+  suggestFreePorts(port);
 }
 $("free-input").addEventListener("input", updateFreeOwner);
 $("free-form").addEventListener("submit", (e) => {
@@ -321,7 +343,11 @@ function renderPorts() {
     (c) => h("button", { class: "chip cat-" + c, onclick: () => { state.category = state.category === c ? null : c; renderPorts(); } }, h("i"), CATEGORIES[c].label, h("em")),
     (el, c) => { el.classList.toggle("active", state.category === c); el.querySelector("em").textContent = counts[c]; });
 
-  const shown = inState.filter((r) => !state.category || r.category === state.category);
+  const risky = inState.filter((r) => r.at_risk).length;
+  $("risk-filter").hidden = !risky && !state.riskOnly;
+  $("risk-filter").classList.toggle("active", state.riskOnly);
+  $("risk-filter").querySelector("em").textContent = risky;
+  const shown = inState.filter((r) => (!state.category || r.category === state.category) && (!state.riskOnly || r.at_risk));
   shown.sort((a, b) => (isPinned(b.local_port) - isPinned(a.local_port)) || (b.listening - a.listening) || a.local_port - b.local_port || (a.remote_port || 0) - (b.remote_port || 0));
   const limited = shown.slice(0, 400);
   $("ports-empty").hidden = limited.length > 0;
@@ -360,13 +386,14 @@ function updatePortRow(el, r) {
       r.project || r.framework ? h("b", {}, h("span", { class: "fw-dot", style: { "--fw": b.color } }), clean(r.project || r.framework)) : h("b", { class: "unknown" }, "—"),
       h("small", {}, [r.framework && r.project ? r.framework : "", r.language].filter(Boolean).join(" · ") || " ")),
     h("div", { class: "cell-main" },
-      r.listening ? h("div", {}, h("span", { class: "badge " + r.scope }, scopeLabel), r.firewall ? h("span", { class: "badge state", style: { marginLeft: "6px" } }, "fw: " + r.firewall) : null)
+      r.listening ? h("div", {}, h("span", { class: "badge " + r.scope }, scopeLabel), r.at_risk ? h("span", { class: "badge risk", style: { marginLeft: "6px" }, title: "Reachable from the network and not blocked by the firewall" }, "at risk") : r.firewall ? h("span", { class: "badge state", style: { marginLeft: "6px" } }, "fw: " + r.firewall) : null)
         : h("b", { class: "mono", style: { fontWeight: 500, fontSize: "12.5px" } }, clean(r.remote_host || r.remote_address) + ":" + r.remote_port),
       r.listening ? h("small", {}, r.state) : traffic || h("small", {}, r.state)),
     h("div", { class: "cell-main" },
       h("span", { class: "badge cat cat-" + r.category }, CATEGORIES[r.category]?.label || r.category),
       h("small", {}, clean(r.container || r.unit || ""))),
-    h("div", { class: "row-actions" },
+    h("div", { class: "row-actions local-only" },
+      r.container ? h("button", { class: "icon-btn", title: "Container " + r.container, onclick: () => openContainer(r.container) }, icon("box")) : null,
       h("button", { class: "icon-btn" + (pinned ? " on" : ""), title: pinned ? "Unpin" : "Pin to top", onclick: () => saveSettings({ pinned: toggleIn(state.settings.pinned, r.local_port) }) }, icon("star")),
       r.listening ? h("button", { class: "icon-btn" + (watched ? " on" : ""), title: watched ? "Stop watching" : "Notify when it opens or closes", onclick: () => saveSettings({ watched: toggleIn(state.settings.watched, r.local_port) }) }, icon("bell")) : null,
       r.url ? h("button", { class: "icon-btn", title: "Open " + r.url, onclick: () => openURL(r.url) }, icon("open")) : null,
@@ -515,7 +542,7 @@ async function openDetails(r) {
     return;
   }
   let info;
-  try { info = await call("Process", r.pid); } catch (e) {
+  try { info = state.host ? await call("RemoteProcess", state.host, r.pid) : await call("Process", r.pid); } catch (e) {
     body.replaceChildren(head, h("div", { class: "note" }, icon("lock"), h("span", {}, e.message)), h("div", { class: "d-section" }, h("h3", {}, "Sockets"), socketList));
     return;
   }
@@ -526,14 +553,23 @@ async function openDetails(r) {
   const kv = (pairs) => h("dl", { class: "kv" }, pairs.filter(([, v]) => v !== undefined && v !== null && v !== "").flatMap(([k, v]) => [h("dt", {}, k), h("dd", {}, v)]));
   body.replaceChildren(...[
     head,
-    h("div", { class: "d-actions" },
+    h("div", { class: "d-actions local-only" },
       listener ? h("button", { class: "btn btn-primary btn-sm", onclick: () => openURL(listener.url) }, icon("open"), "Open :" + listener.local_port) : null,
+      info.project_root ? h("button", { class: "btn btn-sm", onclick: () => openEditor(info.project_root) }, icon("code"), "Editor") : null,
       info.project_root ? h("button", { class: "btn btn-sm", onclick: () => call("OpenFolder", info.project_root).catch((e) => toast(e.message, true)) }, icon("folder"), "Folder") : null,
       info.can_restart ? h("button", { class: "btn btn-sm", onclick: () => restart(r, $("drawer-body")) }, icon("restart"), "Restart") : null,
       h("button", { class: "btn btn-danger btn-sm", onclick: () => stopRow(r, $("drawer-body")) }, icon("stop"), "Stop"),
       h("button", { class: "btn btn-ghost btn-sm", onclick: () => stopRow(r, $("drawer-body"), true) }, "Force kill")),
-    !info.own ? h("div", { class: "note" }, icon("shield"), h("span", {}, `Owned by ${clean(info.user || "another user")}: stopping it asks for an administrator password.`)) : null,
-    h("div", { class: "d-section" }, h("h3", {}, "Traffic"), chart),
+    r.container && !state.host ? h("div", { class: "d-section" }, h("h3", {}, "Container"),
+      h("div", { class: "d-actions" },
+        h("span", { class: "badge cat cat-container" }, clean(r.container)),
+        h("button", { class: "btn btn-sm", onclick: () => openContainer(r.container) }, icon("box"), "Logs and actions"))) : null,
+    r.at_risk ? h("div", { class: "note risk" }, icon("globe"), h("span", {}, "This port listens on the network and the firewall does not block it. If only this machine needs it, bind it to 127.0.0.1.")) : null,
+    !info.own && !state.host ? h("div", { class: "note" }, icon("shield"), h("span", {}, `Owned by ${clean(info.user || "another user")}: stopping it asks for an administrator password.`)) : null,
+    h("div", { class: "d-section" }, h("div", { class: "d-title" }, h("h3", {}, "Traffic"),
+      state.host ? null : h("span", { class: "segmented tiny" },
+        h("button", { class: "active", onclick: (e) => drawSpan(e, chart, r.pid, "short", hist) }, "3 min"),
+        h("button", { onclick: (e) => drawSpan(e, chart, r.pid, "long", hist) }, "1 h"))), chart),
     h("div", { class: "d-section" }, h("h3", {}, `Sockets (${sockets.length})`), socketList),
     h("div", { class: "d-section" }, h("h3", {}, "Command"),
       h("div", { class: "cmd selectable" }, clean(info.cmdline || info.name),
@@ -677,7 +713,10 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") { if (!$("palette").hidden) closePalette(); else if ($("drawer").classList.contains("open")) closeDrawer(); return; }
   const typing = /INPUT|TEXTAREA/.test(document.activeElement?.tagName);
   if (e.key === "/" && !typing) { e.preventDefault(); show("ports"); $("filter").focus(); }
-  if (!typing && !e.ctrlKey && !e.metaKey && !e.altKey && /^[1-5]$/.test(e.key)) show(["overview", "ports", "map", "activity", "settings"][Number(e.key) - 1]);
+  if (!typing && !recordingShortcut && !e.ctrlKey && !e.metaKey && !e.altKey && /^[1-6]$/.test(e.key)) {
+    const v = ["overview", "ports", "map", "projects", "activity", "settings"][Number(e.key) - 1];
+    if (!(state.host && v === "projects")) show(v);
+  }
 });
 
 document.addEventListener("click", (e) => {
@@ -687,9 +726,381 @@ document.addEventListener("click", (e) => {
   call("OpenURL", a.href).catch(() => window.open(a.href, "_blank"));
 });
 
+/* ---------- Sheet: a dialog for logs, passwords and certificates ---------- */
+
+function sheet(title, ...children) {
+  $("sheet-title").textContent = title;
+  $("sheet-body").replaceChildren(...children.flat().filter(Boolean));
+  $("sheet").hidden = false;
+  const close = () => { $("sheet").hidden = true; document.removeEventListener("keydown", esc, true); };
+  const esc = (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } };
+  document.addEventListener("keydown", esc, true);
+  $("sheet-close").onclick = close;
+  $("sheet").onclick = (e) => { if (e.target === $("sheet")) close(); };
+  return close;
+}
+
+/* ---------- Overview alerts ---------- */
+
+function renderAlerts(snap) {
+  const rows = [];
+  const risky = snap.rows.filter((r) => r.listening && r.at_risk);
+  if (risky.length) {
+    const names = [...new Map(risky.map((r) => [r.local_port, `${clean(r.project || r.process || "?")} :${r.local_port}`])).values()];
+    rows.push(h("div", { class: "alert-row risk", onclick: () => { state.riskOnly = true; state.category = null; $("filter").value = ""; show("ports"); renderPorts(); } },
+      icon("globe"), h("span", {}, h("b", {}, `${names.length} port${names.length === 1 ? "" : "s"} reachable from the network: `), names.slice(0, 4).join(", ") + (names.length > 4 ? "…" : "")),
+      h("span", { class: "go" }, "Show")));
+  }
+  if (!state.host && snap.baseline_changes > 0) {
+    rows.push(h("div", { class: "alert-row drift", onclick: () => show("activity") },
+      icon("shield"), h("span", {}, h("b", {}, `${snap.baseline_changes} change${snap.baseline_changes === 1 ? "" : "s"} since the baseline`), " (listening ports added or gone)"),
+      h("span", { class: "go" }, "Review")));
+  }
+  $("alerts").replaceChildren(...rows);
+}
+
+$("risk-filter").addEventListener("click", () => { state.riskOnly = !state.riskOnly; renderPorts(); });
+
+/* ---------- Free ports nearby ---------- */
+
+let freeTimer = null;
+function suggestFreePorts(port) {
+  clearTimeout(freeTimer);
+  freeTimer = setTimeout(async () => {
+    let ports = [];
+    try { ports = await call("FreePortsNear", port + 1); } catch {}
+    if (Number($("free-input").value.trim()) !== port) return;
+    $("free-next").replaceChildren(...(ports.length ? ["Free:", ...ports.map((p) => h("button", { type: "button", title: "Copy " + p, onclick: () => navigator.clipboard.writeText(String(p)).then(() => toast(`Copied ${p}`)) }, String(p)))] : []));
+  }, 250);
+}
+
+/* ---------- Editor ---------- */
+
+async function openEditor(dir) {
+  try { await call("OpenInEditor", dir); } catch (e) { toast(e.message, true); }
+}
+
+function renderEditorSelect() {
+  const sel = $("editor-select");
+  if (!sel || !state.settings) return;
+  const current = state.settings.editor;
+  const found = state.editors;
+  const opts = [h("option", { value: "" }, found.length ? `Automatic (${found[0].name})` : "Automatic (none found)")];
+  for (const e of found) opts.push(h("option", { value: e.command }, e.name));
+  if (current && !found.some((e) => e.command === current)) opts.push(h("option", { value: current }, current));
+  opts.push(h("option", { value: "__custom" }, "Other command…"));
+  sel.replaceChildren(...opts);
+  sel.value = current;
+}
+$("editor-select").addEventListener("change", (e) => {
+  if (e.target.value !== "__custom") { saveSettings({ editor: e.target.value }); return; }
+  const input = h("input", { placeholder: "e.g. nvim-qt or /usr/local/bin/zed", value: state.settings.editor });
+  const close = sheet("Editor command",
+    h("p", { class: "muted" }, "A command that opens the folder given as its last argument."),
+    h("form", { onsubmit: (ev) => { ev.preventDefault(); close(); saveSettings({ editor: input.value.trim() }); } }, input,
+      h("div", { class: "modal-actions" }, h("button", { class: "btn btn-primary btn-sm" }, "Save"))));
+  setTimeout(() => input.focus(), 30);
+  renderEditorSelect();
+});
+
+/* ---------- Containers ---------- */
+
+async function openContainer(name) {
+  const logs = h("pre", {}, "Loading logs…");
+  const act = async (action) => {
+    if (action !== "start") {
+      const ok = await confirmHold({ title: `${action === "stop" ? "Stop" : "Restart"} ${clean(name)}?`, text: ["portop asks Docker to ", action, " the container ", h("b", {}, clean(name)), "."], label: `Hold to ${action}` });
+      if (!ok) return;
+    }
+    const done = { stop: "Stopped", start: "Started", restart: "Restarted" }[action];
+    try { await call("ContainerAction", name, action); toast(`${done} ${name}`); load(); } catch (e) { toast(e.message, true); }
+  };
+  const load = async () => {
+    try { logs.textContent = (await call("ContainerLogs", name)) || "(no output)"; logs.scrollTop = logs.scrollHeight; } catch (e) { logs.textContent = e.message; }
+  };
+  sheet("Container " + clean(name),
+    h("div", { class: "d-actions" },
+      h("button", { class: "btn btn-sm", onclick: () => act("restart") }, icon("restart"), "Restart"),
+      h("button", { class: "btn btn-sm", onclick: () => act("start") }, "Start"),
+      h("button", { class: "btn btn-danger btn-sm", onclick: () => act("stop") }, icon("stop"), "Stop"),
+      h("button", { class: "btn btn-ghost btn-sm", onclick: load }, "Reload logs")),
+    h("h3", { class: "sheet-sub" }, "Last 300 lines"), logs);
+  load();
+}
+
+/* ---------- Traffic: 3 minutes or 1 hour ---------- */
+
+async function loadLongTraffic() {
+  try { state.longTraffic = await call("TrafficHistory", 0); } catch { state.longTraffic = []; }
+  if (state.snap) renderOverview();
+}
+$("traffic-span").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  state.trafficSpan = b.dataset.span;
+  for (const x of $("traffic-span").children) x.classList.toggle("active", x === b);
+  if (state.trafficSpan === "long") loadLongTraffic(); else if (state.snap) renderOverview();
+});
+setInterval(() => { if (state.trafficSpan === "long" && !state.host) loadLongTraffic(); }, 30000);
+
+async function drawSpan(e, chart, pid, span, short) {
+  for (const x of e.target.parentElement.children) x.classList.toggle("active", x === e.target);
+  const hist = span === "long" ? await call("TrafficHistory", pid).catch(() => []) : short;
+  area(chart, [{ values: hist.map((p) => p.rx), color: cssVar("--mint") }, { values: hist.map((p) => p.tx), color: cssVar("--azure") }], { min: 1024 });
+}
+
+/* ---------- Projects: recent and Compose ---------- */
+
+async function renderRecent() {
+  try { state.recent = await call("Recent"); } catch { return; }
+  $("recent-empty").hidden = state.recent.length > 0;
+  keyed($("recent-cards"), state.recent, (p) => p.id, () => h("article", { class: "card recent-card" }), (el, p) => {
+    const sig = JSON.stringify(p);
+    if (el.__sig === sig) return;
+    el.__sig = sig;
+    const b = brand({ framework: p.framework, language: p.language, project: p.name });
+    el.style.setProperty("--fw", b.color);
+    el.classList.toggle("stopped", !p.running);
+    el.replaceChildren(
+      h("div", { class: "card-top" },
+        h("div", { class: "monogram" }, b.mono),
+        h("div", { class: "card-title" }, h("h3", {}, clean(p.name)),
+          h("p", {}, p.framework ? h("b", {}, p.framework) : null, p.framework && p.language ? " · " : "", p.language || "")),
+        h("span", { class: "state-tag " + (p.running ? "on" : "off") }, p.running ? "running" : "stopped")),
+      h("div", { class: "cmd-line", title: p.command }, clean(p.command)),
+      h("div", { class: "card-foot" },
+        h("small", { class: "mono", title: p.dir }, p.ports.map((x) => ":" + x).join(" ") + (p.running ? ` · PID ${p.pid}` : ` · ${ago(p.last_seen)}`)),
+        h("div", { class: "card-actions" },
+          h("button", { class: "icon-btn", title: "Open in editor", onclick: () => openEditor(p.root) }, icon("code")),
+          h("button", { class: "icon-btn", title: "Open folder", onclick: () => call("OpenFolder", p.root).catch((e) => toast(e.message, true)) }, icon("folder")),
+          p.running ? null : h("button", { class: "btn btn-primary btn-sm", title: "Run the command again in a terminal", onclick: async () => {
+            try { await call("Launch", p.id); toast(`Starting ${p.name} in a new terminal`); } catch (e) { toast(e.message, true); }
+          } }, "Start"),
+          h("button", { class: "icon-btn", title: "Forget this project", onclick: async () => { await call("Forget", p.id).catch((e) => toast(e.message, true)); renderRecent(); } }, icon("x")))));
+  });
+  renderComposeRecent();
+}
+
+function renderComposeRecent() {
+  const dirs = state.settings?.compose_dirs || [];
+  $("compose-recent").replaceChildren(...dirs.map((d) => h("button", { class: "chip", title: d, onclick: () => audit(d) }, icon("folder"), clean(d.split(/[\\/]/).filter(Boolean).pop() || d))));
+}
+
+async function audit(dir) {
+  let res;
+  try { res = await call("ComposeAudit", dir); } catch (e) { toast(e.message, true); return; }
+  state.settings = await call("Settings");
+  renderComposeRecent();
+  $("compose-table").hidden = false;
+  $("compose-files").textContent = `${res.directory} · ${(res.files || []).join(", ")}`;
+  const label = { expected: "listening", conflict: "taken", unused: "not listening", dynamic: "dynamic" };
+  $("compose-body").replaceChildren(...(res.results || []).map((r) => h("div", { class: "trow" },
+    h("b", { class: "status-" + r.status }, label[r.status] || r.status),
+    h("div", { class: "cell-main" }, h("b", {}, clean(r.service)), h("small", {}, clean(r.container_name || ""))),
+    h("span", { class: "mono" }, r.dynamic ? "dynamic" : `${r.host_ip ? r.host_ip + ":" : ""}${r.published}${r.target ? " → " + r.target : ""}/${(r.protocol || "tcp").toLowerCase()}`),
+    h("div", { class: "cell-main" }, h("b", {}, clean(r.owner_container || r.owner_process || "—")), h("small", {}, r.owner_pid ? "PID " + r.owner_pid : "")),
+    h("small", { class: "muted" }, clean(r.note || "")))));
+}
+$("compose-pick").addEventListener("click", async () => {
+  try {
+    const dir = await call("PickComposeFolder");
+    if (dir) audit(dir);
+  } catch (e) { toast(e.message, true); }
+});
+
+/* ---------- Baseline ---------- */
+
+async function renderBaseline() {
+  if (state.host) return;
+  let st;
+  try { st = await call("Baseline"); } catch (e) { $("baseline-status").textContent = e.message; return; }
+  const changes = [...st.added.map((e) => ({ e, kind: "added" })), ...st.removed.map((e) => ({ e, kind: "removed" }))];
+  $("baseline-status").textContent = !st.exists ? "No baseline saved. Save the ports that should be listening, then portop shows what changes."
+    : `Saved ${new Date(st.saved_at).toLocaleString()}. ${changes.length ? changes.length + " change" + (changes.length === 1 ? "" : "s") + ":" : "Nothing changed."}`;
+  $("baseline-save").textContent = st.exists ? "Save current ports as the new baseline" : "Save current ports as the baseline";
+  $("baseline-list").replaceChildren(...changes.slice(0, 40).map(({ e, kind }) => h("li", {},
+    h("strong", {}, ":" + e.port),
+    h("small", { class: kind }, `${kind === "added" ? "new" : "gone"} · ${e.protocol} · ${clean(e.process || "?")}${e.scope ? " · " + e.scope : ""}`))));
+}
+$("baseline-save").addEventListener("click", async () => {
+  try { await call("SaveBaseline"); toast("Baseline saved"); renderBaseline(); } catch (e) { toast(e.message, true); }
+});
+
+/* ---------- Export ---------- */
+
+async function exportAs(format) {
+  try {
+    const res = await call("Export", format);
+    if (res.cancelled) return;
+    if (res.path) { toast("Saved " + res.path); return; }
+    const a = h("a", { href: URL.createObjectURL(new Blob([res.content], { type: format === "json" ? "application/json" : "text/csv" })), download: res.name });
+    document.body.append(a); a.click(); a.remove();
+  } catch (e) { toast(e.message, true); }
+}
+$("export-json").addEventListener("click", () => exportAs("json"));
+$("export-csv").addEventListener("click", () => exportAs("csv"));
+
+/* ---------- Global shortcut ---------- */
+
+let recordingShortcut = false;
+function prettyShortcut(s) {
+  return s.replace("CmdOrCtrl", isMac ? "⌘" : "Ctrl").replace("Alt", isMac ? "⌥" : "Alt").replace("Shift", isMac ? "⇧" : "Shift").replaceAll("+", isMac ? "" : "+");
+}
+$("shortcut-record").addEventListener("click", () => {
+  recordingShortcut = true;
+  $("shortcut-label").textContent = "Press the keys…";
+  $("shortcut-label").classList.add("recording");
+  const done = (value) => {
+    recordingShortcut = false;
+    $("shortcut-label").classList.remove("recording");
+    document.removeEventListener("keydown", onKey, true);
+    if (value !== undefined) saveSettings({ shortcut: value }); else renderSettings();
+  };
+  const onKey = (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (e.key === "Escape") { done(); return; }
+    const key = e.key.length === 1 ? e.key.toUpperCase() : /^F\d{1,2}$/.test(e.key) ? e.key : null;
+    if (!key || !/^[A-Z0-9]$|^F\d{1,2}$/.test(key)) return;
+    const mods = [];
+    if (isMac ? e.metaKey : e.ctrlKey) mods.push("CmdOrCtrl");
+    if (e.altKey) mods.push("Alt");
+    if (e.shiftKey) mods.push("Shift");
+    if (!mods.length) { $("shortcut-label").textContent = "Add Ctrl, Alt or Shift"; return; }
+    done([...mods, key].join("+"));
+  };
+  document.addEventListener("keydown", onKey, true);
+});
+$("shortcut-clear").addEventListener("click", () => saveSettings({ shortcut: "" }));
+
+/* ---------- Remote machines ---------- */
+
+function renderHosts() {
+  const s = state.settings;
+  $("host-list").replaceChildren(...(s.hosts.length ? s.hosts.map((x) => h("li", {},
+    h("b", {}, clean(x.name)), h("small", {}, clean(x.url) + (x.user ? " · " + clean(x.user) : "") + (x.fingerprint ? " · pinned certificate" : "")),
+    h("button", { class: "btn btn-sm", onclick: () => selectHost(x.name) }, "Show"),
+    h("button", { class: "icon-btn", title: "Remove", onclick: () => { if (state.host === x.name) selectHost(null); saveSettings({ hosts: s.hosts.filter((y) => y.name !== x.name) }); } }, icon("x"))))
+    : [h("li", { class: "none" }, "No machines added.")]));
+  const sel = $("host-select");
+  sel.replaceChildren(h("option", { value: "" }, `This machine${state.about ? " (" + state.about.host + ")" : ""}`),
+    ...s.hosts.map((x) => h("option", { value: x.name }, x.name)),
+    h("option", { value: "__add" }, "Add a machine…"));
+  sel.value = state.host || "";
+}
+$("host-select").addEventListener("change", (e) => {
+  if (e.target.value === "__add") { e.target.value = state.host || ""; show("settings"); $("host-name").focus(); return; }
+  selectHost(e.target.value || null);
+});
+$("host-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const host = { name: $("host-name").value.trim(), url: $("host-url").value.trim().replace(/\/+$/, ""), user: $("host-user").value.trim() };
+  if (!host.name || !/^https?:\/\/[^/\s]+/.test(host.url)) { toast("Give a name and an address such as https://web-01:8088", true); return; }
+  if (state.settings.hosts.some((x) => x.name === host.name)) { toast("A machine with that name exists", true); return; }
+  for (const id of ["host-name", "host-url", "host-user"]) $(id).value = "";
+  saveSettings({ hosts: [...state.settings.hosts, host] });
+});
+$("remote-back").addEventListener("click", () => selectHost(null));
+
+const passwords = new Set(); // hosts connected this session
+
+async function selectHost(name) {
+  clearInterval(state.remoteTimer);
+  if (!name) {
+    state.host = null;
+    document.body.classList.remove("remote");
+    $("remote-banner").hidden = true;
+    $("host").textContent = state.about?.host || "";
+    renderHosts();
+    if (state.localSnap) render(state.localSnap);
+    return;
+  }
+  const host = state.settings.hosts.find((x) => x.name === name);
+  if (!host) return;
+  if (!passwords.has(name)) {
+    const ok = await connectHost(host);
+    if (!ok) { renderHosts(); return; }
+  }
+  state.host = name;
+  document.body.classList.add("remote");
+  $("remote-banner").hidden = false;
+  $("remote-name").textContent = name;
+  $("host").textContent = name;
+  if (state.view === "projects") show("overview");
+  renderHosts();
+  const poll = async () => {
+    if (state.host !== name) return;
+    try {
+      const snap = await call("RemoteSnapshot", name);
+      if (state.host === name) { $("live").classList.remove("error"); render(snap); $("live-text").textContent = `${name} · ${clock(snap.time)}`; }
+    } catch (e) {
+      $("live").classList.add("error");
+      $("live-text").textContent = `${name}: ${e.message}`;
+    }
+  };
+  poll();
+  state.remoteTimer = setInterval(poll, Math.max(2000, state.settings.interval_ms));
+}
+
+// connectHost asks for the password when the dashboard has a sign-in,
+// and for trust when its certificate is self-signed.
+function connectHost(host) {
+  return new Promise((resolve) => {
+    const pw = h("input", { type: "password", placeholder: "Password", autocomplete: "current-password" });
+    const err = h("p", { class: "muted" });
+    let settled = false;
+    const finish = (v) => { if (!settled) { settled = true; resolve(v); } };
+    const attempt = async () => {
+      err.textContent = "Connecting…";
+      try {
+        await call("Connect", host.name, pw.value);
+        passwords.add(host.name);
+        close();
+        finish(true);
+      } catch (e) {
+        const fp = /SHA-256 ([0-9A-F]{64})/.exec(e.message);
+        if (!fp) { err.textContent = e.message; return; }
+        close();
+        trustHost(host, fp[1]).then((trusted) => trusted ? connectHost({ ...host, fingerprint: fp[1] }).then(finish) : finish(false));
+      }
+    };
+    const close = sheet(`Connect to ${host.name}`,
+      h("p", { class: "muted" }, clean(host.url) + (host.user ? ` as ${clean(host.user)}` : "")),
+      h("form", { onsubmit: (e) => { e.preventDefault(); attempt(); } }, host.user ? pw : null, err,
+        h("div", { class: "modal-actions" }, h("button", { class: "btn btn-primary btn-sm" }, "Connect"))));
+    const watch = setInterval(() => { if ($("sheet").hidden) { clearInterval(watch); finish(passwords.has(host.name)); } }, 300);
+    if (host.user) setTimeout(() => pw.focus(), 30); else attempt();
+  });
+}
+
+function trustHost(host, fp) {
+  return new Promise((resolve) => {
+    const close = sheet("Trust this certificate?",
+      h("p", { class: "muted" }, `${host.url} uses a certificate this system does not trust, such as a self-signed one. Compare its fingerprint with the one on the server (openssl x509 -noout -fingerprint -sha256 -in cert.pem) before you trust it.`),
+      h("div", { class: "fingerprint" }, fp.match(/.{2}/g).join(":")),
+      h("div", { class: "modal-actions" },
+        h("button", { class: "btn btn-ghost btn-sm", onclick: () => { close(); resolve(false); } }, "Cancel"),
+        h("button", { class: "btn btn-primary btn-sm", onclick: async () => {
+          close();
+          await saveSettings({ hosts: state.settings.hosts.map((x) => x.name === host.name ? { ...x, fingerprint: fp } : x) });
+          resolve(true);
+        } }, "Trust and connect")));
+  });
+}
+
 /* ---------- Data flow ---------- */
 
 function onSnapshot(snap) {
+  state.localSnap = snap;
+  if (state.host) {
+    // Viewing another machine: keep this one's events, draw nothing.
+    if (snap.new_events?.length) state.events.push(...snap.new_events);
+    return;
+  }
+  render(snap);
+  if (state.view === "projects") renderRecent();
+}
+
+function render(snap) {
   state.snap = snap;
   const live = $("live");
   live.classList.toggle("error", Boolean(snap.error));
@@ -722,6 +1133,7 @@ function onSnapshot(snap) {
 Events.On("snapshot", (ev) => onSnapshot(ev.data));
 Events.On("navigate", (ev) => show(ev.data));
 Events.On("notify", (ev) => toast(ev.data.title + ": " + ev.data.body));
+Events.On("palette", () => { if ($("palette").hidden) openPalette(); });
 
 async function boot() {
   try {
@@ -736,6 +1148,7 @@ async function boot() {
   $("version").textContent = state.about.version;
   $("about-line").textContent = `${state.about.host} · ${state.about.os}/${state.about.arch}`;
   movePill();
+  call("Editors").then((list) => { state.editors = list || []; renderEditorSelect(); }).catch(() => {});
   const snap = await call("Snapshot");
   if (snap?.time && !snap.time.startsWith("0001")) onSnapshot(snap);
 }

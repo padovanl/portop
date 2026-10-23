@@ -17,6 +17,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -43,6 +44,9 @@ func main() {
 	}
 
 	b := backend.New(*settings)
+	// Keep the baseline next to the temporary settings, not in the file
+	// portop --save-baseline uses.
+	b.BaselinePath = filepath.Join(filepath.Dir(*settings), "portop-desktop-baseline.json")
 	if *hideSelf {
 		b.HidePID = os.Getpid()
 	}
