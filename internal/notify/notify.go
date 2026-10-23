@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"runtime"
 
+	"github.com/padovanl/portop/internal/hostcmd"
 	"github.com/padovanl/portop/internal/terminaltext"
 )
 
@@ -38,7 +39,7 @@ func command(goos, title, body string) *exec.Cmd {
 		return exec.Command("osascript", "-e", script)
 	case "windows":
 		// Text travels in env vars to avoid quoting.
-		cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", windowsToastScript)
+		cmd := hostcmd.Hide(exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", windowsToastScript))
 		cmd.Env = append(os.Environ(), "PORTOP_TOAST_TITLE="+title, "PORTOP_TOAST_BODY="+body,
 			"PORTOP_TOAST_APPID="+registeredAppID())
 		return cmd

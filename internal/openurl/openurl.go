@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"runtime"
 	"strconv"
+
+	"github.com/padovanl/portop/internal/hostcmd"
 )
 
 // URLForPort builds the URL portop's "o" (open) action points the
@@ -51,7 +53,7 @@ func command(url string) *exec.Cmd {
 	case "darwin":
 		return exec.Command("open", url)
 	case "windows":
-		return exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+		return hostcmd.Hide(exec.Command("rundll32", "url.dll,FileProtocolHandler", url))
 	default:
 		return exec.Command("xdg-open", url)
 	}

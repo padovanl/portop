@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/padovanl/portop/internal/hostcmd"
 	"golang.org/x/sys/windows"
 )
 
@@ -89,7 +90,9 @@ func runElevated(args []string) error {
 // open after it exits.
 func openTerminal(title, dir, command string) error {
 	clean := strings.NewReplacer(`"`, "", "&", "", "|", "", "<", "", ">", "", "^", "").Replace(title)
-	cmd := exec.Command("cmd.exe")
+	// The intermediate cmd.exe has no window; the console that start opens
+	// for the command is meant to be seen.
+	cmd := hostcmd.Hide(exec.Command("cmd.exe"))
 	// cmd /k strips the outer quotes of a quoted command line, so the
 	// whole line gets one more pair.
 	cmd.SysProcAttr = &syscall.SysProcAttr{
