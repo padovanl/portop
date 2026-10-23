@@ -87,6 +87,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	noDocker := fs.Bool("no-docker", false, "disable Docker container association")
 	noFirewall := fs.Bool("no-firewall", false, "do not read the host firewall for exposed ports")
 	noTraffic := fs.Bool("no-traffic", false, "do not read per-connection traffic")
+	noProjects := fs.Bool("no-projects", false, "do not detect the project and framework behind listening ports")
 	watchNew := fs.Bool("watch-new", false, "send a desktop notification when a new listening port appears")
 	interval := fs.Duration("interval", 2*time.Second, "TUI refresh interval")
 	showVersion := fs.Bool("version", false, "print the version and exit")
@@ -181,6 +182,9 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	if !explicit["no-traffic"] && fileCfg.ResolveTraffic != nil && !*fileCfg.ResolveTraffic {
 		*noTraffic = true
 	}
+	if !explicit["no-projects"] && fileCfg.ResolveProjects != nil && !*fileCfg.ResolveProjects {
+		*noProjects = true
+	}
 	if !explicit["watch-new"] && fileCfg.WatchNew != nil {
 		*watchNew = *fileCfg.WatchNew
 	}
@@ -261,6 +265,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		ResolveDNS:      !*noDNS,
 		ResolveFirewall: !*noFirewall,
 		ResolveTraffic:  !*noTraffic,
+		ResolveProjects: !*noProjects,
 	}
 
 	blPath := *baselinePath
@@ -303,6 +308,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		ResolveDocker:   opts.ResolveDocker,
 		ResolveFirewall: opts.ResolveFirewall,
 		ResolveTraffic:  opts.ResolveTraffic,
+		ResolveProjects: opts.ResolveProjects,
 		NotifyOnNewPort: *watchNew,
 		ConfigPath:      cfgPath,
 		Theme:           themeName,
@@ -554,6 +560,11 @@ type jsonRow struct {
 	CPUPercent    float64  `json:"cpu_percent"`
 	SystemdUnit   string   `json:"systemd_unit,omitempty"`
 	Container     string   `json:"container,omitempty"`
+	Project       string   `json:"project,omitempty"`
+	ProjectRoot   string   `json:"project_root,omitempty"`
+	Language      string   `json:"language,omitempty"`
+	Framework     string   `json:"framework,omitempty"`
+	Category      string   `json:"category,omitempty"`
 }
 
 func toJSONRow(r app.Row) jsonRow {
@@ -572,6 +583,11 @@ func toJSONRow(r app.Row) jsonRow {
 		CPUPercent:   r.CPUPercent,
 		SystemdUnit:  r.SystemdUnit,
 		Container:    r.ContainerName,
+		Project:      r.Project.Name,
+		ProjectRoot:  r.Project.Root,
+		Language:     r.Project.Language,
+		Framework:    r.Project.Framework,
+		Category:     r.Category,
 	}
 	if r.TrafficKnown {
 		jr.RXBytes, jr.TXBytes = &r.RXBytes, &r.TXBytes

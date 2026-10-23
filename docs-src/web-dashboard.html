@@ -5,7 +5,7 @@
 <pre>portop --web                  # http://127.0.0.1:8088
 portop --web --web-port 9090</pre>
 <p>The dashboard lists every socket with its exposure and firewall badges, user, workers and traffic, with tabs for listening and connected sockets and a search box. The printed URL carries a per-run token: without it the table is readable, but process details and signals are refused. <code>--listen</code>, the <code>--no-*</code> flags and a filter apply here too.</p>
-<figure><img src="../assets/web-dashboard.png" alt="The portop web dashboard with exposure badges and a process detail dialog" loading="lazy"><figcaption>The web dashboard with a process's details open.</figcaption></figure>
+<figure class="themed"><img class="themed-light" src="../assets/web-dashboard-light.png" alt="The portop web dashboard with exposure badges and the details of nginx and its workers" loading="lazy"><img class="themed-dark" src="../assets/web-dashboard-dark.png" alt="The portop web dashboard with exposure badges and the details of nginx and its workers" loading="lazy"><figcaption>The web dashboard with a process's details open.</figcaption></figure>
 
 <h2 id="sign-in">Sign-in</h2>
 <table>
@@ -48,3 +48,4 @@ PORTOP_WEB_PASSWORD='choose-one' portop --web --web-user admin \
     static_configs:
       - targets: ["host:8088"]</pre>
 <p>Alert when <code>portop_listening_ports{scope="all"}</code> grows, or on a new <code>portop_listening_port_info</code> series.</p>
+<p>The read-only API, <code>GET /api/ports</code> (the fields of <code>portop --json</code>) and <code>GET /api/process/{pid}</code>, takes the same Basic auth, under the same lockout after failed attempts. That is how the <a href="desktop.html#remote">desktop app</a> shows another machine's ports. Stopping a process still needs a signed-in browser session.</p>

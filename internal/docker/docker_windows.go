@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"sync"
 	"time"
+
+	"github.com/padovanl/portop/internal/hostcmd"
 )
 
 // On Windows, Docker Desktop's daemon listens on a named pipe and its
@@ -48,8 +50,7 @@ func (c *Client) PublishedPorts(ctx context.Context) []PublishedPort {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, cli, "ps", "--all", "--no-trunc", "--format", "{{json .}}")
-	hideWindow(cmd)
+	cmd := hostcmd.Hide(exec.CommandContext(ctx, cli, "ps", "--all", "--no-trunc", "--format", "{{json .}}"))
 	out, err := cmd.Output()
 	psAt = time.Now()
 	if err != nil {

@@ -14,7 +14,7 @@ cp -r portop/cockpit/portop ~/.local/share/cockpit/portop</pre>
 
 <h2 id="using">Using the page</h2>
 <p>The table refreshes every two seconds, with the same tabs and filter as the <a href="web-dashboard.html">web dashboard</a>. Established connections show their traffic rate under the remote address, worked out from the byte counts of two refreshes in a row (see <a href="traffic.html">Traffic</a>). <em>Details</em> shows the socket and the owning process; <em>Terminate</em> and <em>Force kill</em> send SIGTERM or SIGKILL after a confirmation, and only if the process still has the start time portop read, so a reused PID is never signaled.</p>
-<figure><img src="../assets/cockpit.png" alt="portop inside Cockpit under Tools" loading="lazy"><figcaption>portop under Tools in Cockpit, with Administrative access on.</figcaption></figure>
+<figure class="themed"><img class="themed-light" src="../assets/cockpit-light.png" alt="portop inside Cockpit under Tools, with processes, units, workers and traffic" loading="lazy"><img class="themed-dark" src="../assets/cockpit-dark.png" alt="portop inside Cockpit under Tools, with processes, units, workers and traffic" loading="lazy"><figcaption>portop under Tools in Cockpit, with Administrative access on.</figcaption></figure>
 
 <h2 id="permissions">Administrative access</h2>
 <p>The page runs portop as root when Cockpit's <em>Administrative access</em> is on, and as your own user when it is off. Without it, ports owned by other users show no process, and Terminate and Force kill are unavailable, as with <a href="first-run.html#permissions">portop without sudo</a>. The page refreshes every two seconds and picks up a change of the switch on its own.</p>

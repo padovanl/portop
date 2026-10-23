@@ -141,6 +141,18 @@ func (m Model) renderDetail() string {
 			field("Workers:", workerList(row.Workers))
 		}
 		field("User:", orDash(info.User))
+		if row.Project.Name != "" || row.Project.Framework != "" {
+			parts := []string{}
+			for _, s := range []string{row.Project.Name, row.Project.Framework, row.Project.Language} {
+				if s != "" {
+					parts = append(parts, s)
+				}
+			}
+			field("Project:", strings.Join(parts, " · "))
+		}
+		if row.Project.Root != "" {
+			field("Project dir:", row.Project.Root)
+		}
 		field("Cmdline:", orDash(info.Cmdline))
 		field("Executable:", orDash(info.Exe))
 		field("Cwd:", orDash(info.Cwd))

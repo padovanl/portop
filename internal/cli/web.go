@@ -238,10 +238,11 @@ func requireSession(auth *webAuth, next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		// Prometheus cannot hold a browser session: /metrics also takes
-		// the dashboard credentials as HTTP Basic auth (basic_auth in a
-		// scrape config), under the same lockout as the sign-in form.
-		if r.URL.Path == "/metrics" {
+		// Prometheus and portop desktop cannot hold a browser session:
+		// /metrics and the read-only API also take the dashboard
+		// credentials as HTTP Basic auth, under the same lockout as the
+		// sign-in form. Actions (POST) still need a session and its token.
+		if r.URL.Path == "/metrics" || (r.Method == http.MethodGet && (r.URL.Path == "/api/ports" || strings.HasPrefix(r.URL.Path, "/api/process/"))) {
 			if _, ok := auth.session(r); ok || auth.basicAuth(w, r) {
 				next.ServeHTTP(w, r)
 			}

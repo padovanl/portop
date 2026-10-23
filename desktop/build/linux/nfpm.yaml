@@ -1,0 +1,46 @@
+# Packages portop-desktop for Debian/Ubuntu and Fedora/RHEL. Run from
+# desktop/ with VERSION set: nfpm package -f build/linux/nfpm.yaml -p deb
+name: portop-desktop
+arch: amd64
+platform: linux
+version: ${VERSION}
+section: net
+priority: optional
+maintainer: Luca Padovan <padovan.93@gmail.com>
+vendor: portop
+homepage: https://github.com/padovanl/portop
+license: MIT
+description: |-
+  Desktop app for portop: which process, project and container is using
+  each TCP/UDP port, with dev servers, a connection map and notifications.
+  The command-line portop is a separate package.
+contents:
+  - src: ./bin/portop-desktop
+    dst: /usr/bin/portop-desktop
+    file_info:
+      mode: 0755
+  - src: ./build/linux/portop-desktop.desktop
+    dst: /usr/share/applications/portop-desktop.desktop
+    file_info:
+      mode: 0644
+  - src: ./build/linux/portop-desktop.png
+    dst: /usr/share/icons/hicolor/256x256/apps/portop-desktop.png
+    file_info:
+      mode: 0644
+  - src: ../LICENSE
+    dst: /usr/share/doc/portop-desktop/LICENSE
+    file_info:
+      mode: 0644
+overrides:
+  deb:
+    depends:
+      - libgtk-4-1
+      - libwebkitgtk-6.0-4
+    recommends:
+      - pkexec | policykit-1
+  rpm:
+    depends:
+      - gtk4
+      - webkitgtk6.0
+    recommends:
+      - polkit

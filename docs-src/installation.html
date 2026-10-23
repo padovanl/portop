@@ -19,7 +19,7 @@ curl -fsSL https://apt.lucapadovan.dev/lucapadovan.gpg | sudo tee /etc/apt/keyri
 echo "deb [signed-by=/etc/apt/keyrings/lucapadovan.gpg] https://apt.lucapadovan.dev stable main" \
   | sudo tee /etc/apt/sources.list.d/lucapadovan.list
 sudo apt update &amp;&amp; sudo apt install portop</pre>
-<p>The signed repository at <a href="https://apt.lucapadovan.dev">apt.lucapadovan.dev</a> serves amd64, arm64 and armhf (the ARMv6 build, which also runs on ARMv7).</p>
+<p>The signed repository at <a href="https://apt.lucapadovan.dev">apt.lucapadovan.dev</a> serves amd64, arm64 and armhf (the ARMv6 build, which also runs on ARMv7). It also has the <a href="desktop.html">desktop app</a>, for amd64 on Ubuntu 24.04+ and Debian 13+: <code>sudo apt install portop-desktop</code>.</p>
 
 <h2 id="install-script">Install script</h2>
 <pre>curl -fsSL https://raw.githubusercontent.com/padovanl/portop/main/install.sh | sh</pre>
