@@ -625,12 +625,14 @@ body.remote .local-only { display: none !important; }
 .recent-card .cmd-line { font: 11.5px/1.5 var(--mono); color: var(--muted); background: rgba(0, 0, 0, 0.18); border: 1px solid var(--line); border-radius: 9px; padding: 7px 9px; word-break: break-all; max-height: 58px; overflow: hidden; }
 :root[data-theme="light"] .recent-card .cmd-line { background: rgba(15, 30, 70, 0.04); }
 .recent-card .card-foot small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#compose-table { margin-bottom: 10px; }
 .table.compose .thead, .table.compose .trow { grid-template-columns: 120px minmax(120px, 1fr) 150px minmax(150px, 1fr) minmax(160px, 1.4fr); }
 .status-expected { color: var(--mint); } .status-conflict { color: var(--rose); } .status-unused { color: var(--amber); } .status-dynamic { color: var(--muted); }
 
 /* Baseline panel */
-.panel.baseline { margin-top: 14px; }
-.activity > aside + aside { grid-column: 2; }
+.activity .side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 0; }
+.activity .side .watch { position: static; }
+#baseline-save { margin-bottom: 10px; }
 .baseline .watch-list li small.added { color: var(--amber); }
 .baseline .watch-list li small.removed { color: var(--faint); }
 
@@ -663,3 +665,37 @@ body.remote .local-only { display: none !important; }
 .note.risk svg { color: var(--rose); }
 .sheet-sub { color: var(--faint); font: 600 11px var(--mono); letter-spacing: 0.1em; text-transform: uppercase; margin: 16px 0 8px; }
 .kpi header, .kpi .rates, .kpi > strong { position: relative; z-index: 1; }
+#baseline-save { height: auto; min-height: 32px; padding: 7px 14px; white-space: nowrap; align-self: flex-start; }
+#compose-recent { margin-bottom: 14px; }
+
+/* Features the system lacks are hidden (see Capabilities). */
+body.no-docker .needs-docker, body.no-editor .needs-editor, body.no-terminal .needs-terminal,
+body.no-autostart .needs-autostart, body.no-shortcut .needs-shortcut { display: none !important; }
+.cap-note { margin-top: 6px; font-size: 12.5px; color: var(--amber); }
+.monogram.has-icon, .ico.has-icon, .map-icon.has-icon { background: none; box-shadow: none; }
+.monogram.has-icon img, .map-icon.has-icon img { width: 100%; height: 100%; object-fit: contain; border-radius: 8px; }
+.ico.has-icon img { width: 26px; height: 26px; object-fit: contain; }
+
+/* Sliders: a filled track up to the value and a round thumb. */
+input[type="range"] {
+  -webkit-appearance: none; appearance: none; width: 240px; height: 22px; background: none; cursor: pointer;
+  --fill: 0%;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px; border-radius: 99px;
+  background: linear-gradient(90deg, var(--azure) 0 var(--fill), var(--line-strong) var(--fill) 100%);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 18px; height: 18px; margin-top: -6px; border-radius: 50%;
+  background: #fff; border: 0; box-shadow: 0 0 0 4px color-mix(in srgb, var(--azure) 30%, transparent), 0 2px 6px rgba(0, 0, 0, 0.35);
+  transition: box-shadow 0.2s, transform 0.15s var(--ease);
+}
+input[type="range"]:hover::-webkit-slider-thumb { box-shadow: 0 0 0 6px color-mix(in srgb, var(--azure) 25%, transparent), 0 2px 6px rgba(0, 0, 0, 0.35); }
+input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.1); }
+input[type="range"]:focus-visible { outline: none; }
+input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--azure); }
+input[type="range"]::-moz-range-track { height: 6px; border-radius: 99px; background: var(--line-strong); }
+input[type="range"]::-moz-range-progress { height: 6px; border-radius: 99px; background: var(--azure); }
+input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 0 0 4px color-mix(in srgb, var(--azure) 30%, transparent); }
+.range-wrap { display: flex; align-items: center; gap: 10px; }
+.range-wrap small { color: var(--faint); font: 11px var(--mono); }

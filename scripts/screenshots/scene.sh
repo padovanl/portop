@@ -10,6 +10,8 @@ hostname web-01
 mount -t tmpfs tmpfs /srv
 mkdir -p /srv/bin
 for b in node python3 postgres redis-server nginx sshd; do cp "$W/fakesrv" /srv/bin/$b; done
+# A terminal for Restart and Start to find (never run here).
+mkdir -p /srv/term && printf '#!/bin/sh\nexit 0\n' > /srv/term/xterm && chmod +x /srv/term/xterm
 mkdir -p /srv/dev/storefront/node_modules/next/dist/bin /srv/dev/admin-ui/node_modules/vite/bin \
   /srv/dev/docs-site/node_modules/@docusaurus/core/bin /srv/dev/billing-api/.venv/bin
 touch /srv/dev/storefront/node_modules/next/dist/bin/next /srv/dev/admin-ui/node_modules/vite/bin/vite.js \
@@ -17,11 +19,30 @@ touch /srv/dev/storefront/node_modules/next/dist/bin/next /srv/dev/admin-ui/node
 printf '%s' '{"name":"storefront","dependencies":{"next":"15.5.0","react":"19.1.0"}}' > /srv/dev/storefront/package.json
 printf '%s' '{"name":"admin-ui","devDependencies":{"vite":"7.1.0"}}' > /srv/dev/admin-ui/package.json
 printf '%s' '{"name":"docs-site","dependencies":{"@docusaurus/core":"3.8.0"}}' > /srv/dev/docs-site/package.json
+# Simple, made-up favicons, so the cards show project icons.
+mkdir -p /srv/dev/storefront/public /srv/dev/admin-ui/public /srv/dev/docs-site/static
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#f97316"/><path d="M9 12h14l-1.5 13h-11z" fill="#fff"/><path d="M12 12a4 4 0 0 1 8 0" stroke="#fff" stroke-width="2" fill="none"/></svg>' > /srv/dev/storefront/public/favicon.svg
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#0ea5e9"/><rect x="7" y="8" width="18" height="16" rx="2" fill="none" stroke="#fff" stroke-width="2"/><path d="M7 13h18M12 13v11" stroke="#fff" stroke-width="2"/></svg>' > /srv/dev/admin-ui/public/favicon.svg
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#16a34a"/><path d="M9 8h9a5 5 0 0 1 5 5v11H14a5 5 0 0 1-5-5z" fill="#fff"/></svg>' > /srv/dev/docs-site/static/favicon.svg
+mkdir -p /srv/dev/shop-stack
+cat > /srv/dev/shop-stack/compose.yaml <<'YAML'
+services:
+  web:
+    image: nginx:1.29
+    ports: ["80:80"]
+  db:
+    image: postgres:17
+    ports: ["127.0.0.1:5433:5432"]
+  cache:
+    image: redis:8
+    ports: ["6379:6379"]
+YAML
 printf '[project]\nname = "billing-api"\ndependencies = ["fastapi>=0.115", "uvicorn"]\n' > /srv/dev/billing-api/pyproject.toml
 
 # Services run from /, as daemons do; dev servers from their project.
 cd /
-SERVE_PORT=5432 SERVE_REPLY=48000 /srv/bin/postgres -D /var/lib/postgresql/17/main >/dev/null 2>&1 &
+# A database on every interface: the exposure warning's case.
+SERVE_PORT=5432 SERVE_BIND=0.0.0.0 SERVE_REPLY=48000 /srv/bin/postgres -D /var/lib/postgresql/17/main >/dev/null 2>&1 &
 SERVE_PORT=6379 SERVE_REPLY=600 /srv/bin/redis-server 127.0.0.1:6379 >/dev/null 2>&1 &
 SERVE_PORT=22 SERVE_BIND=0.0.0.0 /srv/bin/sshd -D >/dev/null 2>&1 &
 sleep 0.5
@@ -40,7 +61,7 @@ SERVE_PORT=80 SERVE_BIND=0.0.0.0 SERVE_WORKERS=4 SERVE_REPLY=70000 SERVE_CONNECT
 sleep 1
 
 cd "$W"
-"$W/devserver" -hide-self -frontend "$FRONTEND" >"$W/devserver.log" 2>&1 &
+PATH="/srv/term:$PATH" "$W/devserver" -hide-self -shell-preview -frontend "$FRONTEND" >"$W/devserver.log" 2>&1 &
 sleep 6
 python3 "$W/desktop.py" "$W"
 python3 "$W/web.py" "$W"

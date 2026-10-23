@@ -101,3 +101,17 @@ func linuxTerminals(line, dir string) [][]string {
 		append([]string{"xterm", "-e"}, sh...),
 	)
 }
+
+// terminalAvailable is true when openTerminal has a terminal to open:
+// always on macOS (Terminal.app), and on Linux when one is installed.
+func terminalAvailable() bool {
+	if runtime.GOOS == "darwin" {
+		return true
+	}
+	for _, t := range linuxTerminals("", "") {
+		if _, err := exec.LookPath(t[0]); err == nil {
+			return true
+		}
+	}
+	return false
+}

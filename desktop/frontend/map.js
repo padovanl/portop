@@ -21,10 +21,11 @@ function svg(tag, attrs) {
 }
 
 export class MapView {
-  constructor(root, tip, { onSelect }) {
+  constructor(root, tip, { onSelect, withIcon }) {
     this.root = root;
     this.tip = tip;
     this.onSelect = onSelect;
+    this.withIcon = withIcon; // swaps a badge for the process's icon
     this.stage = h("div", { class: "map-stage" });
     this.edgesEl = svg("svg", { class: "map-edges" });
     this.cardsEl = h("div", { class: "map-cards" });
@@ -306,6 +307,7 @@ export class MapView {
       const b = brand(r);
       badge = h("span", { class: "map-icon mono", style: { "--fw": b.color } }, b.mono);
     } else badge = h("span", { class: "map-icon" }, icon(n.row ? CATEGORIES[n.category]?.icon || "app" : "lock"));
+    if (n.row && this.withIcon) this.withIcon(badge, r);
     const sub = n.kind === "remote" ? n.sub : [n.sub, n.row ? "PID " + r.pid : ""].filter(Boolean).join(" · ");
     el.replaceChildren(
       badge,

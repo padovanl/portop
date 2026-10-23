@@ -32,23 +32,27 @@ func main() {
 	dir := flag.String("frontend", "frontend", "frontend directory")
 	settings := flag.String("settings", "", "settings file (default: a temporary one)")
 	hideSelf := flag.Bool("hide-self", false, "leave this server's own socket out (for screenshots)")
+	shellPreview := flag.Bool("shell-preview", false, "show the settings of the native shell (autostart, shortcut), which do nothing here (for screenshots)")
 	flag.Parse()
-	if *settings == "" {
-		f, err := os.CreateTemp("", "portop-desktop-*.json")
-		if err != nil {
-			log.Fatal(err)
-		}
-		f.Close()
-		os.Remove(f.Name())
-		*settings = f.Name()
+	// Settings, recent projects and the baseline go to a private
+	// temporary directory, so runs never see each other's data.
+	tmp, err := os.MkdirTemp("", "portop-desktop-dev-")
+	if err != nil {
+		log.Fatal(err)
 	}
-
+	defer os.RemoveAll(tmp)
+	if *settings == "" {
+		*settings = filepath.Join(tmp, "desktop.json")
+	}
 	b := backend.New(*settings)
 	// Keep the baseline next to the temporary settings, not in the file
 	// portop --save-baseline uses.
-	b.BaselinePath = filepath.Join(filepath.Dir(*settings), "portop-desktop-baseline.json")
+	b.BaselinePath = filepath.Join(tmp, "baseline.json")
 	if *hideSelf {
 		b.HidePID = os.Getpid()
+	}
+	if *shellPreview {
+		b.OnSettings = func(backend.Settings) {}
 	}
 	var mu sync.Mutex
 	clients := map[chan []byte]bool{}

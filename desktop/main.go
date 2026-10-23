@@ -340,7 +340,7 @@ func (s *shellSettings) apply(st backend.Settings) {
 	}
 	if st.Shortcut != "" {
 		if err := s.app.GlobalShortcut.Register(st.Shortcut, s.show); err != nil {
-			s.app.Event.Emit("notify", map[string]string{"title": "Global shortcut", "body": st.Shortcut + " is not available: " + err.Error()})
+			s.app.Event.Emit("notify", map[string]string{"title": "Global shortcut", "body": st.Shortcut + " could not be registered on your system (" + err.Error() + "); it may be taken by another app."})
 			return
 		}
 		s.shortcut = st.Shortcut

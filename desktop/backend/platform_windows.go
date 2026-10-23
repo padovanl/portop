@@ -100,3 +100,6 @@ func openTerminal(title, dir, command string) error {
 	}
 	return cmd.Start()
 }
+
+// terminalAvailable is always true: cmd.exe opens a console window.
+func terminalAvailable() bool { return true }

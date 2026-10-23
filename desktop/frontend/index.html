@@ -138,6 +138,7 @@
         <div><h1>Projects</h1><p class="subtitle">Dev servers portop has seen, and Docker Compose projects to check</p></div>
       </header>
       <div class="section-head first"><h2>Recent projects</h2><p class="muted">Start one again in a terminal, from the folder and with the command it last ran with.</p></div>
+      <p class="cap-note" id="recent-terminal-note" hidden>Starting a project needs a terminal window, and no terminal emulator was found on this system. Install one, or set <code>$TERMINAL</code>.</p>
       <div class="cards" id="recent-cards"></div>
       <div class="empty" id="recent-empty"><h3>No projects yet</h3><p>Dev servers you start (<code>npm run dev</code>, <code>go run .</code>…) are remembered here, with their folder and command.</p></div>
 
@@ -166,6 +167,7 @@
       </header>
       <div class="activity">
         <ol class="timeline" id="timeline"></ol>
+        <div class="side">
         <aside class="panel watch">
           <h2><svg><use href="#i-bell"/></svg>Watched ports</h2>
           <p class="muted">portop notifies you when one of these opens or closes.</p>
@@ -175,9 +177,10 @@
         <aside class="panel watch baseline local-only">
           <h2><svg><use href="#i-shield"/></svg>Baseline</h2>
           <p class="muted" id="baseline-status">No baseline saved.</p>
-          <button class="btn btn-sm" id="baseline-save">Save current ports as the baseline</button>
+          <button class="btn btn-sm" id="baseline-save">Save as baseline</button>
           <ul id="baseline-list" class="watch-list"></ul>
         </aside>
+        </div>
       </div>
       <div class="empty small" id="timeline-empty"><h3>Quiet so far</h3><p>Ports that open or close while portop is running appear here.</p></div>
     </section>
@@ -189,11 +192,11 @@
         <div class="setting"><div><h3>Appearance</h3><p>Follow the system, or pick a theme.</p></div>
           <div class="segmented" id="theme-choice"><button data-theme="system">System</button><button data-theme="dark">Dark</button><button data-theme="light">Light</button></div></div>
         <div class="setting"><div><h3>Refresh every <b id="interval-label">2 s</b></h3><p>How often portop scans the sockets.</p></div>
-          <input type="range" id="interval" min="500" max="10000" step="500"></div>
-        <div class="setting local-only"><div><h3>Start at login</h3><p>portop starts in the tray when you sign in.</p></div><label class="switch"><input type="checkbox" id="auto-start"><span></span></label></div>
-        <div class="setting local-only"><div><h3>Global shortcut</h3><p>Shows portop and its port finder from any app.</p></div>
+          <div class="range-wrap"><small>0.5 s</small><input type="range" id="interval" min="500" max="10000" step="500" aria-label="Refresh interval"><small>10 s</small></div></div>
+        <div class="setting local-only needs-autostart"><div><h3>Start at login</h3><p>portop starts in the tray when you sign in.</p></div><label class="switch"><input type="checkbox" id="auto-start"><span></span></label></div>
+        <div class="setting local-only needs-shortcut"><div><h3>Global shortcut</h3><p>Shows portop and its port finder from any app.</p></div>
           <div class="shortcut"><kbd id="shortcut-label">None</kbd><button class="btn btn-sm" id="shortcut-record">Change</button><button class="btn btn-sm btn-ghost" id="shortcut-clear">Clear</button></div></div>
-        <div class="setting local-only"><div><h3>Editor</h3><p>Opens a project folder from its card or details.</p></div>
+        <div class="setting local-only"><div><h3>Editor</h3><p>Opens a project folder from its card or details.</p><p class="cap-note" id="editor-none" hidden>No editor was found on this system; choose “Other command…” to set one.</p></div>
           <select id="editor-select" class="select"></select></div>
         <h2 class="settings-group">Notifications</h2>
         <div class="setting"><div><h3>Warn about exposed ports</h3><p>A dev server, database or container listening on the network, without a firewall block, is flagged and notified.</p></div><label class="switch"><input type="checkbox" id="notify-exposed"><span></span></label></div>

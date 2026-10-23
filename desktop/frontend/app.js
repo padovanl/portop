@@ -26,7 +26,35 @@ const state = {
   riskOnly: false,
   recent: [],
   editors: [],
+  caps: { docker: true, editor: true, terminal: true, dialogs: true, autostart: true, shortcut: true },
 };
+
+/* ---------- Icons: the project's favicon, or the application's ---------- */
+
+const iconCache = new Map();
+function iconFor(row) {
+  if (state.host || (!row.pid && !row.project_root && !row.root)) return Promise.resolve("");
+  const pid = row.running === false ? 0 : row.pid || 0;
+  const key = `${pid}|${row.project_root || row.root || ""}`;
+  if (!iconCache.has(key)) iconCache.set(key, call("Icon", pid, row.project_root || row.root || "").catch(() => ""));
+  return iconCache.get(key);
+}
+// withIcon swaps a monogram for the icon once it is known.
+function withIcon(el, row) {
+  iconFor(row).then((url) => {
+    if (!url || !el.isConnected) return;
+    el.classList.add("has-icon");
+    el.replaceChildren(h("img", { src: url, alt: "" }));
+  });
+  return el;
+}
+
+function applyCaps() {
+  const c = state.caps;
+  for (const [cap, on] of Object.entries(c)) if (typeof on === "boolean") document.body.classList.toggle("no-" + cap, !on);
+  $("recent-terminal-note").hidden = c.terminal;
+  $("editor-none").hidden = c.editor;
+}
 
 const isMac = /Mac/.test(navigator.platform);
 document.body.classList.toggle("is-mac", isMac);
@@ -66,6 +94,7 @@ function renderSettings() {
   if (!s) return;
   applyTheme();
   $("interval").value = s.interval_ms;
+  fillRange($("interval"));
   $("interval-label").textContent = (s.interval_ms / 1000).toString().replace(/\.0$/, "") + " s";
   $("notify-new").checked = s.notify_new;
   $("notify-udp").checked = s.notify_udp;
@@ -87,7 +116,11 @@ function renderSettings() {
 }
 
 $("theme-choice").addEventListener("click", (e) => { const t = e.target.closest("button")?.dataset.theme; if (t) saveSettings({ theme: t }); });
-$("interval").addEventListener("input", (e) => { $("interval-label").textContent = (e.target.value / 1000) + " s"; });
+// fillRange colours a slider's track up to its value.
+function fillRange(el) {
+  el.style.setProperty("--fill", ((el.value - el.min) / (el.max - el.min)) * 100 + "%");
+}
+$("interval").addEventListener("input", (e) => { $("interval-label").textContent = (e.target.value / 1000) + " s"; fillRange(e.target); });
 $("interval").addEventListener("change", (e) => saveSettings({ interval_ms: Number(e.target.value) }));
 $("notify-new").addEventListener("change", (e) => saveSettings({ notify_new: e.target.checked }));
 $("notify-udp").addEventListener("change", (e) => saveSettings({ notify_udp: e.target.checked }));
@@ -113,7 +146,7 @@ const toggleIn = (list, port) => (list.includes(port) ? list.filter((p) => p !==
 
 /* ---------- Navigation ---------- */
 
-const map = new MapView($("map"), $("map-tip"), { onSelect: (row) => row && openDetails(row) });
+const map = new MapView($("map"), $("map-tip"), { onSelect: (row) => row && openDetails(row), withIcon: (el, row) => withIcon(el, row) });
 
 function show(view) {
   state.view = view;
@@ -234,7 +267,7 @@ function updateCard(el, g) {
     el.__sig = sig;
     el.replaceChildren(
       h("div", { class: "card-top" },
-        h("div", { class: "monogram" }, b.mono),
+        withIcon(h("div", { class: "monogram" }, b.mono), r),
         h("div", { class: "card-title" },
           h("h3", {}, clean(r.project || r.process)),
           h("p", {}, r.framework ? h("b", {}, r.framework) : null, r.framework && r.language ? " · " : "", r.language || (r.framework ? "" : r.process))),
@@ -247,9 +280,9 @@ function updateCard(el, g) {
         h("span", { class: "mono" }, "PID " + r.pid),
         spark([], b.color),
         h("div", { class: "card-actions local-only" },
-          r.project_root ? h("button", { class: "icon-btn", title: "Open in editor", onclick: () => openEditor(r.project_root) }, icon("code")) : null,
+          r.project_root ? h("button", { class: "icon-btn needs-editor", title: "Open in editor", onclick: () => openEditor(r.project_root) }, icon("code")) : null,
           r.project_root ? h("button", { class: "icon-btn", title: "Open folder", onclick: () => call("OpenFolder", r.project_root).catch((e) => toast(e.message, true)) }, icon("folder")) : null,
-          h("button", { class: "icon-btn", title: "Restart in a terminal", onclick: () => restart(r, el) }, icon("restart")),
+          h("button", { class: "icon-btn needs-terminal", title: "Restart in a terminal", onclick: () => restart(r, el) }, icon("restart")),
           h("button", { class: "icon-btn danger", title: "Stop", onclick: () => stopRow(r, el) }, icon("stop")))),
     );
   }
@@ -289,7 +322,7 @@ function updateTile(el, g) {
   el.className = "tile cat-" + r.category;
   const ports = [...g.ports].sort((a, b) => a - b);
   el.replaceChildren(
-    h("div", { class: "ico" }, icon(CATEGORIES[r.category]?.icon || "app")),
+    withIcon(h("div", { class: "ico" }, icon(CATEGORIES[r.category]?.icon || "app")), r),
     h("div", {},
       h("b", {}, clean(r.container || r.process || (r.pid ? "PID " + r.pid : "owner hidden"))),
       h("small", {}, ports.slice(0, 4).map((p) => ":" + p).join(" ") + (ports.length > 4 ? ` +${ports.length - 4}` : "") + (r.unit ? " · " + r.unit : ""))),
@@ -393,7 +426,7 @@ function updatePortRow(el, r) {
       h("span", { class: "badge cat cat-" + r.category }, CATEGORIES[r.category]?.label || r.category),
       h("small", {}, clean(r.container || r.unit || ""))),
     h("div", { class: "row-actions local-only" },
-      r.container ? h("button", { class: "icon-btn", title: "Container " + r.container, onclick: () => openContainer(r.container) }, icon("box")) : null,
+      r.container ? h("button", { class: "icon-btn needs-docker", title: "Container " + r.container, onclick: () => openContainer(r.container) }, icon("box")) : null,
       h("button", { class: "icon-btn" + (pinned ? " on" : ""), title: pinned ? "Unpin" : "Pin to top", onclick: () => saveSettings({ pinned: toggleIn(state.settings.pinned, r.local_port) }) }, icon("star")),
       r.listening ? h("button", { class: "icon-btn" + (watched ? " on" : ""), title: watched ? "Stop watching" : "Notify when it opens or closes", onclick: () => saveSettings({ watched: toggleIn(state.settings.watched, r.local_port) }) }, icon("bell")) : null,
       r.url ? h("button", { class: "icon-btn", title: "Open " + r.url, onclick: () => openURL(r.url) }, icon("open")) : null,
@@ -527,7 +560,7 @@ async function openDetails(r) {
   $("drawer").setAttribute("aria-hidden", "false");
   const sockets = state.snap.rows.filter((x) => r.pid ? x.pid === r.pid : x.key === r.key);
   const head = h("div", { class: "d-head", style: { "--fw": b.color } },
-    h("div", { class: "monogram" }, b.mono),
+    withIcon(h("div", { class: "monogram" }, b.mono), r),
     h("div", {}, h("h2", {}, clean(r.project || r.process || "Port " + r.local_port)),
       h("p", {}, [r.framework, r.language, r.process && r.project ? r.process : ""].filter(Boolean).join(" · ") || (r.pid ? "PID " + r.pid : "owner hidden"))));
   const socketList = h("div", { class: "socket-list" }, sockets.slice(0, 30).map((x) =>
@@ -555,15 +588,15 @@ async function openDetails(r) {
     head,
     h("div", { class: "d-actions local-only" },
       listener ? h("button", { class: "btn btn-primary btn-sm", onclick: () => openURL(listener.url) }, icon("open"), "Open :" + listener.local_port) : null,
-      info.project_root ? h("button", { class: "btn btn-sm", onclick: () => openEditor(info.project_root) }, icon("code"), "Editor") : null,
+      info.project_root ? h("button", { class: "btn btn-sm needs-editor", onclick: () => openEditor(info.project_root) }, icon("code"), "Editor") : null,
       info.project_root ? h("button", { class: "btn btn-sm", onclick: () => call("OpenFolder", info.project_root).catch((e) => toast(e.message, true)) }, icon("folder"), "Folder") : null,
-      info.can_restart ? h("button", { class: "btn btn-sm", onclick: () => restart(r, $("drawer-body")) }, icon("restart"), "Restart") : null,
+      info.can_restart ? h("button", { class: "btn btn-sm needs-terminal", onclick: () => restart(r, $("drawer-body")) }, icon("restart"), "Restart") : null,
       h("button", { class: "btn btn-danger btn-sm", onclick: () => stopRow(r, $("drawer-body")) }, icon("stop"), "Stop"),
       h("button", { class: "btn btn-ghost btn-sm", onclick: () => stopRow(r, $("drawer-body"), true) }, "Force kill")),
     r.container && !state.host ? h("div", { class: "d-section" }, h("h3", {}, "Container"),
       h("div", { class: "d-actions" },
         h("span", { class: "badge cat cat-container" }, clean(r.container)),
-        h("button", { class: "btn btn-sm", onclick: () => openContainer(r.container) }, icon("box"), "Logs and actions"))) : null,
+        h("button", { class: "btn btn-sm needs-docker", onclick: () => openContainer(r.container) }, icon("box"), "Logs and actions"))) : null,
     r.at_risk ? h("div", { class: "note risk" }, icon("globe"), h("span", {}, "This port listens on the network and the firewall does not block it. If only this machine needs it, bind it to 127.0.0.1.")) : null,
     !info.own && !state.host ? h("div", { class: "note" }, icon("shield"), h("span", {}, `Owned by ${clean(info.user || "another user")}: stopping it asks for an administrator password.`)) : null,
     h("div", { class: "d-section" }, h("div", { class: "d-title" }, h("h3", {}, "Traffic"),
@@ -863,7 +896,7 @@ async function renderRecent() {
     el.classList.toggle("stopped", !p.running);
     el.replaceChildren(
       h("div", { class: "card-top" },
-        h("div", { class: "monogram" }, b.mono),
+        withIcon(h("div", { class: "monogram" }, b.mono), p),
         h("div", { class: "card-title" }, h("h3", {}, clean(p.name)),
           h("p", {}, p.framework ? h("b", {}, p.framework) : null, p.framework && p.language ? " · " : "", p.language || "")),
         h("span", { class: "state-tag " + (p.running ? "on" : "off") }, p.running ? "running" : "stopped")),
@@ -871,9 +904,9 @@ async function renderRecent() {
       h("div", { class: "card-foot" },
         h("small", { class: "mono", title: p.dir }, p.ports.map((x) => ":" + x).join(" ") + (p.running ? ` · PID ${p.pid}` : ` · ${ago(p.last_seen)}`)),
         h("div", { class: "card-actions" },
-          h("button", { class: "icon-btn", title: "Open in editor", onclick: () => openEditor(p.root) }, icon("code")),
+          h("button", { class: "icon-btn needs-editor", title: "Open in editor", onclick: () => openEditor(p.root) }, icon("code")),
           h("button", { class: "icon-btn", title: "Open folder", onclick: () => call("OpenFolder", p.root).catch((e) => toast(e.message, true)) }, icon("folder")),
-          p.running ? null : h("button", { class: "btn btn-primary btn-sm", title: "Run the command again in a terminal", onclick: async () => {
+          p.running ? null : h("button", { class: "btn btn-primary btn-sm needs-terminal", title: "Run the command again in a terminal", onclick: async () => {
             try { await call("Launch", p.id); toast(`Starting ${p.name} in a new terminal`); } catch (e) { toast(e.message, true); }
           } }, "Start"),
           h("button", { class: "icon-btn", title: "Forget this project", onclick: async () => { await call("Forget", p.id).catch((e) => toast(e.message, true)); renderRecent(); } }, icon("x")))));
@@ -902,6 +935,14 @@ async function audit(dir) {
     h("small", { class: "muted" }, clean(r.note || "")))));
 }
 $("compose-pick").addEventListener("click", async () => {
+  if (!state.caps.dialogs) {
+    // No native folder dialog (the browser development server): type it.
+    const input = h("input", { placeholder: "/path/to/project" });
+    const close = sheet("Compose project folder", h("form", { onsubmit: (e) => { e.preventDefault(); close(); audit(input.value.trim()); } }, input,
+      h("div", { class: "modal-actions" }, h("button", { class: "btn btn-primary btn-sm" }, "Check"))));
+    setTimeout(() => input.focus(), 30);
+    return;
+  }
   try {
     const dir = await call("PickComposeFolder");
     if (dir) audit(dir);
@@ -917,7 +958,7 @@ async function renderBaseline() {
   const changes = [...st.added.map((e) => ({ e, kind: "added" })), ...st.removed.map((e) => ({ e, kind: "removed" }))];
   $("baseline-status").textContent = !st.exists ? "No baseline saved. Save the ports that should be listening, then portop shows what changes."
     : `Saved ${new Date(st.saved_at).toLocaleString()}. ${changes.length ? changes.length + " change" + (changes.length === 1 ? "" : "s") + ":" : "Nothing changed."}`;
-  $("baseline-save").textContent = st.exists ? "Save current ports as the new baseline" : "Save current ports as the baseline";
+  $("baseline-save").textContent = st.exists ? "Save as the new baseline" : "Save as baseline";
   $("baseline-list").replaceChildren(...changes.slice(0, 40).map(({ e, kind }) => h("li", {},
     h("strong", {}, ":" + e.port),
     h("small", { class: kind }, `${kind === "added" ? "new" : "gone"} · ${e.protocol} · ${clean(e.process || "?")}${e.scope ? " · " + e.scope : ""}`))));
@@ -982,7 +1023,7 @@ function renderHosts() {
     h("button", { class: "icon-btn", title: "Remove", onclick: () => { if (state.host === x.name) selectHost(null); saveSettings({ hosts: s.hosts.filter((y) => y.name !== x.name) }); } }, icon("x"))))
     : [h("li", { class: "none" }, "No machines added.")]));
   const sel = $("host-select");
-  sel.replaceChildren(h("option", { value: "" }, `This machine${state.about ? " (" + state.about.host + ")" : ""}`),
+  sel.replaceChildren(h("option", { value: "" }, state.about ? `${state.about.host} (local)` : "This machine"),
     ...s.hosts.map((x) => h("option", { value: x.name }, x.name)),
     h("option", { value: "__add" }, "Add a machine…"));
   sel.value = state.host || "";
@@ -1149,6 +1190,7 @@ async function boot() {
   $("about-line").textContent = `${state.about.host} · ${state.about.os}/${state.about.arch}`;
   movePill();
   call("Editors").then((list) => { state.editors = list || []; renderEditorSelect(); }).catch(() => {});
+  call("Capabilities").then((c) => { state.caps = c; applyCaps(); }).catch(() => {});
   const snap = await call("Snapshot");
   if (snap?.time && !snap.time.startsWith("0001")) onSnapshot(snap);
 }
