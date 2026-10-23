@@ -28,7 +28,27 @@ type Settings struct {
 	Muted            []string `json:"muted"`         // process names, lower case
 	CloseToTray      bool     `json:"close_to_tray"` // closing the window keeps portop in the tray
 	ReduceMotion     bool     `json:"reduce_motion"` // turn off animations
+	// NotifyExposed warns when a dev server, database or container starts
+	// listening on every interface and the firewall lets it through.
+	NotifyExposed bool     `json:"notify_exposed"`
+	Editor        string   `json:"editor"`       // command that opens a folder; "" picks an installed one
+	AutoStart     bool     `json:"auto_start"`   // start portop at login, in the tray
+	Shortcut      string   `json:"shortcut"`     // global shortcut that shows the port finder; "" for none
+	Hosts         []Host   `json:"hosts"`        // remote portop --web dashboards
+	ComposeDirs   []string `json:"compose_dirs"` // Compose projects audited lately, newest first
 }
+
+// Host is a remote machine running portop --web. The password is never
+// saved: it is asked when connecting and kept in memory.
+type Host struct {
+	Name        string `json:"name"`
+	URL         string `json:"url"`
+	User        string `json:"user,omitempty"`
+	Fingerprint string `json:"fingerprint,omitempty"` // SHA-256 of a trusted self-signed certificate
+}
+
+// DefaultShortcut shows the port finder from anywhere.
+const DefaultShortcut = "CmdOrCtrl+Alt+P"
 
 // DefaultCategories leave out desktop apps and system services, whose
 // short-lived ports (browsers, music players, discovery) are noise.
@@ -38,7 +58,8 @@ var knownCategories = map[string]bool{"dev": true, "database": true, "web": true
 
 func defaultSettings() Settings {
 	return Settings{Theme: "system", IntervalMS: 2000, CloseToTray: true,
-		NotifyCategories: append([]string{}, DefaultCategories...), Muted: []string{}}
+		NotifyCategories: append([]string{}, DefaultCategories...), Muted: []string{},
+		NotifyExposed: true, Shortcut: DefaultShortcut, Hosts: []Host{}, ComposeDirs: []string{}}
 }
 
 func (s Settings) interval() time.Duration {
@@ -82,6 +103,28 @@ func (s Settings) clean() Settings {
 		muted = muted[:200]
 	}
 	s.Muted = muted
+	s.Editor = strings.TrimSpace(s.Editor)
+	if len(s.Editor) > 500 || strings.ContainsAny(s.Editor, "\n\r\x00") {
+		s.Editor = ""
+	}
+	if !validShortcut(s.Shortcut) {
+		s.Shortcut = ""
+	}
+	hosts := []Host{}
+	for _, h := range s.Hosts {
+		h.Name, h.URL, h.User = strings.TrimSpace(h.Name), strings.TrimRight(strings.TrimSpace(h.URL), "/"), strings.TrimSpace(h.User)
+		if h.Name != "" && validHostURL(h.URL) && len(hosts) < 50 && !slices.ContainsFunc(hosts, func(x Host) bool { return x.Name == h.Name }) {
+			hosts = append(hosts, h)
+		}
+	}
+	s.Hosts = hosts
+	dirs := []string{}
+	for _, d := range s.ComposeDirs {
+		if d != "" && !slices.Contains(dirs, d) && len(dirs) < 10 {
+			dirs = append(dirs, d)
+		}
+	}
+	s.ComposeDirs = dirs
 	return s
 }
 
@@ -134,6 +177,8 @@ func (st *settingsStore) get() Settings {
 	s.Pinned = append([]uint16{}, s.Pinned...)
 	s.NotifyCategories = append([]string{}, s.NotifyCategories...)
 	s.Muted = append([]string{}, s.Muted...)
+	s.Hosts = append([]Host{}, s.Hosts...)
+	s.ComposeDirs = append([]string{}, s.ComposeDirs...)
 	return s
 }
 
@@ -167,9 +212,34 @@ func (st *settingsStore) set(s Settings) (Settings, error) {
 // Settings returns the current preferences.
 func (b *Backend) Settings() Settings { return b.settings.get() }
 
+// validShortcut accepts accelerators such as "CmdOrCtrl+Alt+P": one or
+// more modifiers and a key, as Wails registers them.
+func validShortcut(s string) bool {
+	if s == "" {
+		return true
+	}
+	parts := strings.Split(s, "+")
+	if len(parts) < 2 || len(parts) > 4 {
+		return false
+	}
+	for _, m := range parts[:len(parts)-1] {
+		switch m {
+		case "CmdOrCtrl", "Ctrl", "Cmd", "Alt", "Option", "Shift", "Super":
+		default:
+			return false
+		}
+	}
+	key := parts[len(parts)-1]
+	return len(key) == 1 && strings.Trim(key, "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789") == "" ||
+		len(key) >= 2 && len(key) <= 3 && key[0] == 'F' && strings.Trim(key[1:], "0123456789") == ""
+}
+
 // SaveSettings stores new preferences and applies the interval at once.
 func (b *Backend) SaveSettings(s Settings) (Settings, error) {
 	saved, err := b.settings.set(s)
+	if err == nil && b.OnSettings != nil {
+		b.OnSettings(saved)
+	}
 	b.Refresh()
 	return saved, err
 }

@@ -29,6 +29,7 @@ type Event struct {
 	Project   string    `json:"project,omitempty"`
 	Framework string    `json:"framework,omitempty"`
 	Category  string    `json:"category,omitempty"`
+	Firewall  string    `json:"firewall,omitempty"`
 }
 
 // key identifies a listener. The IPv4 and IPv6 sockets of one server, and
@@ -70,6 +71,7 @@ func (l *Log) Update(rows []app.Row, at time.Time) []Event {
 			now[k] = Event{
 				Protocol: string(r.Protocol), Port: r.LocalPort, Scope: r.Scope(), PID: r.PID,
 				Process: r.ProcessName, Project: r.Project.Name, Framework: r.Project.Framework, Category: r.Category,
+				Firewall: r.Firewall,
 			}
 		}
 	}

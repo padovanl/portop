@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"sort"
@@ -17,8 +18,11 @@ import (
 	"time"
 
 	"github.com/padovanl/portop/internal/app"
+	"github.com/padovanl/portop/internal/baseline"
+	"github.com/padovanl/portop/internal/docker"
 	"github.com/padovanl/portop/internal/events"
 	"github.com/padovanl/portop/internal/openurl"
+	"github.com/padovanl/portop/internal/procinfo"
 	"github.com/padovanl/portop/internal/scanner"
 )
 
@@ -38,12 +42,32 @@ type Backend struct {
 	byPID    map[int][]TrafficPoint      // per-process rates, oldest first
 	pending  map[pendingKey]events.Event // new ports waiting to settle before a notification
 	wake     chan struct{}
+	long     *longHistory
+	lastRows []app.Row
+	recent   *recentStore
+	remote   remoteState
+	docker   *docker.Client
+	saveAt   time.Time
+
+	baseMod   time.Time        // baseline file's modification time when last read
+	baseSaved []baseline.Entry // its entries
 
 	// Version is shown in Settings; set by the shell.
 	Version string
 	// HidePID leaves one process out of every scan (the development
 	// server's own socket); 0 hides nothing.
 	HidePID int
+	// BaselinePath overrides where the baseline is read and saved (tests);
+	// "" uses the same file as portop --save-baseline.
+	BaselinePath string
+
+	// OnSettings applies saved preferences the shell owns (autostart, the
+	// global shortcut). SaveDialog and FolderDialog ask the user for a
+	// path; without them (the browser development server) exports are
+	// returned as text and folders cannot be picked.
+	OnSettings   func(Settings)
+	SaveDialog   func(title, name string) (string, error)
+	FolderDialog func(title string) (string, error)
 
 	// OnSnapshot receives every new snapshot; OnNotify shows a desktop
 	// notification. Both are set by the shell before Start.
@@ -61,6 +85,9 @@ type Snapshot struct {
 	Events  []events.Event         `json:"new_events"`
 	Error   string                 `json:"error,omitempty"`
 	Hidden  int                    `json:"hidden"` // listening sockets whose owner portop cannot see
+	// BaselineChanges counts listening ports added or removed since the
+	// baseline was saved; -1 when there is no baseline.
+	BaselineChanges int `json:"baseline_changes"`
 }
 
 // Summary holds the headline numbers.
@@ -70,6 +97,7 @@ type Summary struct {
 	Processes   int     `json:"processes"`
 	DevServers  int     `json:"dev_servers"`
 	Exposed     int     `json:"exposed"`
+	AtRisk      int     `json:"at_risk"` // exposed dev servers, databases and containers the firewall lets through
 	RXRate      float64 `json:"rx_rate"`
 	TXRate      float64 `json:"tx_rate"`
 }
@@ -113,6 +141,7 @@ type Row struct {
 	Category      string   `json:"category"`
 	URL           string   `json:"url,omitempty"`
 	New           bool     `json:"new,omitempty"`
+	AtRisk        bool     `json:"at_risk,omitempty"`
 }
 
 // New returns a Backend reading settings from path ("" for the default).
@@ -124,7 +153,20 @@ func New(settingsPath string) *Backend {
 		byPID:     map[int][]TrafficPoint{},
 		pending:   map[pendingKey]events.Event{},
 		wake:      make(chan struct{}, 1),
+		long:      newLongHistory(),
+		recent:    newRecentStore(recentPath(settingsPath)),
+		remote:    remoteState{passwords: map[string]string{}},
+		docker:    docker.NewClient(),
 	}
+}
+
+func recentPath(settingsPath string) string {
+	if settingsPath == "" {
+		if dir, err := os.UserConfigDir(); err == nil {
+			settingsPath = filepath.Join(dir, "portop", "desktop.json")
+		}
+	}
+	return defaultRecentPath(settingsPath)
 }
 
 // Start scans until ctx ends, at the interval in the settings.
@@ -232,8 +274,20 @@ func (b *Backend) scan(ctx context.Context) {
 	for pid, h := range b.byPID {
 		snap.Process[pid] = append([]TrafficPoint(nil), h...)
 	}
+	b.long.add(now, point, perPID, live)
+	b.lastRows = rows
+	snap.BaselineChanges = b.baselineChanges(rows)
 	b.snapshot = snap
 	b.mu.Unlock()
+
+	b.recent.observe(rows, now, func(pid int) (procinfo.Info, []string, error) {
+		info, err := procinfo.Load(pid)
+		return info, processArgv(pid), err
+	})
+	if now.Sub(b.saveAt) > 10*time.Second {
+		b.saveAt = now
+		_ = b.recent.save()
+	}
 
 	b.alert(fresh, rows, now)
 	if b.OnSnapshot != nil {
@@ -284,6 +338,19 @@ func (s Settings) Relevant(e events.Event) bool {
 	return !slices.Contains(s.Muted, strings.ToLower(e.Process))
 }
 
+// wantsNotice is true for a new port worth a notification: a relevant
+// one when new ports notify, or one exposed to the network.
+func (s Settings) wantsNotice(e events.Event) bool {
+	if s.NotifyNew && s.Relevant(e) {
+		return true
+	}
+	return s.NotifyExposed && e.Protocol != "UDP" && atRisk(e.Scope, e.Category, e.Firewall) && !s.isMuted(e)
+}
+
+func (s Settings) isMuted(e events.Event) bool {
+	return slices.Contains(s.Muted, strings.ToLower(e.Process))
+}
+
 // settleTime is how long a new port must stay open before it is worth a
 // notification: browsers and players open and close ports in seconds.
 const settleTime = 5 * time.Second
@@ -312,14 +379,14 @@ func (b *Backend) alert(fresh []events.Event, rows []app.Row, now time.Time) {
 			delete(b.pending, k) // closed before it settled: not worth a word
 		case now.Sub(e.Time) >= settleTime:
 			// The settings may have changed while it settled.
-			if s.NotifyNew && s.Relevant(e) {
+			if s.wantsNotice(e) {
 				due = append(due, e)
 			}
 			delete(b.pending, k)
 		}
 	}
 	for _, e := range fresh {
-		if s.NotifyNew && e.Kind == events.Opened && !slices.Contains(s.Watched, e.Port) && s.Relevant(e) {
+		if e.Kind == events.Opened && !slices.Contains(s.Watched, e.Port) && s.wantsNotice(e) {
 			b.pending[pendingKey{e.Protocol, e.Port, e.PID}] = e
 		}
 	}
@@ -342,6 +409,10 @@ func (b *Backend) alert(fresh []events.Event, rows []app.Row, now time.Time) {
 		}
 		title := fmt.Sprintf("Port %d is now open", e.Port)
 		body := fmt.Sprintf("%s is listening on %s %d.", who, e.Protocol, e.Port)
+		if e.Kind == events.Opened && s.NotifyExposed && atRisk(e.Scope, e.Category, e.Firewall) && !s.isMuted(e) {
+			title = fmt.Sprintf("Port %d is reachable from the network", e.Port)
+			body = fmt.Sprintf("%s listens on every interface and the firewall lets connections in.", who)
+		}
 		if e.Kind == events.Closed {
 			title = fmt.Sprintf("Port %d closed", e.Port)
 			body = fmt.Sprintf("%s stopped listening on %s %d.", who, e.Protocol, e.Port)
@@ -401,6 +472,10 @@ func convert(rows []app.Row) ([]Row, Summary, int) {
 			}
 			if r.Scope() == app.ScopeAll || r.Scope() == app.ScopeAddress {
 				s.Exposed++
+			}
+			if atRisk(r.Scope(), r.Category, r.Firewall) {
+				row.AtRisk = true
+				s.AtRisk++
 			}
 			if r.PID == 0 {
 				hidden++
