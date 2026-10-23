@@ -445,7 +445,7 @@
   "title": "Desktop app",
   "section": "Icons",
   "anchor": "icons",
-  "text": "Each process shows the first icon found: its project's favicon or logo ( favicon.svg , public/favicon.png , static/logo.svg and similar); its application's icon: the .desktop entry's icon on Linux, the app bundle's on macOS, the one inside the .exe on Windows; for a script, the logo of its language "
+  "text": "Each process shows the first icon found: its project's favicon or logo ( favicon.svg , public/favicon.png , static/logo.svg and similar); its application's icon: the .desktop entry's icon on Linux, the app bundle's on macOS, the one inside the .exe on Windows; a bundled logo: of the server, for prog"
  },
  {
   "page": "desktop",

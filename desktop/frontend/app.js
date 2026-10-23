@@ -2,7 +2,7 @@ import { Call, Events } from "/wails/runtime.js";
 import { $, h, icon, clean, bytes, rate, ago, uptime, clock, brand, CATEGORIES, CATEGORY_ORDER, countUp, keyed, motion, setReduceMotion, cssVar } from "./util.js";
 import { area, spark, updateSpark } from "./charts.js";
 import { MapView } from "./map.js";
-import { runtimeIcon } from "./runtimes.js";
+import { logoFor } from "./logos.js";
 
 const SERVICE = "github.com/padovanl/portop/desktop/backend.Backend.";
 const call = (method, ...args) => Call.ByName(SERVICE + method, ...args);
@@ -41,15 +41,16 @@ function iconFor(row) {
   return iconCache.get(key);
 }
 // withIcon swaps a monogram for the icon once it is known. A process
-// with no icon of its own (a script, a server run from a terminal) gets
-// its language's logo, drawn on a light tile so dark logos stay visible.
+// with no icon of its own (nginx, PostgreSQL, a script) gets the bundled
+// logo of its server, framework or language.
 function withIcon(el, row) {
   iconFor(row).then((url) => {
-    const logo = url ? "" : runtimeIcon(row);
+    const logo = url ? null : logoFor(row);
     if (!(url || logo) || !el.isConnected) return;
     el.classList.add("has-icon");
-    el.classList.toggle("runtime-icon", !!logo);
-    el.replaceChildren(h("img", { src: url || logo, alt: "" }));
+    el.classList.toggle("logo-icon", !!logo);
+    el.classList.toggle("dark-logo", !!logo?.dark);
+    el.replaceChildren(h("img", { src: url || logo.url, alt: "" }));
   });
   return el;
 }
