@@ -60,6 +60,11 @@ The native app needs GTK4 and WebKitGTK 6 headers on Linux
 on macOS, nothing extra on Windows. `desktop/build/package.sh VERSION` builds
 and packages it for the current OS, as the Desktop workflow does on release.
 
+`scripts/screenshots/record.sh` records the desktop app and web dashboard
+screenshots in `docs/assets/`, light and dark, inside an isolated network
+namespace with fake services, so nothing from your machine shows (Linux,
+Playwright).
+
 ## Documentation
 
 The pages under `docs/docs/` are generated: edit `docs-src/<page>.html`, then

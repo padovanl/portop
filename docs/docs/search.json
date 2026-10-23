@@ -450,9 +450,16 @@
  {
   "page": "desktop",
   "title": "Desktop app",
-  "section": "Tray and notifications",
+  "section": "Tray",
   "anchor": "tray",
-  "text": "The tray icon (the menu bar on macOS) lists the running dev servers, each with Open in browser and Stop , which asks for confirmation. Closing the window keeps portop in the tray unless Keep running in the tray is off. Notifications use the system's own ( notify-send , Notification Center, Windows t"
+  "text": "The tray icon (the menu bar on macOS) lists the running dev servers, each with Open in browser and Stop , which asks for confirmation. Closing the window keeps portop in the tray unless Keep running in the tray is off."
+ },
+ {
+  "page": "desktop",
+  "title": "Desktop app",
+  "section": "Notifications",
+  "anchor": "notifications",
+  "text": "Notifications use the system's own: notify-send on Linux, Notification Center on macOS, toasts on Windows. Watched ports notify at once, when they open and when they close. Add them in Activity, or with the bell on a row of Ports. New ports notify only when Notify about new ports is on, and only if "
  },
  {
   "page": "desktop",
