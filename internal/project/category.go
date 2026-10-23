@@ -54,8 +54,13 @@ func Category(info Info, process, user, container, systemUnit string) string {
 	// A login session or a user's app runs in a .scope or under user@;
 	// system services are units of their own (a .service on Linux, a
 	// service name on Windows).
-	case systemUnit != "" && !strings.HasSuffix(systemUnit, ".scope") && !strings.HasPrefix(systemUnit, "user@"),
-		systemUsers[strings.ToLower(user)],
+	case systemUnit != "" && !strings.HasSuffix(systemUnit, ".scope") && !strings.HasPrefix(systemUnit, "user@"):
+		return CategorySystem
+	// A script started from a terminal (python3 serve.py, php -S, a
+	// #! script) is someone's work, even without a project or as root.
+	case info.Language != "":
+		return CategoryDev
+	case systemUsers[strings.ToLower(user)],
 		strings.HasPrefix(strings.ToLower(user), "_"), // macOS service accounts
 		strings.HasPrefix(strings.ToLower(user), "systemd-"):
 		return CategorySystem

@@ -344,6 +344,10 @@ h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
 .badge.state { background: var(--line); color: var(--muted); }
 .badge.cat { background: color-mix(in srgb, var(--cat) 16%, transparent); color: var(--cat); }
 .cell-main { min-width: 0; }
+.cell-proc { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.proc-ico { width: 30px; height: 30px; border-radius: 9px; font-size: 11.5px; box-shadow: none; }
+.proc-ico.hidden-owner { display: grid; place-items: center; flex: none; color: var(--faint); background: var(--glass-2); }
+.proc-ico.hidden-owner svg { width: 15px; height: 15px; }
 .cell-main b { display: block; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cell-main small { display: block; color: var(--faint); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cell-main .unknown { color: var(--faint); font-weight: 500; font-style: italic; }
@@ -675,6 +679,10 @@ body.no-autostart .needs-autostart, body.no-shortcut .needs-shortcut { display: 
 .monogram.has-icon, .ico.has-icon, .map-icon.has-icon { background: none; box-shadow: none; }
 .monogram.has-icon img, .map-icon.has-icon img { width: 100%; height: 100%; object-fit: contain; border-radius: 8px; }
 .ico.has-icon img { width: 26px; height: 26px; object-fit: contain; }
+/* A language's logo sits on a light tile, as an app icon would. */
+.has-icon.runtime-icon { background: #fff; box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.1); }
+.monogram.runtime-icon img, .map-icon.runtime-icon img { width: 70%; height: 70%; border-radius: 0; }
+.ico.runtime-icon img { width: 22px; height: 22px; }
 
 /* Sliders: a filled track up to the value and a round thumb. */
 input[type="range"] {

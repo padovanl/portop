@@ -39,6 +39,15 @@
 
 <figure class="themed"><img class="themed-light" src="../assets/desktop-connections-light.png" alt="The connections view: processes, their ports and the links between them as a graph" loading="lazy"><img class="themed-dark" src="../assets/desktop-connections-dark.png" alt="The connections view: processes, their ports and the links between them as a graph" loading="lazy"><figcaption>Connections: nginx in front of a Next.js app, which calls an API backed by PostgreSQL and Redis; arrows point from client to server.</figcaption></figure>
 
+<h2 id="icons">Icons</h2>
+<p>Each process shows the first icon found:</p>
+<ol>
+  <li>its project's favicon or logo (<code>favicon.svg</code>, <code>public/favicon.png</code>, <code>static/logo.svg</code> and similar);</li>
+  <li>its application's icon: the <code>.desktop</code> entry's icon on Linux, the app bundle's on macOS, the one inside the <code>.exe</code> on Windows;</li>
+  <li>for a script, the logo of its language (Python, PHP, Ruby, Bash, Node.js, Deno, Bun, Go, Rust, Java, .NET, PowerShell and others, from <a href="https://devicon.dev">Devicon</a>, MIT licensed);</li>
+  <li>otherwise a colored monogram.</li>
+</ol>
+
 <h2 id="actions">Stopping and restarting</h2>
 <p>Stop sends SIGTERM and Force kill sends SIGKILL; Windows has no SIGTERM, so there both end the process at once. Both need the button held for a moment, and both check that the process still has the start time the app read, so a PID reused by another program is never signalled.</p>
 <p>A process of another user (root, a service account) is stopped through your system's administrator prompt: <code>pkexec</code> on Linux, the password dialog on macOS, UAC on Windows. The prompt runs <code>portop-desktop --signal-pid</code>, which repeats the start-time check as administrator. The window itself never runs elevated.</p>

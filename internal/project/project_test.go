@@ -106,8 +106,9 @@ func TestDetectIgnoresToolsAndSystemDirs(t *testing.T) {
 		{Cwd: "/"},
 		{Cwd: "/usr/lib/postgresql"},
 	} {
-		if got := Detect(f); got != (Info{}) {
-			t.Errorf("Detect(%+v) = %+v, want nothing", f, got)
+		// The language of the interpreter is still known; the project is not.
+		if got := Detect(f); got.Name != "" || got.Root != "" || got.Framework != "" {
+			t.Errorf("Detect(%+v) = %+v, want no project", f, got)
 		}
 	}
 }
@@ -155,6 +156,9 @@ func TestCategory(t *testing.T) {
 		{Info{}, "rapportd", "_rapport", "", "", CategorySystem},
 		{Info{}, "spotify", "u", "", "app-spotify.scope", CategoryApp},
 		{Info{}, "Code", "u", "", "", CategoryApp},
+		{Info{Language: "Python"}, "serve", "root", "", "session-2.scope", CategoryDev},
+		{Info{Language: "PHP"}, "php", "u", "", "", CategoryDev},
+		{Info{Language: "Python"}, "fail2ban-server", "root", "", "fail2ban.service", CategorySystem},
 	}
 	for _, c := range cases {
 		if got := Category(c.info, c.process, c.user, c.container, c.unit); got != c.want {

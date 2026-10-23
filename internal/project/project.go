@@ -48,6 +48,9 @@ func Detect(f Facts) Info {
 			info.Language = languageOf(fw)
 		}
 	}
+	if info.Language == "" {
+		info.Language = runtimeOf(f)
+	}
 	return info
 }
 

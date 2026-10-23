@@ -9,7 +9,7 @@ ip link set dummy0 up
 hostname web-01
 mount -t tmpfs tmpfs /srv
 mkdir -p /srv/bin
-for b in node python3 postgres redis-server nginx sshd syncthing transmission-gtk; do cp "$W/fakesrv" /srv/bin/$b; done
+for b in node python3 postgres redis-server nginx sshd syncthing transmission-gtk php ruby bash; do cp "$W/fakesrv" /srv/bin/$b; done
 # A terminal for Restart and Start to find (never run here).
 mkdir -p /srv/term && printf '#!/bin/sh\nexit 0\n' > /srv/term/xterm && chmod +x /srv/term/xterm
 mkdir -p /srv/dev/storefront/node_modules/next/dist/bin /srv/dev/admin-ui/node_modules/vite/bin \
@@ -58,6 +58,15 @@ sleep 0.3
 sleep 0.3
 SERVE_PORT=80 SERVE_BIND=0.0.0.0 SERVE_WORKERS=4 SERVE_REPLY=70000 SERVE_CONNECT=127.0.0.1:3000:2400:0.1 \
   /srv/bin/nginx -g "daemon off;" >/dev/null 2>&1 &
+# Scripts with no project: the language comes from the interpreter, even
+# for a #! script whose process is named after itself.
+mkdir -p /srv/dev/blog /srv/dev/scripts
+printf '<?php echo "ok";\n' > /srv/dev/blog/index.php
+printf 'require "socket"\n' > /srv/dev/scripts/webhook.rb
+printf '#!/srv/bin/bash\n# answers health checks\n' > /srv/dev/scripts/healthcheck && chmod +x /srv/dev/scripts/healthcheck
+(cd /srv/dev/blog && SERVE_PORT=8081 SERVE_REPLY=12000 /srv/bin/php -S 127.0.0.1:8081 >/dev/null 2>&1 &)
+(cd /srv/dev/scripts && SERVE_PORT=4567 SERVE_REPLY=800 /srv/bin/ruby webhook.rb >/dev/null 2>&1 &)
+(cd /srv/dev/scripts && SERVE_PORT=9100 SERVE_REPLY=300 ./healthcheck >/dev/null 2>&1 &)
 # Two real desktop apps, found through their .desktop entries and icons
 # in the scene's own home folder.
 mkdir -p /srv/home/.local/share/applications /srv/home/.local/share/icons/hicolor/scalable/apps

@@ -2,6 +2,7 @@ import { Call, Events } from "/wails/runtime.js";
 import { $, h, icon, clean, bytes, rate, ago, uptime, clock, brand, CATEGORIES, CATEGORY_ORDER, countUp, keyed, motion, setReduceMotion, cssVar } from "./util.js";
 import { area, spark, updateSpark } from "./charts.js";
 import { MapView } from "./map.js";
+import { runtimeIcon } from "./runtimes.js";
 
 const SERVICE = "github.com/padovanl/portop/desktop/backend.Backend.";
 const call = (method, ...args) => Call.ByName(SERVICE + method, ...args);
@@ -29,7 +30,7 @@ const state = {
   caps: { docker: true, editor: true, terminal: true, dialogs: true, autostart: true, shortcut: true },
 };
 
-/* ---------- Icons: the project's favicon, or the application's ---------- */
+/* ---------- Icons: the project's favicon, the application's, or its language's ---------- */
 
 const iconCache = new Map();
 function iconFor(row) {
@@ -39,12 +40,16 @@ function iconFor(row) {
   if (!iconCache.has(key)) iconCache.set(key, call("Icon", pid, row.project_root || row.root || "").catch(() => ""));
   return iconCache.get(key);
 }
-// withIcon swaps a monogram for the icon once it is known.
+// withIcon swaps a monogram for the icon once it is known. A process
+// with no icon of its own (a script, a server run from a terminal) gets
+// its language's logo, drawn on a light tile so dark logos stay visible.
 function withIcon(el, row) {
   iconFor(row).then((url) => {
-    if (!url || !el.isConnected) return;
+    const logo = url ? "" : runtimeIcon(row);
+    if (!(url || logo) || !el.isConnected) return;
     el.classList.add("has-icon");
-    el.replaceChildren(h("img", { src: url, alt: "" }));
+    el.classList.toggle("runtime-icon", !!logo);
+    el.replaceChildren(h("img", { src: url || logo, alt: "" }));
   });
   return el;
 }
@@ -412,9 +417,12 @@ function updatePortRow(el, r) {
     h("div", { class: "cell-port" },
       pinned ? h("span", { class: "pin", title: "Pinned" }, icon("star")) : null,
       h("div", {}, h("strong", {}, ":" + r.local_port), h("small", {}, `${r.protocol}${r.ipv6 ? "6" : "4"} · ${clean(r.local_address)}`))),
-    h("div", { class: "cell-main" },
-      r.process ? h("b", {}, clean(r.process)) : h("b", { class: "unknown" }, r.pid ? "PID " + r.pid : "owner hidden"),
-      h("small", {}, r.pid ? `PID ${r.pid}${r.user ? " · " + clean(r.user) : ""}` : r.user ? clean(r.user) : "run portop as administrator to see it")),
+    h("div", { class: "cell-proc" },
+      r.pid ? withIcon(h("div", { class: "monogram proc-ico", style: { "--fw": b.color } }, b.mono), r)
+        : h("div", { class: "proc-ico hidden-owner" }, icon("lock")),
+      h("div", { class: "cell-main" },
+        r.process ? h("b", {}, clean(r.process)) : h("b", { class: "unknown" }, r.pid ? "PID " + r.pid : "owner hidden"),
+        h("small", {}, r.pid ? `PID ${r.pid}${r.user ? " · " + clean(r.user) : ""}` : r.user ? clean(r.user) : "run portop as administrator to see it"))),
     h("div", { class: "cell-main" },
       r.project || r.framework ? h("b", {}, h("span", { class: "fw-dot", style: { "--fw": b.color } }), clean(r.project || r.framework)) : h("b", { class: "unknown" }, "—"),
       h("small", {}, [r.framework && r.project ? r.framework : "", r.language].filter(Boolean).join(" · ") || " ")),

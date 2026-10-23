@@ -17,13 +17,14 @@
   </tbody>
 </table>
 <p>The command line refines the framework: <code>vite</code>, <code>next dev</code>, <code>manage.py runserver</code>, <code>uvicorn</code>, <code>rails server</code>, <code>hugo server</code>, <code>python -m http.server</code> and others are recognised even without a manifest. A Next.js project running Storybook shows Storybook on Storybook's port.</p>
+<p>A script with no project still has a language: the interpreter that runs it (<code>python3 serve.py</code>, <code>php -S</code>, <code>ruby app.rb</code>, <code>node</code>, <code>bash</code>, <code>pwsh</code> and others), or the script's extension when a launcher starts it. A script run as <code>./serve</code> with a <code>#!</code> line is named <code>serve</code>, but the system runs its interpreter, so its language is known too. A binary from <code>go run</code> is Go.</p>
 <p>The walk stops at your home directory and never enters system directories. Tools that live in hidden directories, <code>AppData</code>, <code>Library</code> or an app bundle (an editor's language server, say) are not projects, and paths inside <code>node_modules</code> or a virtualenv count as the project that contains them.</p>
 
 <h2 id="categories">Categories</h2>
 <table>
   <thead><tr><th>Category</th><th>Given to</th></tr></thead>
   <tbody>
-    <tr><td><code>dev</code></td><td>A process with a project or a recognised framework</td></tr>
+    <tr><td><code>dev</code></td><td>A process with a project or a recognised framework, or a script run by an interpreter outside a system service</td></tr>
     <tr><td><code>database</code></td><td>PostgreSQL, MySQL, MariaDB, MongoDB, Redis, Valkey, Memcached, ClickHouse, CockroachDB, RabbitMQ, NATS, etcd, MinIO, Meilisearch, Qdrant and similar servers, recognised by process name (servers that run as <code>java</code> are not)</td></tr>
     <tr><td><code>web</code></td><td>nginx, Apache, Caddy, Traefik, HAProxy, Envoy, Varnish and similar</td></tr>
     <tr><td><code>container</code></td><td>A process in a container, or a container engine's port forwarder</td></tr>

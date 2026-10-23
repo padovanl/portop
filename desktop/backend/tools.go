@@ -137,8 +137,29 @@ func (b *Backend) FreePortsNear(port int) []int {
 	return out
 }
 
+// bindable binds the port on every interface and on loopback: macOS and
+// Windows let a wildcard bind succeed while a dev server holds the same
+// port on 127.0.0.1, so the wildcard alone would call it free.
 func bindable(port int) bool {
-	l, err := net.Listen("tcp", ":"+strconv.Itoa(port))
+	p := strconv.Itoa(port)
+	addrs := []string{":" + p, "127.0.0.1:" + p}
+	if hasIPv6Loopback() {
+		addrs = append(addrs, "[::1]:"+p)
+	}
+	for _, addr := range addrs {
+		l, err := net.Listen("tcp", addr)
+		if err != nil {
+			return false
+		}
+		l.Close()
+	}
+	return true
+}
+
+// hasIPv6Loopback is false on a machine with IPv6 turned off, which has
+// no ::1 for a port to clash on.
+func hasIPv6Loopback() bool {
+	l, err := net.Listen("tcp", "[::1]:0")
 	if err != nil {
 		return false
 	}

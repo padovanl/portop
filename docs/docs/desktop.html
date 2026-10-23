@@ -94,7 +94,7 @@
     <div class="doc-row">
       <div class="doc-col">
         <nav class="breadcrumbs" aria-label="Breadcrumbs"><a class="crumb-home" href="index.html" aria-label="Documentation home"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"/></svg></a><span class="crumb">Apps and dashboards</span><span class="crumb current" aria-current="page">Desktop app</span></nav>
-        <details class="toc-mobile"><summary>On this page</summary><ul><li><a href="#install">Install</a></li><li><a href="#views">Views</a></li><li><a href="#actions">Stopping and restarting</a></li><li><a href="#tray">Tray</a></li><li><a href="#notifications">Notifications</a></li><li><a href="#privileges">What the app can see</a></li><li><a href="#data">Settings and data</a></li></ul></details>
+        <details class="toc-mobile"><summary>On this page</summary><ul><li><a href="#install">Install</a></li><li><a href="#views">Views</a></li><li><a href="#icons">Icons</a></li><li><a href="#actions">Stopping and restarting</a></li><li><a href="#tray">Tray</a></li><li><a href="#notifications">Notifications</a></li><li><a href="#privileges">What the app can see</a></li><li><a href="#data">Settings and data</a></li></ul></details>
         <article class="markdown">
 <h1>Desktop app</h1>
 <p class="lede">portop desktop shows the same information as the terminal UI in a window, with dev servers, a connection map, an activity log and a tray menu. It is a separate download; the <code>portop</code> command does not change.</p>
@@ -137,6 +137,15 @@
 
 <figure class="themed"><img class="themed-light" src="../assets/desktop-connections-light.png" alt="The connections view: processes, their ports and the links between them as a graph" loading="lazy"><img class="themed-dark" src="../assets/desktop-connections-dark.png" alt="The connections view: processes, their ports and the links between them as a graph" loading="lazy"><figcaption>Connections: nginx in front of a Next.js app, which calls an API backed by PostgreSQL and Redis; arrows point from client to server.</figcaption></figure>
 
+<h2 id="icons">Icons</h2>
+<p>Each process shows the first icon found:</p>
+<ol>
+  <li>its project's favicon or logo (<code>favicon.svg</code>, <code>public/favicon.png</code>, <code>static/logo.svg</code> and similar);</li>
+  <li>its application's icon: the <code>.desktop</code> entry's icon on Linux, the app bundle's on macOS, the one inside the <code>.exe</code> on Windows;</li>
+  <li>for a script, the logo of its language (Python, PHP, Ruby, Bash, Node.js, Deno, Bun, Go, Rust, Java, .NET, PowerShell and others, from <a href="https://devicon.dev">Devicon</a>, MIT licensed);</li>
+  <li>otherwise a colored monogram.</li>
+</ol>
+
 <h2 id="actions">Stopping and restarting</h2>
 <p>Stop sends SIGTERM and Force kill sends SIGKILL; Windows has no SIGTERM, so there both end the process at once. Both need the button held for a moment, and both check that the process still has the start time the app read, so a PID reused by another program is never signalled.</p>
 <p>A process of another user (root, a service account) is stopped through your system's administrator prompt: <code>pkexec</code> on Linux, the password dialog on macOS, UAC on Windows. The prompt runs <code>portop-desktop --signal-pid</code>, which repeats the start-time check as administrator. The window itself never runs elevated.</p>
@@ -176,6 +185,7 @@
       <ul>
         <li><a href="#install">Install</a></li>
         <li><a href="#views">Views</a></li>
+        <li><a href="#icons">Icons</a></li>
         <li><a href="#actions">Stopping and restarting</a></li>
         <li><a href="#tray">Tray</a></li>
         <li><a href="#notifications">Notifications</a></li>

@@ -326,7 +326,7 @@
   "title": "Projects and frameworks",
   "section": "Categories",
   "anchor": "categories",
-  "text": "Category Given to dev A process with a project or a recognised framework database PostgreSQL, MySQL, MariaDB, MongoDB, Redis, Valkey, Memcached, ClickHouse, CockroachDB, RabbitMQ, NATS, etcd, MinIO, Meilisearch, Qdrant and similar servers, recognised by process name (servers that run as java are not"
+  "text": "Category Given to dev A process with a project or a recognised framework, or a script run by an interpreter outside a system service database PostgreSQL, MySQL, MariaDB, MongoDB, Redis, Valkey, Memcached, ClickHouse, CockroachDB, RabbitMQ, NATS, etcd, MinIO, Meilisearch, Qdrant and similar servers, "
  },
  {
   "page": "projects",
@@ -439,6 +439,13 @@
   "section": "Views",
   "anchor": "views",
   "text": "Overview Counters for listening ports, dev servers, exposed ports and live traffic; a card for each dev server with its project, framework, ports and traffic; the other services (databases, web servers, containers, system services). Type a port in Free a port to see its owner and stop it. Ports Ever"
+ },
+ {
+  "page": "desktop",
+  "title": "Desktop app",
+  "section": "Icons",
+  "anchor": "icons",
+  "text": "Each process shows the first icon found: its project's favicon or logo ( favicon.svg , public/favicon.png , static/logo.svg and similar); its application's icon: the .desktop entry's icon on Linux, the app bundle's on macOS, the one inside the .exe on Windows; for a script, the logo of its language "
  },
  {
   "page": "desktop",
