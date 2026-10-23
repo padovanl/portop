@@ -67,9 +67,20 @@ jobs:
         if: runner.os == 'Windows'
         run: go install "github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION}"
       - name: Test
+        shell: bash
+        env:
+          PORTOP_ICON_OUT: ${{ runner.temp }}/icons
         run: |
+          mkdir -p "$PORTOP_ICON_OUT"
           go vet ./...
           go test ./...
+      # The icons read from the system's own applications, to look at.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: icons-${{ runner.os }}
+          path: ${{ runner.temp }}/icons
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Package
         run: |
           version="${{ inputs.tag }}"

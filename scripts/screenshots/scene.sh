@@ -9,7 +9,7 @@ ip link set dummy0 up
 hostname web-01
 mount -t tmpfs tmpfs /srv
 mkdir -p /srv/bin
-for b in node python3 postgres redis-server nginx sshd; do cp "$W/fakesrv" /srv/bin/$b; done
+for b in node python3 postgres redis-server nginx sshd syncthing transmission-gtk; do cp "$W/fakesrv" /srv/bin/$b; done
 # A terminal for Restart and Start to find (never run here).
 mkdir -p /srv/term && printf '#!/bin/sh\nexit 0\n' > /srv/term/xterm && chmod +x /srv/term/xterm
 mkdir -p /srv/dev/storefront/node_modules/next/dist/bin /srv/dev/admin-ui/node_modules/vite/bin \
@@ -58,10 +58,18 @@ sleep 0.3
 sleep 0.3
 SERVE_PORT=80 SERVE_BIND=0.0.0.0 SERVE_WORKERS=4 SERVE_REPLY=70000 SERVE_CONNECT=127.0.0.1:3000:2400:0.1 \
   /srv/bin/nginx -g "daemon off;" >/dev/null 2>&1 &
+# Two real desktop apps, found through their .desktop entries and icons
+# in the scene's own home folder.
+mkdir -p /srv/home/.local/share/applications /srv/home/.local/share/icons/hicolor/scalable/apps
+cp "$W"/icons/*.svg /srv/home/.local/share/icons/hicolor/scalable/apps/ 2>/dev/null || true
+printf '[Desktop Entry]\nType=Application\nName=Syncthing\nExec=syncthing serve\nIcon=syncthing\n' > /srv/home/.local/share/applications/syncthing-ui.desktop
+printf '[Desktop Entry]\nType=Application\nName=Transmission\nExec=transmission-gtk %%U\nIcon=transmission\n' > /srv/home/.local/share/applications/transmission-gtk.desktop
+SERVE_PORT=8384 SERVE_REPLY=3000 /srv/bin/syncthing serve --no-browser >/dev/null 2>&1 &
+SERVE_PORT=51413 SERVE_BIND=0.0.0.0 SERVE_REPLY=16000 /srv/bin/transmission-gtk >/dev/null 2>&1 &
 sleep 1
 
 cd "$W"
-PATH="/srv/term:$PATH" "$W/devserver" -hide-self -shell-preview -frontend "$FRONTEND" >"$W/devserver.log" 2>&1 &
+HOME=/srv/home PATH="/srv/term:$PATH" "$W/devserver" -hide-self -shell-preview -frontend "$FRONTEND" >"$W/devserver.log" 2>&1 &
 sleep 6
 python3 "$W/desktop.py" "$W"
 python3 "$W/web.py" "$W"

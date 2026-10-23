@@ -8,7 +8,10 @@
 #   scripts/screenshots/record.sh            # writes docs/assets/*.png
 #
 # Needs Linux with unprivileged user namespaces, Go, python3 with
-# Playwright's Chromium, and the ip command.
+# Playwright's Chromium, and the ip command. With Docker, the scene also
+# shows two real open source apps, Syncthing and Transmission, with the
+# icons from their Ubuntu packages (cached, not kept in the repository);
+# without it they get monograms.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
@@ -19,6 +22,17 @@ trap 'rm -rf "$work"' EXIT
 (cd "$repo" && go build -o "$work/portop" ./cmd/portop)
 (cd "$repo/desktop" && go build -o "$work/devserver" ./cmd/devserver)
 cp "$here"/*.py "$work/"
+
+icons=${XDG_CACHE_HOME:-$HOME/.cache}/portop-screenshots/icons
+if [ ! -s "$icons/syncthing.svg" ] && command -v docker >/dev/null; then
+  mkdir -p "$icons"
+  docker run --rm -v "$icons:/out" ubuntu:24.04 sh -c '
+    apt-get update -qq >/dev/null && cd /tmp && apt-get download -qq syncthing transmission-common >/dev/null &&
+    for d in *.deb; do dpkg-deb -x "$d" x; done &&
+    cp x/usr/share/icons/hicolor/scalable/apps/syncthing.svg x/usr/share/icons/hicolor/scalable/apps/transmission.svg /out/ &&
+    chown -R '"$(id -u):$(id -g)"' /out' || echo "could not fetch the app icons; the scene uses monograms"
+fi
+mkdir -p "$work/icons" && cp "$icons"/*.svg "$work/icons/" 2>/dev/null || true
 
 FRONTEND="$repo/desktop/frontend" unshare -rmnu sh "$here/scene.sh" "$work"
 

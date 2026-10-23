@@ -91,18 +91,21 @@ func parseDesktop(path string) (icon, execName, wmClass string) {
 	return
 }
 
-// themeIcon resolves an icon name to a file: hicolor sizes from 256 down,
-// then scalable, then pixmaps.
-func themeIcon(icon string) string {
+// themeIcons lists the files an icon name may resolve to, best first:
+// large hicolor bitmaps, then the scalable one, then smaller bitmaps and
+// pixmaps. A crisp icon matters more than a tiny file, so 48x48 comes
+// after scalable.
+func themeIcons(icon string) []string {
 	if filepath.IsAbs(icon) {
-		return icon
+		return []string{icon}
 	}
+	var out []string
 	for _, dir := range iconDirs() {
-		for _, size := range []string{"256x256", "512x512", "192x192", "128x128", "96x96", "64x64", "48x48", "scalable"} {
+		for _, size := range []string{"256x256", "192x192", "128x128", "512x512", "scalable", "480x480", "384x384", "96x96", "64x64", "48x48"} {
 			for _, ext := range []string{".png", ".svg"} {
 				p := filepath.Join(dir, "hicolor", size, "apps", icon+ext)
 				if _, err := os.Stat(p); err == nil {
-					return p
+					out = append(out, p)
 				}
 			}
 		}
@@ -110,10 +113,10 @@ func themeIcon(icon string) string {
 	for _, ext := range []string{".png", ".svg"} {
 		p := filepath.Join("/usr/share/pixmaps", icon+ext)
 		if _, err := os.Stat(p); err == nil {
-			return p
+			out = append(out, p)
 		}
 	}
-	return ""
+	return out
 }
 
 func appIcon(exe, name string) string {
@@ -121,13 +124,15 @@ func appIcon(exe, name string) string {
 	if icon == "" {
 		return ""
 	}
-	path := themeIcon(icon)
-	mime := iconTypes[strings.ToLower(filepath.Ext(path))]
-	if path == "" || mime == "" {
-		return ""
-	}
-	if b, ok := readIcon(path); ok {
-		return dataURL(mime, b)
+	// Skip a file too big to be read as an icon and try the next one.
+	for _, path := range themeIcons(icon) {
+		mime := iconTypes[strings.ToLower(filepath.Ext(path))]
+		if mime == "" {
+			continue
+		}
+		if b, ok := readIcon(path); ok {
+			return dataURL(mime, b)
+		}
 	}
 	return ""
 }
