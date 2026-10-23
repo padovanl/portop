@@ -15,6 +15,7 @@ const state = {
   stateFilter: "listen",
   category: null,
   eventKind: "all",
+  eventScope: "relevant",
   unseen: 0,
   drawerPid: null,
 };
@@ -49,7 +50,7 @@ async function saveSettings(patch) {
     toast("Could not save settings: " + e.message, true);
   }
   renderSettings();
-  if (state.snap) { renderPorts(); renderWatch(); }
+  if (state.snap) { renderPorts(); renderWatch(); renderTimeline(); }
 }
 
 function renderSettings() {
@@ -59,6 +60,13 @@ function renderSettings() {
   $("interval").value = s.interval_ms;
   $("interval-label").textContent = (s.interval_ms / 1000).toString().replace(/\.0$/, "") + " s";
   $("notify-new").checked = s.notify_new;
+  $("notify-udp").checked = s.notify_udp;
+  keyed($("notify-cats"), CATEGORY_ORDER, (c) => c,
+    (c) => h("button", { class: "chip cat-" + c, onclick: () => saveSettings({ notify_categories: toggleIn(state.settings.notify_categories, c) }) }, h("i"), CATEGORIES[c].label),
+    (el, c) => el.classList.toggle("active", s.notify_categories.includes(c)));
+  const muted = $("muted-list");
+  muted.replaceChildren(...(s.muted.length ? s.muted.map((m) => h("li", {}, clean(m),
+    h("button", { class: "icon-btn", title: "Unmute " + m, onclick: () => saveSettings({ muted: state.settings.muted.filter((x) => x !== m) }) }, icon("x")))) : [h("li", { class: "none" }, "None")]));
   $("close-to-tray").checked = s.close_to_tray;
   $("reduce-motion").checked = s.reduce_motion;
   setReduceMotion(s.reduce_motion);
@@ -69,10 +77,22 @@ $("theme-choice").addEventListener("click", (e) => { const t = e.target.closest(
 $("interval").addEventListener("input", (e) => { $("interval-label").textContent = (e.target.value / 1000) + " s"; });
 $("interval").addEventListener("change", (e) => saveSettings({ interval_ms: Number(e.target.value) }));
 $("notify-new").addEventListener("change", (e) => saveSettings({ notify_new: e.target.checked }));
+$("notify-udp").addEventListener("change", (e) => saveSettings({ notify_udp: e.target.checked }));
 $("close-to-tray").addEventListener("change", (e) => saveSettings({ close_to_tray: e.target.checked }));
 $("reduce-motion").addEventListener("change", (e) => saveSettings({ reduce_motion: e.target.checked }));
 
 const isWatched = (port) => state.settings?.watched.includes(port);
+
+// relevant mirrors Settings.Relevant in the backend: the filters that
+// decide which new ports notify, also used by Activity's Relevant view.
+function relevant(e) {
+  const s = state.settings;
+  if (!s) return true;
+  if (s.watched.includes(e.port)) return true;
+  if (e.protocol === "UDP" && !s.notify_udp) return false;
+  if (!s.notify_categories.includes(e.category)) return false;
+  return !s.muted.includes((e.process || "").toLowerCase());
+}
 const isPinned = (port) => state.settings?.pinned.includes(port);
 const toggleIn = (list, port) => (list.includes(port) ? list.filter((p) => p !== port) : [...list, port]);
 
@@ -538,7 +558,7 @@ async function openDetails(r) {
 
 function renderTimeline() {
   const list = $("timeline");
-  const events = state.events.filter((e) => state.eventKind === "all" || e.kind === state.eventKind).slice(-300).reverse();
+  const events = state.events.filter((e) => (state.eventKind === "all" || e.kind === state.eventKind) && (state.eventScope === "everything" || relevant(e))).slice(-300).reverse();
   $("timeline-empty").hidden = events.length > 0;
   const items = [];
   let day = "";
@@ -559,8 +579,20 @@ function timelineItem(e) {
       h("div", { class: "row" },
         h("b", {}, `${e.kind === "opened" ? "Opened" : "Closed"} ${e.protocol} :${e.port}`),
         h("time", { title: new Date(e.time).toLocaleString() }, clock(e.time))),
-      h("small", {}, [who, e.framework, e.pid ? "PID " + e.pid : "", { all: "all interfaces", loopback: "loopback", address: "one address" }[e.scope]].filter(Boolean).join(" · "))));
+      h("small", {}, [who, e.framework, e.pid ? "PID " + e.pid : "", { all: "all interfaces", loopback: "loopback", address: "one address" }[e.scope]].filter(Boolean).join(" · ")),
+      e.process ? h("button", { class: "icon-btn mute", title: `Mute ${e.process}: no notifications, hidden from Relevant`, onclick: (ev) => {
+        ev.stopPropagation();
+        saveSettings({ muted: [...state.settings.muted, e.process.toLowerCase()] }).then(() => { toast(`Muted ${e.process}`); $("timeline").replaceChildren(); renderTimeline(); });
+      } }, icon("bell-off")) : null));
 }
+$("event-scope").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  state.eventScope = b.dataset.scope;
+  for (const x of $("event-scope").children) x.classList.toggle("active", x === b);
+  $("timeline").replaceChildren();
+  renderTimeline();
+});
 $("event-filter").addEventListener("click", (e) => {
   const b = e.target.closest("button");
   if (!b) return;
@@ -665,8 +697,9 @@ function onSnapshot(snap) {
   if (snap.new_events?.length) {
     state.events.push(...snap.new_events);
     if (state.events.length > 1000) state.events = state.events.slice(-1000);
-    if (state.view !== "activity") {
-      state.unseen += snap.new_events.length;
+    const counted = snap.new_events.filter(relevant).length;
+    if (state.view !== "activity" && counted) {
+      state.unseen += counted;
       $("nav-activity").hidden = false;
       $("nav-activity").textContent = state.unseen > 99 ? "99+" : state.unseen;
     }

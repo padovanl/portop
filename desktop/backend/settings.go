@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,17 +16,29 @@ import (
 // Settings are the window's preferences, saved as JSON next to portop's
 // config.yml.
 type Settings struct {
-	Theme        string   `json:"theme"`         // system, dark or light
-	IntervalMS   int      `json:"interval_ms"`   // scan interval
-	Watched      []uint16 `json:"watched"`       // ports to notify about
-	Pinned       []uint16 `json:"pinned"`        // ports kept on top
-	NotifyNew    bool     `json:"notify_new"`    // notify about every new listening port
-	CloseToTray  bool     `json:"close_to_tray"` // closing the window keeps portop in the tray
-	ReduceMotion bool     `json:"reduce_motion"` // turn off animations
+	Theme      string   `json:"theme"`       // system, dark or light
+	IntervalMS int      `json:"interval_ms"` // scan interval
+	Watched    []uint16 `json:"watched"`     // ports to notify about
+	Pinned     []uint16 `json:"pinned"`      // ports kept on top
+	NotifyNew  bool     `json:"notify_new"`  // notify about new listening ports that pass the filters below
+	// Which new ports are worth a notification and an entry in the
+	// "Relevant" activity: categories, UDP, and processes the user muted.
+	NotifyCategories []string `json:"notify_categories"`
+	NotifyUDP        bool     `json:"notify_udp"`
+	Muted            []string `json:"muted"`         // process names, lower case
+	CloseToTray      bool     `json:"close_to_tray"` // closing the window keeps portop in the tray
+	ReduceMotion     bool     `json:"reduce_motion"` // turn off animations
 }
 
+// DefaultCategories leave out desktop apps and system services, whose
+// short-lived ports (browsers, music players, discovery) are noise.
+var DefaultCategories = []string{"dev", "database", "web", "container"}
+
+var knownCategories = map[string]bool{"dev": true, "database": true, "web": true, "container": true, "system": true, "app": true}
+
 func defaultSettings() Settings {
-	return Settings{Theme: "system", IntervalMS: 2000, CloseToTray: true}
+	return Settings{Theme: "system", IntervalMS: 2000, CloseToTray: true,
+		NotifyCategories: append([]string{}, DefaultCategories...), Muted: []string{}}
 }
 
 func (s Settings) interval() time.Duration {
@@ -49,6 +63,25 @@ func (s Settings) clean() Settings {
 	}
 	s.Watched = uniquePorts(s.Watched)
 	s.Pinned = uniquePorts(s.Pinned)
+	cats := []string{}
+	for _, c := range s.NotifyCategories {
+		if knownCategories[c] && !slices.Contains(cats, c) {
+			cats = append(cats, c)
+		}
+	}
+	s.NotifyCategories = cats
+	muted := []string{}
+	for _, m := range s.Muted {
+		m = strings.ToLower(strings.TrimSpace(m))
+		if m != "" && len(m) <= 200 && !slices.Contains(muted, m) {
+			muted = append(muted, m)
+		}
+	}
+	sort.Strings(muted)
+	if len(muted) > 200 {
+		muted = muted[:200]
+	}
+	s.Muted = muted
 	return s
 }
 
@@ -99,6 +132,8 @@ func (st *settingsStore) get() Settings {
 	s := st.cur
 	s.Watched = append([]uint16{}, s.Watched...)
 	s.Pinned = append([]uint16{}, s.Pinned...)
+	s.NotifyCategories = append([]string{}, s.NotifyCategories...)
+	s.Muted = append([]string{}, s.Muted...)
 	return s
 }
 

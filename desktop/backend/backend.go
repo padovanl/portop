@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,8 +34,9 @@ type Backend struct {
 
 	mu       sync.RWMutex
 	snapshot Snapshot
-	total    []TrafficPoint         // whole-machine rates, oldest first
-	byPID    map[int][]TrafficPoint // per-process rates, oldest first
+	total    []TrafficPoint              // whole-machine rates, oldest first
+	byPID    map[int][]TrafficPoint      // per-process rates, oldest first
+	pending  map[pendingKey]events.Event // new ports waiting to settle before a notification
 	wake     chan struct{}
 
 	// Version is shown in Settings; set by the shell.
@@ -119,6 +122,7 @@ func New(settingsPath string) *Backend {
 		log:       events.NewLog(500),
 		settings:  newSettingsStore(settingsPath),
 		byPID:     map[int][]TrafficPoint{},
+		pending:   map[pendingKey]events.Event{},
 		wake:      make(chan struct{}, 1),
 	}
 }
@@ -231,7 +235,7 @@ func (b *Backend) scan(ctx context.Context) {
 	b.snapshot = snap
 	b.mu.Unlock()
 
-	b.alert(fresh)
+	b.alert(fresh, rows, now)
 	if b.OnSnapshot != nil {
 		b.OnSnapshot(snap)
 	}
@@ -264,21 +268,71 @@ func appendPoint(h []TrafficPoint, p TrafficPoint) []TrafficPoint {
 	return h
 }
 
-// alert notifies about watched ports, and about every new port when the
-// setting asks for it.
-func (b *Backend) alert(fresh []events.Event) {
-	if b.OnNotify == nil || len(fresh) == 0 {
-		return
+// Relevant reports whether an event passes the notification filters:
+// a category the user wants, TCP unless UDP is on, and a process that is
+// not muted. Watched ports are always relevant.
+func (s Settings) Relevant(e events.Event) bool {
+	if slices.Contains(s.Watched, e.Port) {
+		return true
 	}
+	if e.Protocol == "UDP" && !s.NotifyUDP {
+		return false
+	}
+	if !slices.Contains(s.NotifyCategories, e.Category) {
+		return false
+	}
+	return !slices.Contains(s.Muted, strings.ToLower(e.Process))
+}
+
+// settleTime is how long a new port must stay open before it is worth a
+// notification: browsers and players open and close ports in seconds.
+const settleTime = 5 * time.Second
+
+type pendingKey struct {
+	protocol string
+	port     uint16
+	pid      int
+}
+
+// alert notifies about watched ports opening and closing, and, when the
+// setting is on, about relevant new ports that stayed open settleTime.
+func (b *Backend) alert(fresh []events.Event, rows []app.Row, now time.Time) {
 	s := b.settings.get()
-	watched := map[uint16]bool{}
-	for _, p := range s.Watched {
-		watched[p] = true
+	open := map[pendingKey]bool{}
+	for _, r := range rows {
+		if r.Listening() {
+			open[pendingKey{string(r.Protocol), r.LocalPort, r.PID}] = true
+		}
+	}
+	var due []events.Event
+	b.mu.Lock()
+	for k, e := range b.pending {
+		switch {
+		case !open[k]:
+			delete(b.pending, k) // closed before it settled: not worth a word
+		case now.Sub(e.Time) >= settleTime:
+			// The settings may have changed while it settled.
+			if s.NotifyNew && s.Relevant(e) {
+				due = append(due, e)
+			}
+			delete(b.pending, k)
+		}
 	}
 	for _, e := range fresh {
-		if !watched[e.Port] && !(s.NotifyNew && e.Kind == events.Opened) {
-			continue
+		if s.NotifyNew && e.Kind == events.Opened && !slices.Contains(s.Watched, e.Port) && s.Relevant(e) {
+			b.pending[pendingKey{e.Protocol, e.Port, e.PID}] = e
 		}
+	}
+	b.mu.Unlock()
+	if b.OnNotify == nil {
+		return
+	}
+	for _, e := range fresh {
+		if slices.Contains(s.Watched, e.Port) {
+			due = append(due, e)
+		}
+	}
+	for _, e := range due {
 		who := e.Process
 		if e.Project != "" {
 			who = e.Project

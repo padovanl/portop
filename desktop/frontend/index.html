@@ -124,8 +124,13 @@
     <section class="view" id="view-activity" aria-label="Activity">
       <header class="view-head">
         <div><h1>Activity</h1><p class="subtitle">Ports opened and closed since portop started</p></div>
-        <div class="segmented" id="event-filter">
-          <button class="active" data-kind="all">All</button><button data-kind="opened">Opened</button><button data-kind="closed">Closed</button>
+        <div class="filters">
+          <div class="segmented" id="event-scope" title="Relevant uses the notification filters in Settings">
+            <button class="active" data-scope="relevant">Relevant</button><button data-scope="everything">Everything</button>
+          </div>
+          <div class="segmented" id="event-filter">
+            <button class="active" data-kind="all">All</button><button data-kind="opened">Opened</button><button data-kind="closed">Closed</button>
+          </div>
         </div>
       </header>
       <div class="activity">
@@ -143,11 +148,19 @@
     <section class="view" id="view-settings" aria-label="Settings">
       <header class="view-head"><div><h1>Settings</h1></div></header>
       <div class="settings">
+        <h2 class="settings-group">General</h2>
         <div class="setting"><div><h3>Appearance</h3><p>Follow the system, or pick a theme.</p></div>
           <div class="segmented" id="theme-choice"><button data-theme="system">System</button><button data-theme="dark">Dark</button><button data-theme="light">Light</button></div></div>
         <div class="setting"><div><h3>Refresh every <b id="interval-label">2 s</b></h3><p>How often portop scans the sockets.</p></div>
           <input type="range" id="interval" min="500" max="10000" step="500"></div>
-        <div class="setting"><div><h3>Notify about every new port</h3><p>Watched ports always notify.</p></div><label class="switch"><input type="checkbox" id="notify-new"><span></span></label></div>
+        <h2 class="settings-group">Notifications</h2>
+        <div class="setting"><div><h3>Notify about new ports</h3><p>A new port must stay open a few seconds and pass the filters below. Watched ports always notify, opening and closing.</p></div><label class="switch"><input type="checkbox" id="notify-new"><span></span></label></div>
+        <div class="setting stack"><div><h3>Which new ports</h3><p>Also used by the Relevant view of Activity. Apps and system services are off by default: browsers and music players open short-lived ports all the time.</p></div>
+          <div class="chips" id="notify-cats"></div></div>
+        <div class="setting"><div><h3>Include UDP ports</h3><p>Most UDP ports are short-lived (video calls, device discovery).</p></div><label class="switch"><input type="checkbox" id="notify-udp"><span></span></label></div>
+        <div class="setting stack"><div><h3>Muted processes</h3><p>Never notified and left out of Relevant activity. Mute a process from its entry in Activity.</p></div>
+          <ul class="muted-list" id="muted-list"></ul></div>
+        <h2 class="settings-group">Window</h2>
         <div class="setting"><div><h3>Keep running in the tray</h3><p>Closing the window leaves portop in the system tray or menu bar.</p></div><label class="switch"><input type="checkbox" id="close-to-tray"><span></span></label></div>
         <div class="setting"><div><h3>Reduce motion</h3><p>Turn off animations.</p></div><label class="switch"><input type="checkbox" id="reduce-motion"><span></span></label></div>
         <div class="about panel">
@@ -217,6 +230,7 @@
   <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></symbol>
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5v14l11-7z"/></symbol>
   <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/></symbol>
+  <symbol id="i-bell-off" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 9.3-5M18 11v5l1.5 2H8M10 20a2 2 0 0 0 4 0M3 3l18 18"/></symbol>
   <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
 </svg>
 </body>

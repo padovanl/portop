@@ -432,6 +432,10 @@ h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
 .timeline .body { flex: 1; min-width: 0; padding: 8px 14px; border-radius: 13px; background: var(--glass); border: 1px solid var(--line); cursor: pointer; transition: background 0.2s; }
 .timeline .body:hover { background: var(--glass-2); }
 .timeline .body b { font-weight: 650; }
+.timeline .body { position: relative; }
+.timeline .mute { position: absolute; right: 8px; bottom: 6px; opacity: 0; width: 26px; height: 26px; }
+.timeline .body:hover .mute, .timeline .mute:focus-visible { opacity: 1; }
+.timeline .body:hover time { visibility: visible; }
 .timeline .body small { display: block; color: var(--faint); font-size: 12px; }
 .timeline time { margin-left: auto; color: var(--faint); font: 12px var(--mono); white-space: nowrap; }
 .timeline .row { display: flex; align-items: center; gap: 10px; }
@@ -451,6 +455,14 @@ h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
 
 /* Settings */
 .settings { display: flex; flex-direction: column; gap: 10px; max-width: 760px; }
+.settings-group { font-size: 13px; color: var(--faint); font-weight: 650; text-transform: uppercase; letter-spacing: 0.08em; margin: 14px 0 0; }
+.settings-group:first-child { margin-top: 0; }
+.setting.stack { flex-direction: column; align-items: stretch; gap: 12px; }
+.muted-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.muted-list li { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 11px; border-radius: 99px; background: var(--glass-2); border: 1px solid var(--line); font: 12.5px var(--mono); }
+.muted-list li .icon-btn { width: 24px; height: 24px; }
+.muted-list .none { color: var(--faint); font: 12.5px var(--sans); }
+.filters { display: flex; gap: 10px; flex-wrap: wrap; }
 .setting { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 16px 18px; border-radius: var(--radius); background: var(--glass); border: 1px solid var(--line); }
 .setting h3 { font-size: 14.5px; margin-bottom: 3px; }
 .setting h3 b { color: var(--azure); font-variant-numeric: tabular-nums; }

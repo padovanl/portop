@@ -91,26 +91,77 @@ func TestConvertSummarisesRows(t *testing.T) {
 	}
 }
 
-func TestAlertNotifiesWatchedPorts(t *testing.T) {
+func TestAlertNotifiesWatchedPortsAtOnce(t *testing.T) {
 	b := New(filepath.Join(t.TempDir(), "s.json"))
 	if _, err := b.SaveSettings(Settings{Watched: []uint16{3000}}); err != nil {
 		t.Fatal(err)
 	}
 	var got []string
 	b.OnNotify = func(title, body string) { got = append(got, title+" | "+body) }
+	now := time.Now()
 	b.alert([]events.Event{
-		{Kind: events.Opened, Port: 3000, Protocol: "TCP", Process: "node", Project: "shop"},
-		{Kind: events.Opened, Port: 9999, Protocol: "TCP", Process: "nc"},
-		{Kind: events.Closed, Port: 3000, Protocol: "TCP", Process: "node"},
-	})
+		{Kind: events.Opened, Port: 3000, Protocol: "TCP", Process: "node", Project: "shop", Category: "dev", Time: now},
+		{Kind: events.Opened, Port: 9999, Protocol: "TCP", Process: "nc", Category: "app", Time: now},
+		{Kind: events.Closed, Port: 3000, Protocol: "TCP", Process: "node", Time: now},
+	}, nil, now)
 	if len(got) != 2 || !strings.Contains(got[0], "Port 3000 is now open | shop is listening") || !strings.Contains(got[1], "Port 3000 closed") {
 		t.Fatalf("notifications: %q", got)
 	}
-	b.SaveSettings(Settings{NotifyNew: true})
-	got = nil
-	b.alert([]events.Event{{Kind: events.Opened, Port: 9999, Protocol: "TCP"}, {Kind: events.Closed, Port: 9999, Protocol: "TCP"}})
-	if len(got) != 1 || !strings.Contains(got[0], "an unknown process") {
-		t.Errorf("notify_new: %q", got)
+}
+
+func listening(port uint16, pid int, proto scanner.Protocol) app.Row {
+	return app.Row{Protocol: proto, LocalAddr: net.ParseIP("127.0.0.1"), LocalPort: port, State: scanner.StateListen, PID: pid}
+}
+
+func TestAlertFiltersAndSettlesNewPorts(t *testing.T) {
+	b := New(filepath.Join(t.TempDir(), "s.json"))
+	if _, err := b.SaveSettings(Settings{NotifyNew: true, NotifyCategories: DefaultCategories, Muted: []string{"Spotify"}}); err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	b.OnNotify = func(title, body string) { got = append(got, title) }
+	t0 := time.Now()
+	fresh := []events.Event{
+		{Kind: events.Opened, Port: 5173, Protocol: "TCP", PID: 1, Process: "node", Category: "dev", Time: t0},
+		{Kind: events.Opened, Port: 4000, Protocol: "TCP", PID: 2, Process: "node", Category: "dev", Time: t0},
+		{Kind: events.Opened, Port: 57621, Protocol: "UDP", PID: 3, Process: "chrome", Category: "app", Time: t0},
+		{Kind: events.Opened, Port: 5353, Protocol: "UDP", PID: 4, Process: "avahi", Category: "system", Time: t0},
+		{Kind: events.Opened, Port: 4070, Protocol: "TCP", PID: 5, Process: "spotify", Category: "dev", Time: t0},
+	}
+	all := []app.Row{listening(5173, 1, scanner.TCP), listening(4000, 2, scanner.TCP), listening(57621, 3, scanner.UDP), listening(5353, 4, scanner.UDP), listening(4070, 5, scanner.TCP)}
+	b.alert(fresh, all, t0)
+	if len(got) != 0 {
+		t.Fatalf("a new port was announced before it settled: %q", got)
+	}
+	// Port 4000 closes before it settles; 5173 stays.
+	b.alert(nil, []app.Row{listening(5173, 1, scanner.TCP)}, t0.Add(2*time.Second))
+	b.alert(nil, []app.Row{listening(5173, 1, scanner.TCP), listening(4000, 2, scanner.TCP)}, t0.Add(6*time.Second))
+	if len(got) != 1 || got[0] != "Port 5173 is now open" {
+		t.Fatalf("notifications: %q", got)
+	}
+	s := b.Settings()
+	for _, c := range []struct {
+		e    events.Event
+		want bool
+	}{
+		{events.Event{Port: 5432, Protocol: "TCP", Category: "database"}, true},
+		{events.Event{Port: 57621, Protocol: "UDP", Category: "dev"}, false},
+		{events.Event{Port: 8080, Protocol: "TCP", Category: "app"}, false},
+		{events.Event{Port: 4070, Protocol: "TCP", Category: "dev", Process: "spotify"}, false},
+	} {
+		if got := s.Relevant(c.e); got != c.want {
+			t.Errorf("Relevant(%+v) = %v, want %v", c.e, got, c.want)
+		}
+	}
+}
+
+func TestSettingsCleanFilters(t *testing.T) {
+	s := Settings{NotifyCategories: []string{"dev", "bogus", "dev", "web"}, Muted: []string{" Spotify ", "spotify", ""}}.clean()
+	if len(s.NotifyCategories) != 2 || len(s.Muted) != 1 || s.Muted[0] != "spotify" {
+		t.Errorf("clean: %+v", s)
+	}
+	if d := defaultSettings(); len(d.NotifyCategories) != 4 || d.NotifyUDP {
+		t.Errorf("defaults: %+v", d)
 	}
 }
 
