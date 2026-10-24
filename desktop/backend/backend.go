@@ -226,11 +226,9 @@ func (b *Backend) Events() []events.Event {
 // as this user otherwise or when the helper stops answering.
 func (b *Backend) collect(ctx context.Context, opts app.Options) ([]app.Row, error) {
 	if c := b.helper(); c != nil {
-		rows, err := c.rows(ctx)
-		if err == nil {
+		if rows, ok := b.helperRows(ctx, c); ok {
 			return rows, nil
 		}
-		b.dropHelper(c)
 	}
 	return b.collector.Collect(ctx, opts)
 }

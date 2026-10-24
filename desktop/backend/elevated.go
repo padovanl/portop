@@ -31,7 +31,12 @@ type helperConn struct {
 	cli.HelperInfo
 	dir    string
 	client *http.Client
+	fails  int // scans in a row the helper could not answer; guarded by elevation.mu
 }
+
+// helperFailLimit is how many scans in a row may fail (a slow scan, a
+// busy machine) before the window gives up on the helper.
+const helperFailLimit = 3
 
 type elevation struct {
 	mu       sync.Mutex
@@ -119,15 +124,12 @@ func (b *Backend) Elevate() error {
 // may see.
 func (b *Backend) DropElevation() {
 	if c := b.helper(); c != nil {
-		req, _ := http.NewRequest(http.MethodPost, c.URL+"/quit", nil)
-		req.Header.Set("X-Portop-Token", c.Token)
-		if resp, err := c.client.Do(req); err == nil {
-			resp.Body.Close()
-		}
 		b.dropHelper(c)
 	}
 }
 
+// dropHelper forgets the helper and asks it to quit, so it never outlives
+// the window's interest in it, even when it is dropped for not answering.
 func (b *Backend) dropHelper(c *helperConn) {
 	b.elev.mu.Lock()
 	if b.elev.conn != c {
@@ -136,8 +138,29 @@ func (b *Backend) dropHelper(c *helperConn) {
 	}
 	b.elev.conn = nil
 	b.elev.mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	_ = c.do(ctx, http.MethodPost, "/quit", nil, nil)
+	cancel()
 	os.RemoveAll(c.dir)
 	b.Refresh()
+}
+
+// helperRows scans through the helper. A failure falls back to this
+// user's scan for that round; only several in a row drop the helper.
+func (b *Backend) helperRows(ctx context.Context, c *helperConn) ([]app.Row, bool) {
+	rows, err := c.rows(ctx)
+	b.elev.mu.Lock()
+	if err == nil {
+		c.fails = 0
+	} else {
+		c.fails++
+	}
+	give := err != nil && c.fails >= helperFailLimit
+	b.elev.mu.Unlock()
+	if give {
+		b.dropHelper(c)
+	}
+	return rows, err == nil
 }
 
 func (c *helperConn) do(ctx context.Context, method, path string, body, out any) error {

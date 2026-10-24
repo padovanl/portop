@@ -3,9 +3,11 @@ package cli
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -107,5 +109,19 @@ func TestReadOnlyAPIBasicAuth(t *testing.T) {
 	}
 	if code := get(http.MethodPost, "/api/process/1/signal", true); code != http.StatusUnauthorized {
 		t.Errorf("an action with Basic auth: %d, want refused", code)
+	}
+
+	// Process details are read with Basic auth too (portop desktop shows
+	// another machine's processes so); this test's own process is listed.
+	self := os.Getpid()
+	h = webHandler(func(context.Context, app.Options) ([]app.Row, error) {
+		return []app.Row{{Protocol: scanner.TCP, LocalAddr: net.IPv4(127, 0, 0, 1), LocalPort: 8080, State: scanner.StateListen, PID: self}}, nil
+	}, webConfig{Auth: newWebAuth("admin", "correct horse", "host")})
+	path := fmt.Sprintf("/api/process/%d", self)
+	if code := get(http.MethodGet, path, false); code != http.StatusUnauthorized {
+		t.Errorf("details without credentials: %d", code)
+	}
+	if code := get(http.MethodGet, path, true); code != http.StatusOK {
+		t.Errorf("details with Basic auth: %d, want 200", code)
 	}
 }

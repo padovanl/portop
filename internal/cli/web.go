@@ -128,7 +128,11 @@ func webHandler(collect func(context.Context, app.Options) ([]app.Row, error), c
 			session, _ := cfg.Auth.session(r)
 			token = session.csrf
 		}
-		if token == "" || subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Portop-Token")), []byte(token)) != 1 {
+		// A browser needs the session's token even to read details. A
+		// client that signed in with Basic auth (portop desktop) has no
+		// session and may only read: actions refuse it in requireSession.
+		basicRead := r.Method == http.MethodGet && r.Context().Value(basicAuthKey{}) == true
+		if !basicRead && (token == "" || subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Portop-Token")), []byte(token)) != 1) {
 			http.Error(w, "action token required; open the URL printed by portop", http.StatusForbidden)
 			return 0, false
 		}
@@ -211,6 +215,9 @@ func webHandler(collect func(context.Context, app.Options) ([]app.Row, error), c
 	})
 }
 
+// basicAuthKey marks a request that signed in with HTTP Basic auth.
+type basicAuthKey struct{}
+
 // requireSession serves the sign-in page and its assets to everyone and
 // everything else only to signed-in browsers.
 func requireSession(auth *webAuth, next http.Handler) http.Handler {
@@ -243,8 +250,10 @@ func requireSession(auth *webAuth, next http.Handler) http.Handler {
 		// credentials as HTTP Basic auth, under the same lockout as the
 		// sign-in form. Actions (POST) still need a session and its token.
 		if r.URL.Path == "/metrics" || (r.Method == http.MethodGet && (r.URL.Path == "/api/ports" || strings.HasPrefix(r.URL.Path, "/api/process/"))) {
-			if _, ok := auth.session(r); ok || auth.basicAuth(w, r) {
+			if _, ok := auth.session(r); ok {
 				next.ServeHTTP(w, r)
+			} else if auth.basicAuth(w, r) {
+				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), basicAuthKey{}, true)))
 			}
 			return
 		}

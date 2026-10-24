@@ -51,6 +51,9 @@ func fingerprint(cert *x509.Certificate) string {
 	return strings.ToUpper(hex.EncodeToString(sum[:]))
 }
 
+// errCertChanged is returned when a pinned certificate no longer matches.
+var errCertChanged = errors.New("the server's certificate changed since you trusted it; if that was expected, remove the machine and add it again")
+
 // remoteClient checks the server's certificate against the system's
 // authorities, or, when the host has a pinned fingerprint, against that.
 func remoteClient(h Host) *http.Client {
@@ -60,7 +63,7 @@ func remoteClient(h Host) *http.Client {
 		tlsConf.InsecureSkipVerify = true // replaced by the pin check below
 		tlsConf.VerifyConnection = func(cs tls.ConnectionState) error {
 			if len(cs.PeerCertificates) == 0 || fingerprint(cs.PeerCertificates[0]) != pinned {
-				return errors.New("the server's certificate changed since you trusted it")
+				return errCertChanged
 			}
 			return nil
 		}
@@ -107,6 +110,9 @@ func (b *Backend) remoteGet(ctx context.Context, h Host, password, path string, 
 		}
 		if errors.As(err, &hostname) && hostname.Certificate != nil {
 			return &UntrustedCertError{Fingerprint: fingerprint(hostname.Certificate)}
+		}
+		if errors.Is(err, errCertChanged) {
+			return errCertChanged
 		}
 		var netErr net.Error
 		if errors.As(err, &netErr) && netErr.Timeout() {

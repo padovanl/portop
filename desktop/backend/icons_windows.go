@@ -87,12 +87,27 @@ func appIcon(exe, name string) string {
 			break
 		}
 	}
+	// Icons without an alpha channel keep their transparency in the AND
+	// mask: white where the background shows through.
+	var mask []byte
+	if !hasAlpha && ii.hbmMask != 0 {
+		mask = make([]byte, iconSize*iconSize*4)
+		mhdr := bitmapInfoHeader{width: iconSize, height: -iconSize, planes: 1, bitCount: 32}
+		mhdr.size = uint32(unsafe.Sizeof(mhdr))
+		if r, _, _ := procGetDIBits.Call(dc, uintptr(ii.hbmMask), 0, iconSize,
+			uintptr(unsafe.Pointer(&mask[0])), uintptr(unsafe.Pointer(&mhdr)), 0); r == 0 {
+			mask = nil
+		}
+	}
 	for y := 0; y < iconSize; y++ {
 		for x := 0; x < iconSize; x++ {
 			o := (y*iconSize + x) * 4
 			a := pixels[o+3]
 			if !hasAlpha {
-				a = 255 // old icons keep transparency in the mask; draw them opaque
+				a = 255
+				if mask != nil && mask[o] != 0 {
+					a = 0
+				}
 			}
 			img.SetNRGBA(x, y, color.NRGBA{R: pixels[o+2], G: pixels[o+1], B: pixels[o], A: a})
 		}

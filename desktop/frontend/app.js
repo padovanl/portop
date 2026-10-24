@@ -440,7 +440,7 @@ function updatePortRow(el, r) {
         : h("div", { class: "proc-ico hidden-owner" }, icon("lock")),
       h("div", { class: "cell-main" },
         r.process ? h("b", {}, clean(r.process)) : h("b", { class: "unknown" }, r.pid ? "PID " + r.pid : "owner hidden"),
-        h("small", {}, r.pid ? `PID ${r.pid}${r.user ? " · " + clean(r.user) : ""}` : r.user ? clean(r.user) : state.caps.elevate ? "another user's: use Show all" : "run portop as administrator to see it"))),
+        h("small", {}, r.pid ? `PID ${r.pid}${r.user ? " · " + clean(r.user) : ""}` : r.user ? clean(r.user) : state.host ? "hidden by that machine's portop" : state.caps.elevate ? "another user's: use Show all" : "run portop as administrator to see it"))),
     h("div", { class: "cell-main" },
       r.project || r.framework ? h("b", {}, withIcon(h("span", { class: "fw-dot", style: { "--fw": b.color } }), r, "project"), clean(r.project || r.framework)) : h("b", { class: "unknown" }, "—"),
       h("small", {}, [r.framework && r.project ? r.framework : "", r.language].filter(Boolean).join(" · ") || " ")),
@@ -596,7 +596,9 @@ async function openDetails(r) {
   body.replaceChildren(head, h("p", { class: "muted" }, "Loading process details…"));
   if (!r.pid) {
     body.replaceChildren(head,
-      h("div", { class: "note" }, icon("lock"), h("span", {}, state.caps.elevate
+      h("div", { class: "note" }, icon("lock"), h("span", {}, state.host
+        ? "That machine's portop cannot see which process owns this socket: it runs without administrator rights there."
+        : state.caps.elevate
         ? ["portop cannot see which process owns this socket: it belongs to another user or a protected process. ", h("button", { class: "btn btn-sm", onclick: elevate }, "Show every user's processes")]
         : "portop cannot see which process owns this socket. It belongs to another user or a protected process; run portop as administrator to see it.")),
       h("div", { class: "d-section" }, h("h3", {}, "Sockets"), socketList));
@@ -627,8 +629,9 @@ async function openDetails(r) {
         h("button", { class: "btn btn-sm needs-docker", onclick: () => openContainer(r.container) }, icon("box"), "Logs and actions"))) : null,
     r.at_risk ? h("div", { class: "note risk" }, icon("globe"), h("span", {}, "This port listens on the network and the firewall does not block it. If only this machine needs it, bind it to 127.0.0.1.")) : null,
     !info.own && !state.host ? h("div", { class: "note" }, icon("shield"), h("span", {}, `Owned by ${clean(info.user || "another user")}` + (state.snap?.elevated ? ": stopped through the administrator view." : ": stopping it asks for an administrator password."))) : null,
-    h("div", { class: "d-section" }, h("div", { class: "d-title" }, h("h3", {}, "Traffic"),
-      state.host ? null : h("span", { class: "segmented tiny" },
+    // Another machine's dashboard gives no traffic history to draw.
+    state.host ? null : h("div", { class: "d-section" }, h("div", { class: "d-title" }, h("h3", {}, "Traffic"),
+      h("span", { class: "segmented tiny" },
         h("button", { class: "active", onclick: (e) => drawSpan(e, chart, r.pid, "short", hist) }, "3 min"),
         h("button", { onclick: (e) => drawSpan(e, chart, r.pid, "long", hist) }, "1 h"))), chart),
     h("div", { class: "d-section" }, h("h3", {}, `Sockets (${sockets.length})`), socketList),
