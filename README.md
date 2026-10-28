@@ -15,6 +15,7 @@
 [![portop](https://snapcraft.io/portop/badge.svg)](https://snapcraft.io/portop)
 [![Homebrew](https://img.shields.io/homebrew/v/portop?logo=homebrew)](https://formulae.brew.sh/formula/portop)
 [![APT](https://img.shields.io/endpoint?url=https%3A%2F%2Fapt.lucapadovan.dev%2Fbadges%2Fportop.json&logo=debian)](https://padovanl.github.io/portop/docs/installation.html#apt)
+[![portop on The Terminal Index](https://cli.masoko.net/badge/portop.svg)](https://cli.masoko.net/tools/portop/)
 [![Microsoft Store](https://img.shields.io/badge/microsoft_store-available-0078D4)](https://apps.microsoft.com/detail/9MZ319F4LW70)
 [![winget](https://img.shields.io/badge/winget-in_review-lightgrey)](https://github.com/microsoft/winget-pkgs/pull/453604)
 
