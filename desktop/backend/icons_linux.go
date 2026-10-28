@@ -1,0 +1,138 @@
+package backend
+
+import (
+	"bufio"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+// Linux applications describe their icon in a .desktop entry; the icon
+// itself is a name looked up in the icon themes, or a path.
+
+func desktopDirs() []string {
+	dirs := []string{}
+	if home, err := os.UserHomeDir(); err == nil {
+		dirs = append(dirs, filepath.Join(home, ".local/share/applications"), filepath.Join(home, ".local/share/flatpak/exports/share/applications"))
+	}
+	return append(dirs, "/usr/share/applications", "/usr/local/share/applications",
+		"/var/lib/flatpak/exports/share/applications", "/var/lib/snapd/desktop/applications")
+}
+
+func iconDirs() []string {
+	dirs := []string{}
+	if home, err := os.UserHomeDir(); err == nil {
+		dirs = append(dirs, filepath.Join(home, ".local/share/icons"), filepath.Join(home, ".icons"))
+	}
+	return append(dirs, "/usr/share/icons", "/usr/local/share/icons", "/var/lib/flatpak/exports/share/icons", "/var/lib/snapd/desktop/icons")
+}
+
+// desktopIcon finds the Icon= of the .desktop entry whose Exec runs exe
+// (by base name) or whose StartupWMClass is the process name.
+func desktopIcon(exe, name string) string {
+	base := strings.ToLower(filepath.Base(exe))
+	name = strings.ToLower(name)
+	for _, dir := range desktopDirs() {
+		entries, _ := os.ReadDir(dir)
+		for _, e := range entries {
+			if !strings.HasSuffix(e.Name(), ".desktop") {
+				continue
+			}
+			icon, execName, wmClass := parseDesktop(filepath.Join(dir, e.Name()))
+			if icon == "" {
+				continue
+			}
+			if execName == base || (name != "" && (wmClass == name || execName == name)) {
+				return icon
+			}
+		}
+	}
+	return ""
+}
+
+func parseDesktop(path string) (icon, execName, wmClass string) {
+	f, err := os.Open(path)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	sc := bufio.NewScanner(f)
+	inEntry := false
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if strings.HasPrefix(line, "[") {
+			inEntry = line == "[Desktop Entry]"
+			continue
+		}
+		if !inEntry {
+			continue
+		}
+		k, v, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		switch k {
+		case "Icon":
+			icon = v
+		case "Exec":
+			fields := strings.Fields(v)
+			// Skip launchers such as env VAR=x or flatpak run.
+			for _, f := range fields {
+				if f == "env" || strings.Contains(f, "=") {
+					continue
+				}
+				execName = strings.ToLower(filepath.Base(strings.Trim(f, `"`)))
+				break
+			}
+		case "StartupWMClass":
+			wmClass = strings.ToLower(v)
+		}
+	}
+	return
+}
+
+// themeIcons lists the files an icon name may resolve to, best first:
+// large hicolor bitmaps, then the scalable one, then smaller bitmaps and
+// pixmaps. A crisp icon matters more than a tiny file, so 48x48 comes
+// after scalable.
+func themeIcons(icon string) []string {
+	if filepath.IsAbs(icon) {
+		return []string{icon}
+	}
+	var out []string
+	for _, dir := range iconDirs() {
+		for _, size := range []string{"256x256", "192x192", "128x128", "512x512", "scalable", "480x480", "384x384", "96x96", "64x64", "48x48"} {
+			for _, ext := range []string{".png", ".svg"} {
+				p := filepath.Join(dir, "hicolor", size, "apps", icon+ext)
+				if _, err := os.Stat(p); err == nil {
+					out = append(out, p)
+				}
+			}
+		}
+	}
+	for _, ext := range []string{".png", ".svg"} {
+		p := filepath.Join("/usr/share/pixmaps", icon+ext)
+		if _, err := os.Stat(p); err == nil {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func appIcon(exe, name string) string {
+	icon := desktopIcon(exe, name)
+	if icon == "" {
+		return ""
+	}
+	// Skip a file too big to be read as an icon and try the next one.
+	for _, path := range themeIcons(icon) {
+		mime := iconTypes[strings.ToLower(filepath.Ext(path))]
+		if mime == "" {
+			continue
+		}
+		if b, ok := readIcon(path); ok {
+			return dataURL(mime, b)
+		}
+	}
+	return ""
+}

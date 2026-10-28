@@ -35,8 +35,10 @@ type processMemoryCounters struct {
 // still refuse it, in which case Load fails like a vanished Linux PID.
 //
 // The working directory lives in the target's PEB and needs VM-read
-// access, so it is left empty. OpenFiles is -1: Windows exposes a handle
-// count, which is not comparable to Linux's open file descriptors.
+// access, which is only asked for separately: it is filled for the user's
+// own processes and left empty for the rest. OpenFiles is -1: Windows
+// exposes a handle count, which is not comparable to Linux's open file
+// descriptors.
 func Load(pid int) (Info, error) {
 	if pid <= 0 {
 		return Info{}, fmt.Errorf("procinfo: invalid pid %d", pid)
@@ -68,7 +70,54 @@ func Load(pid int) (Info, error) {
 	}
 
 	info.NumThreads = threadCount(uint32(pid))
+	info.Cwd = workingDir(uint32(pid))
 	return info, nil
+}
+
+// workingDir reads the current directory from a process's PEB. It needs
+// PROCESS_VM_READ, and the PEB layout of a process with the same bitness
+// as portop (a 32-bit process under WOW64 has its own).
+func workingDir(pid uint32) string {
+	h, err := windows.OpenProcess(windows.PROCESS_QUERY_INFORMATION|windows.PROCESS_VM_READ, false, pid)
+	if err != nil {
+		return ""
+	}
+	defer windows.CloseHandle(h)
+	var wow64 bool
+	if err := windows.IsWow64Process(h, &wow64); err != nil || wow64 {
+		return ""
+	}
+	var pbi windows.PROCESS_BASIC_INFORMATION
+	if err := windows.NtQueryInformationProcess(h, windows.ProcessBasicInformation, unsafe.Pointer(&pbi), uint32(unsafe.Sizeof(pbi)), nil); err != nil || pbi.PebBaseAddress == nil {
+		return ""
+	}
+	var peb windows.PEB
+	if !readMemory(h, uintptr(unsafe.Pointer(pbi.PebBaseAddress)), unsafe.Pointer(&peb), unsafe.Sizeof(peb)) || peb.ProcessParameters == nil {
+		return ""
+	}
+	var params windows.RTL_USER_PROCESS_PARAMETERS
+	if !readMemory(h, uintptr(unsafe.Pointer(peb.ProcessParameters)), unsafe.Pointer(&params), unsafe.Sizeof(params)) {
+		return ""
+	}
+	path := params.CurrentDirectory.DosPath
+	if path.Length == 0 || path.Length > 32767*2 || path.Buffer == nil {
+		return ""
+	}
+	buf := make([]uint16, path.Length/2)
+	if !readMemory(h, uintptr(unsafe.Pointer(path.Buffer)), unsafe.Pointer(&buf[0]), uintptr(path.Length)) {
+		return ""
+	}
+	dir := windows.UTF16ToString(buf)
+	if len(dir) > 3 {
+		dir = strings.TrimSuffix(dir, `\`)
+	}
+	return dir
+}
+
+func readMemory(h windows.Handle, addr uintptr, dst unsafe.Pointer, size uintptr) bool {
+	var n uintptr
+	err := windows.ReadProcessMemory(h, addr, (*byte)(dst), size, &n)
+	return err == nil && n == size
 }
 
 func imagePath(h windows.Handle) string {

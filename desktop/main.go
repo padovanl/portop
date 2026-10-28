@@ -1,0 +1,357 @@
+// Command portop-desktop is portop's desktop app: the same scanner as the
+// terminal UI, in a window, with a tray (or menu bar) icon.
+package main
+
+import (
+	"context"
+	"embed"
+	"fmt"
+	"io/fs"
+	"log"
+	"os"
+	"runtime"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
+
+	"github.com/padovanl/portop/desktop/backend"
+	"github.com/padovanl/portop/internal/cli"
+	"github.com/padovanl/portop/internal/notify"
+)
+
+//go:embed all:frontend
+var assets embed.FS
+
+//go:embed frontend/logo.png
+var trayIcon []byte
+
+// version is set at build time with -ldflags "-X main.version=...".
+var version = "dev"
+
+func main() {
+	// The window asks for administrator rights by running this executable
+	// again with --signal-pid (through pkexec, osascript or UAC); that
+	// path is the CLI's own, which checks the process start time.
+	if len(os.Args) > 1 && os.Args[1] == "--signal-pid" {
+		os.Exit(cli.Run(os.Args[1:], os.Stdout, os.Stderr))
+	}
+	// "Show all processes" runs this executable as administrator with
+	// --elevated-helper DIR PARENT-PID; see backend.Elevate.
+	if len(os.Args) == 4 && os.Args[1] == "--elevated-helper" {
+		parent, _ := strconv.Atoi(os.Args[3])
+		os.Exit(cli.ServeHelper(os.Args[2], parent, os.Stderr))
+	}
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
+		fmt.Println("portop desktop " + version)
+		return
+	}
+
+	// --hidden starts in the tray: that is how autostart launches it.
+	hidden := len(os.Args) > 1 && os.Args[1] == "--hidden"
+	b := backend.New("")
+	b.Version = version
+	front, err := fs.Sub(assets, "frontend")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var window *application.WebviewWindow
+	showWindow := func() {
+		if window == nil {
+			return
+		}
+		window.Show()
+		window.UnMinimise()
+		window.Focus()
+	}
+
+	app := application.New(application.Options{
+		Name:        "portop",
+		Description: "Which process is using each port, in a window",
+		Services:    []application.Service{application.NewService(b)},
+		Assets:      application.AssetOptions{Handler: application.AssetFileServerFS(front)},
+		Mac:         application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: false},
+		// The administrator helper would also notice within seconds.
+		OnShutdown: b.DropElevation,
+		SingleInstance: &application.SingleInstanceOptions{
+			UniqueID:               "dev.lucapadovan.portop.desktop",
+			OnSecondInstanceLaunch: func(application.SecondInstanceData) { showWindow() },
+		},
+	})
+
+	window = app.Window.NewWithOptions(application.WebviewWindowOptions{
+		Name:             "main",
+		Title:            "portop",
+		Width:            1320,
+		Height:           860,
+		MinWidth:         880,
+		MinHeight:        580,
+		URL:              "/",
+		BackgroundColour: application.NewRGB(7, 11, 22),
+		Mac: application.MacWindow{
+			TitleBar:                application.MacTitleBarHiddenInset,
+			InvisibleTitleBarHeight: 38,
+			Backdrop:                application.MacBackdropTranslucent,
+		},
+		Windows: application.WindowsWindow{BackdropType: application.Mica},
+		Hidden:  hidden,
+	})
+	// Closing the window keeps portop in the tray, unless the user turned
+	// that off.
+	window.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
+		if b.Settings().CloseToTray {
+			window.Hide()
+			e.Cancel()
+			return
+		}
+		app.Quit()
+	})
+
+	tray := app.SystemTray.New()
+	if runtime.GOOS == "darwin" {
+		tray.SetTemplateIcon(trayIcon)
+	} else {
+		tray.SetIcon(trayIcon)
+	}
+	tray.SetTooltip("portop")
+	tray.OnClick(showWindow)
+	menus := newTrayMenu(app, tray, b, showWindow)
+	menus.build(backend.Snapshot{})
+
+	b.OnSnapshot = func(s backend.Snapshot) {
+		app.Event.Emit("snapshot", s)
+		menus.update(s)
+	}
+	b.OnNotify = func(title, body string) {
+		notify.Send(title, body)
+		app.Event.Emit("notify", map[string]string{"title": title, "body": body})
+	}
+	b.SaveDialog = func(title, name string) (string, error) {
+		return app.Dialog.SaveFile().SetMessage(title).SetFilename(name).PromptForSingleSelection()
+	}
+	b.FolderDialog = func(title string) (string, error) {
+		return app.Dialog.OpenFile().SetTitle(title).CanChooseDirectories(true).CanChooseFiles(false).PromptForSingleSelection()
+	}
+	shell := &shellSettings{app: app, show: func() { showWindow(); app.Event.Emit("palette", true) }}
+	b.OnSettings = shell.apply
+	app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
+		shell.apply(b.Settings())
+		b.Start(context.Background())
+	})
+
+	if err := app.Run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// trayMenu keeps the tray menu in step with the dev servers that run.
+type trayMenu struct {
+	app  *application.App
+	tray *application.SystemTray
+	b    *backend.Backend
+	show func()
+
+	mu  sync.Mutex
+	sig string
+}
+
+func newTrayMenu(app *application.App, tray *application.SystemTray, b *backend.Backend, show func()) *trayMenu {
+	return &trayMenu{app: app, tray: tray, b: b, show: show}
+}
+
+type devServer struct {
+	pid   int
+	name  string
+	ports []int
+	url   string
+}
+
+func devServers(s backend.Snapshot) []devServer {
+	byPID := map[int]*devServer{}
+	for _, r := range s.Rows {
+		if !r.Listening || r.Category != "dev" || r.PID == 0 {
+			continue
+		}
+		d := byPID[r.PID]
+		if d == nil {
+			name := r.Project
+			if name == "" {
+				name = r.Process
+			}
+			if r.Framework != "" {
+				name += " (" + r.Framework + ")"
+			}
+			d = &devServer{pid: r.PID, name: name}
+			byPID[r.PID] = d
+		}
+		known := false
+		for _, p := range d.ports {
+			known = known || p == int(r.LocalPort)
+		}
+		if !known {
+			d.ports = append(d.ports, int(r.LocalPort))
+		}
+		if d.url == "" {
+			d.url = r.URL
+		}
+	}
+	out := make([]devServer, 0, len(byPID))
+	for _, d := range byPID {
+		sort.Ints(d.ports)
+		out = append(out, *d)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ports[0] < out[j].ports[0] })
+	return out
+}
+
+func (t *trayMenu) update(s backend.Snapshot) {
+	t.tray.SetTooltip(fmt.Sprintf("portop · %d ports open, %d dev servers", s.Summary.Listening, s.Summary.DevServers))
+	t.build(s)
+}
+
+// build replaces the menu when the list of dev servers changed.
+func (t *trayMenu) build(s backend.Snapshot) {
+	servers := devServers(s)
+	recent := t.b.Recent()
+	var sig strings.Builder
+	for _, r := range recent {
+		fmt.Fprintf(&sig, "r%s:%v;", r.ID, r.Running)
+	}
+	for _, d := range servers {
+		fmt.Fprintf(&sig, "%d:%s:%v;", d.pid, d.name, d.ports)
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.sig == sig.String() && t.sig != "" {
+		return
+	}
+	t.sig = sig.String()
+
+	menu := t.app.NewMenu()
+	menu.Add("Open portop").OnClick(func(*application.Context) { t.show() })
+	menu.AddSeparator()
+	if len(servers) == 0 {
+		menu.Add("No dev servers running").SetEnabled(false)
+	} else {
+		menu.Add(fmt.Sprintf("Dev servers (%d)", len(servers))).SetEnabled(false)
+		for _, d := range servers {
+			d := d
+			ports := make([]string, len(d.ports))
+			for i, p := range d.ports {
+				ports[i] = fmt.Sprintf(":%d", p)
+			}
+			sub := menu.AddSubmenu(strings.Join(ports, " ") + "  " + d.name)
+			if d.url != "" {
+				sub.Add("Open in browser").OnClick(func(*application.Context) {
+					if err := t.b.OpenURL(d.url); err != nil {
+						notify.Send("portop", err.Error())
+					}
+				})
+			}
+			sub.Add("Show details").OnClick(func(*application.Context) {
+				t.show()
+				t.app.Event.Emit("navigate", "overview")
+			})
+			sub.Add(fmt.Sprintf("Stop (PID %d)…", d.pid)).OnClick(func(*application.Context) { t.confirmStop(d) })
+		}
+	}
+	menu.AddSeparator()
+	var stopped []backend.RecentProject
+	for _, r := range recent {
+		if !r.Running && len(stopped) < 10 {
+			stopped = append(stopped, r)
+		}
+	}
+	if len(stopped) > 0 {
+		sub := menu.AddSubmenu("Start a recent project")
+		for _, r := range stopped {
+			r := r
+			label := r.Name
+			if r.Framework != "" {
+				label += " (" + r.Framework + ")"
+			}
+			sub.Add(label).OnClick(func(*application.Context) {
+				if err := t.b.Launch(r.ID); err != nil {
+					notify.Send("portop", err.Error())
+				}
+			})
+		}
+	}
+	menu.AddSeparator()
+	menu.Add("Ports").OnClick(func(*application.Context) { t.show(); t.app.Event.Emit("navigate", "ports") })
+	menu.Add("Map").OnClick(func(*application.Context) { t.show(); t.app.Event.Emit("navigate", "map") })
+	menu.AddSeparator()
+	menu.Add("Quit portop").OnClick(func(*application.Context) { t.app.Quit() })
+	t.tray.SetMenu(menu)
+}
+
+// confirmStop asks before stopping a dev server from the tray, as the
+// window does: a stray click in a menu must not end anyone's work.
+func (t *trayMenu) confirmStop(d devServer) {
+	info, err := t.b.Process(d.pid)
+	if err != nil {
+		notify.Send("portop", fmt.Sprintf("Could not read %s: %v", d.name, err))
+		return
+	}
+	q := t.app.Dialog.Question().
+		SetTitle("Stop " + d.name + "?").
+		SetMessage(fmt.Sprintf("portop %s PID %d. Its connections will close.", stopVerb(), d.pid))
+	q.AddButton("Stop").OnClick(func() {
+		if err := t.b.Stop(d.pid, info.Started, false); err != nil {
+			notify.Send("portop", fmt.Sprintf("Could not stop %s: %v", d.name, err))
+		}
+	})
+	q.AddButton("Cancel").SetAsDefault().SetAsCancel()
+	q.Show()
+}
+
+// stopVerb says what Stop does here: Windows has no SIGTERM.
+func stopVerb() string {
+	if runtime.GOOS == "windows" {
+		return "ends"
+	}
+	return "sends SIGTERM to"
+}
+
+// shellSettings applies the preferences that belong to the native shell:
+// starting at login and the global shortcut.
+type shellSettings struct {
+	app      *application.App
+	show     func()
+	mu       sync.Mutex
+	shortcut string
+}
+
+func (s *shellSettings) apply(st backend.Settings) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if status, err := s.app.Autostart.Status(); err == nil {
+		switch {
+		case st.AutoStart && !status.Enabled:
+			err = s.app.Autostart.EnableWithOptions(application.AutostartOptions{Arguments: []string{"--hidden"}})
+		case !st.AutoStart && status.Enabled:
+			err = s.app.Autostart.Disable()
+		}
+		if err != nil {
+			s.app.Event.Emit("notify", map[string]string{"title": "Start at login", "body": err.Error()})
+		}
+	}
+	if st.Shortcut == s.shortcut {
+		return
+	}
+	if s.shortcut != "" {
+		_ = s.app.GlobalShortcut.Unregister(s.shortcut)
+		s.shortcut = ""
+	}
+	if st.Shortcut != "" {
+		if err := s.app.GlobalShortcut.Register(st.Shortcut, s.show); err != nil {
+			s.app.Event.Emit("notify", map[string]string{"title": "Global shortcut", "body": st.Shortcut + " could not be registered on your system (" + err.Error() + "); it may be taken by another app."})
+			return
+		}
+		s.shortcut = st.Shortcut
+	}
+}

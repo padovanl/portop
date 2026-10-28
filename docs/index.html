@@ -439,6 +439,7 @@
     <a class="brand" href="#"><img src="assets/logo.png" alt="" width="28" height="28">portop</a>
     <nav aria-label="Sections">
       <a href="#features">Features</a>
+      <a href="#desktop">Desktop</a>
       <a href="#dashboards">Dashboards</a>
       <a href="#install">Install</a>
       <a href="#keys">Keys</a>
@@ -453,7 +454,7 @@
     <div class="wrap">
       <img class="hero-logo" src="assets/logo.png" alt="" width="84" height="84">
       <span class="pill"><strong>Open source</strong> · htop, but for ports</span>
-      <h1 aria-label="Every port on your machine, and who owns it.">Every port on your machine,<span class="typed-line" aria-hidden="true"><span class="gradient" data-type="and who owns it.|and its container.|and its systemd unit.|and what changed.|one key from a kill.|live in your browser.">and who owns it.</span><span class="caret"></span></span></h1>
+      <h1 aria-label="Every port on your machine, and who owns it.">Every port on your machine,<span class="typed-line" aria-hidden="true"><span class="gradient" data-type="and who owns it.|and the project it serves.|and its container.|and its systemd unit.|and what changed.|one key from a kill.|on your desktop.">and who owns it.</span><span class="caret"></span></span></h1>
       <p class="sub">A live terminal UI for the TCP and UDP sockets on your machine. Each row shows the process, its systemd unit or Windows service and its Docker container, and one key lets you inspect or stop it.</p>
       <div class="actions">
         <a class="button primary" href="#install">Install portop</a>
@@ -494,7 +495,7 @@
         <div class="feature">
           <div class="icon" aria-hidden="true">📡</div>
           <h3>Live port table</h3>
-          <p>Listening and established sockets, colored by state, with per-process CPU and port names from <code>/etc/services</code>. Columns drop out as the terminal narrows.</p>
+          <p>Listening and established sockets, colored by state, with per-process CPU and port names from <code>/etc/services</code>. New ports are highlighted live, with an optional notification.</p>
         </div>
         <div class="feature">
           <div class="icon" aria-hidden="true">🌐</div>
@@ -537,9 +538,9 @@
           <p><code>--compose DIR</code> checks a Compose project's published ports, with <code>${VARIABLES}</code> resolved, against what actually listens.</p>
         </div>
         <div class="feature">
-          <div class="icon" aria-hidden="true">🔔</div>
-          <h3>New-port alerts</h3>
-          <p>Ports that start listening are highlighted live, with an optional desktop notification on Linux, macOS and Windows.</p>
+          <div class="icon" aria-hidden="true">🧭</div>
+          <h3>Projects and frameworks</h3>
+          <p>A server reads <code>storefront Next.js</code> instead of <code>node</code>: portop finds the project's <code>package.json</code>, <code>go.mod</code> or <code>pyproject.toml</code> and the framework it runs.</p>
         </div>
         <div class="feature">
           <div class="icon" aria-hidden="true">📊</div>
@@ -564,6 +565,34 @@
         <div class="window-bar"><i></i><i></i><i></i>portop</div>
         <img src="assets/demo.gif" width="1600" height="600" alt="portop filtering to a port, showing the process details, the kill confirmation and the help overlay" loading="lazy">
       </figure>
+    </div>
+  </section>
+
+  <section id="desktop">
+    <div class="wrap">
+      <span class="eyebrow">Desktop app</span>
+      <h2>portop desktop</h2>
+      <p class="lede">The same scan in a window for Linux, macOS and Windows: the dev servers you are running, every socket, a service map of who talks to whom, and a tray menu.</p>
+      <figure class="window" style="padding:0">
+        <div class="window-bar"><i></i><i></i><i></i>portop</div>
+        <img src="assets/desktop-overview-dark.png" width="1440" height="900" alt="portop desktop: counters for listening ports, dev servers, exposed ports and traffic, cards for each dev server with project, framework, ports and traffic, and the services" loading="lazy">
+      </figure>
+      <div class="figures">
+        <article class="figure">
+          <a class="shot" href="assets/desktop-connections-dark.png"><img src="assets/desktop-connections-dark.png" width="1440" height="900" alt="The service map: nginx and a Vite app call a Next.js app, which calls an API backed by PostgreSQL and Redis, with the traffic on each arrow" loading="lazy"></a>
+          <div class="figure-body">
+            <h3>Service map</h3>
+            <p>Every process is a card and every arrow a client talking to a server, with the traffic between them. Hover a card to follow its links; click it for the command line, directory, memory and sockets.</p>
+          </div>
+        </article>
+        <article class="figure">
+          <a class="shot" href="assets/desktop-ports-dark.png"><img src="assets/desktop-ports-dark.png" width="1440" height="900" alt="The ports view: every socket with its process, project, exposure and category" loading="lazy"></a>
+          <div class="figure-body">
+            <h3>Stop, restart, watch</h3>
+            <p>Stop and restart ask you to hold the button and re-check the process; another user's process goes through your system's administrator prompt. Watched ports notify you when they open or close. <a href="docs/desktop.html">Download and details</a>.</p>
+          </div>
+        </article>
+      </div>
     </div>
   </section>
 

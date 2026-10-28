@@ -216,11 +216,22 @@ func TestBaselineSaveThenDiff(t *testing.T) {
 	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
 		t.Fatalf("invalid JSON: %v\n%s", err, out.String())
 	}
-	if len(report.Added) != 1 || int(report.Added[0].Port) != newPort {
-		t.Errorf("Added = %+v, want just port %d", report.Added, newPort)
+	// Other programs on the machine may open or close ports meanwhile
+	// (a CI runner's DHCP client did); only this test's ports count.
+	ours := func(entries []baseline.Entry) []int {
+		var ports []int
+		for _, e := range entries {
+			if p := int(e.Port); p == newPort || p == removedPort || p == keptPort {
+				ports = append(ports, p)
+			}
+		}
+		return ports
 	}
-	if len(report.Removed) != 1 || int(report.Removed[0].Port) != removedPort {
-		t.Errorf("Removed = %+v, want just port %d", report.Removed, removedPort)
+	if got := ours(report.Added); len(got) != 1 || got[0] != newPort {
+		t.Errorf("Added = %+v, want port %d among the test's ports", report.Added, newPort)
+	}
+	if got := ours(report.Removed); len(got) != 1 || got[0] != removedPort {
+		t.Errorf("Removed = %+v, want port %d among the test's ports", report.Removed, removedPort)
 	}
 }
 

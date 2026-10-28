@@ -43,6 +43,8 @@ func sortRowsDirection(rows []app.Row, mode sortMode, descending bool) {
 			cmp = strings.Compare(strings.ToLower(rows[i].Username), strings.ToLower(rows[j].Username))
 		case sortByTraffic:
 			cmp = compareFloat(rows[i].RXRate+rows[i].TXRate, rows[j].RXRate+rows[j].TXRate)
+		case sortByProject:
+			cmp = strings.Compare(projectSortKey(rows[i]), projectSortKey(rows[j]))
 		default: // sortByPort
 			cmp = compareInt(int(rows[i].LocalPort), int(rows[j].LocalPort))
 		}
@@ -128,9 +130,9 @@ func columnsFor(showEstablished bool, width int) []column {
 		{"PID", 7},
 		{"CPU", 6},
 	}
-	optional := []column{{"IFACE", 16}, {"FIREWALL", 11}, {"USER", 12}, {"CONTAINER", 16}, {"SYSTEMD", 16}}
+	optional := []column{{"PROJECT", 22}, {"IFACE", 16}, {"FIREWALL", 11}, {"USER", 12}, {"CONTAINER", 16}, {"SYSTEMD", 16}}
 	if showEstablished {
-		optional = append([]column{{"REMOTE", 30}, {"IFACE", 16}, {"FIREWALL", 11}, {"TRAFFIC", 15}}, optional[2:]...)
+		optional = append([]column{{"REMOTE", 30}, {"PROJECT", 22}, {"IFACE", 16}, {"FIREWALL", 11}, {"TRAFFIC", 15}}, optional[3:]...)
 	}
 
 	budget := innerWidth(width) - markerWidth
@@ -278,6 +280,8 @@ func sortModeForColumn(title string) (sortMode, bool) {
 		return sortByTraffic, true
 	case "USER":
 		return sortByUser, true
+	case "PROJECT":
+		return sortByProject, true
 	case "SYSTEMD":
 		return sortBySystemd, true
 	default:
@@ -324,6 +328,8 @@ func cellValue(r app.Row, colTitle string) string {
 		return remoteDisplay(r)
 	case "IFACE":
 		return r.LocalAddr.String()
+	case "PROJECT":
+		return projectLabel(r)
 	case "USER":
 		if r.Username == "" {
 			return "-"
@@ -401,6 +407,28 @@ func coloredRow(r app.Row, cols []column, zebra bool) string {
 		fmt.Fprint(&b, st.Render(padded))
 	}
 	return b.String()
+}
+
+// projectLabel is "storefront Next.js": the project, then the framework
+// when there is one, or "-".
+func projectLabel(r app.Row) string {
+	switch {
+	case r.Project.Name != "" && r.Project.Framework != "":
+		return r.Project.Name + " " + r.Project.Framework
+	case r.Project.Name != "":
+		return r.Project.Name
+	case r.Project.Framework != "":
+		return r.Project.Framework
+	}
+	return "-"
+}
+
+// projectSortKey sorts rows without a project after the others.
+func projectSortKey(r app.Row) string {
+	if r.Project.Name == "" && r.Project.Framework == "" {
+		return "\uffff"
+	}
+	return strings.ToLower(projectLabel(r))
 }
 
 func remoteDisplay(r app.Row) string {

@@ -1,0 +1,120 @@
+name: Desktop
+
+# Tests and packages portop desktop (desktop/, a separate Go module built
+# with Wails) on each OS. On a release the Release workflow calls it with
+# the tag, and the packages are attached to the GitHub release.
+#
+# Linux packages need GTK4 and WebKitGTK 6 (Ubuntu 24.04+, Debian 13+,
+# Fedora 40+); they are built on the oldest of those, Ubuntu 24.04.
+
+on:
+  push:
+    branches: [main, develop, "feature/**"]
+    paths: ["desktop/**", "internal/**", "go.mod", "go.sum", ".github/workflows/desktop.yml"]
+  pull_request:
+    paths: ["desktop/**", "internal/**", "go.mod", "go.sum", ".github/workflows/desktop.yml"]
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to package and attach (e.g. v1.0.0); empty for a test build
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  WAILS_VERSION: v3.0.0-beta.34
+  NFPM_VERSION: v2.48.0
+
+jobs:
+  package:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-24.04
+          - name: macOS
+            os: macos-15
+          - name: Windows
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: desktop/go.mod
+          cache-dependency-path: desktop/go.sum
+      - name: Install GTK4 and WebKitGTK 6
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libgtk-4-dev libwebkitgtk-6.0-dev
+          go install "github.com/goreleaser/nfpm/v2/cmd/nfpm@${NFPM_VERSION}"
+      - name: Install the Wails CLI
+        if: runner.os == 'Windows'
+        run: go install "github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION}"
+      - name: Test
+        shell: bash
+        env:
+          PORTOP_ICON_OUT: ${{ runner.temp }}/icons
+        run: |
+          mkdir -p "$PORTOP_ICON_OUT"
+          go vet ./...
+          go test ./...
+      # The icons read from the system's own applications, to look at.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: icons-${{ runner.os }}
+          path: ${{ runner.temp }}/icons
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Package
+        run: |
+          version="${{ inputs.tag }}"
+          version="${version:-0.0.0-dev+${GITHUB_SHA::7}}"
+          bash ./build/package.sh "$version"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: portop-desktop-${{ runner.os }}
+          path: desktop/dist/*
+          if-no-files-found: error
+
+  release:
+    name: Attach to the release
+    needs: package
+    if: ${{ inputs.tag != '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: portop-desktop-*
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum * > portop-desktop_checksums.txt
+      - name: Attest the packages
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-path: dist/*
+      - name: Upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ inputs.tag }}" dist/* --clobber --repo "${{ github.repository }}"

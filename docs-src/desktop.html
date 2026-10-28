@@ -1,0 +1,133 @@
+<h1>Desktop app</h1>
+<p class="lede">portop desktop shows the same information as the terminal UI in a window, with dev servers, a connection map, an activity log and a tray menu. It is a separate download; the <code>portop</code> command does not change.</p>
+
+<figure class="themed"><img class="themed-light" src="../assets/desktop-overview-light.png" alt="The portop desktop overview: listening, dev server, exposed and traffic counters, dev server cards and services" loading="lazy"><img class="themed-dark" src="../assets/desktop-overview-dark.png" alt="The portop desktop overview: listening, dev server, exposed and traffic counters, dev server cards and services" loading="lazy"><figcaption>The overview: dev servers with their project, framework and traffic, and the other services.</figcaption></figure>
+
+<h2 id="install">Install</h2>
+<table>
+  <thead><tr><th>System</th><th>Package</th><th>Requires</th></tr></thead>
+  <tbody>
+    <tr><td>Ubuntu, Debian</td><td><code>sudo apt install portop-desktop</code> from the <a href="installation.html#apt">APT repository</a>, or the <code>portop-desktop_*_linux_amd64.deb</code> from the release</td><td>Ubuntu 24.04+, Debian 13+ (GTK4 and WebKitGTK 6, installed as dependencies)</td></tr>
+    <tr><td>Fedora, RHEL</td><td><code>portop-desktop_*_linux_amd64.rpm</code> from the release: <code>sudo dnf install ./portop-desktop_*.rpm</code></td><td>Fedora 40+ (GTK4 and WebKitGTK 6)</td></tr>
+    <tr><td>macOS</td><td><code>portop-desktop_*_macos_universal.zip</code>: unzip and move <em>portop.app</em> to Applications</td><td>macOS 12+, Intel or Apple Silicon</td></tr>
+    <tr><td>Windows</td><td><code>portop-desktop_*_windows_amd64.zip</code> or <code>_arm64.zip</code>: unzip and run <code>portop-desktop.exe</code></td><td>Windows 10 or 11 with the WebView2 runtime (included in both)</td></tr>
+  </tbody>
+</table>
+<p>Downloads are on the <a href="https://github.com/padovanl/portop/releases/latest">latest release</a>, with checksums in <code>portop-desktop_checksums.txt</code> and build provenance you can check with <code>gh attestation verify FILE --repo padovanl/portop</code>.</p>
+
+<div class="admonition warning">
+  <p class="admonition-title">macOS first launch</p>
+  <p>The app is not notarized, so macOS refuses to open it the first time. Right-click <em>portop.app</em>, choose <em>Open</em>, then <em>Open</em> again; or run <code>xattr -dr com.apple.quarantine /Applications/portop.app</code>.</p>
+</div>
+
+<div class="admonition info">
+  <p class="admonition-title">Older Linux releases</p>
+  <p>Ubuntu 22.04 and Debian 12 do not ship WebKitGTK 6, which the app needs. On them, <a href="web-dashboard.html"><code>portop --web</code></a> gives the same information in a browser, and the terminal UI works as before. Linux on ARM gets the terminal UI and the web dashboard; the desktop app is built for x86-64 only.</p>
+</div>
+
+<h2 id="views">Views</h2>
+<dl>
+  <dt>Overview</dt><dd>Counters for listening ports, dev servers, exposed ports and live traffic; warnings for <a href="#exposure">exposed ports</a>, <a href="#baseline">changes since the baseline</a> and hidden owners; a card for each dev server with its project, framework, ports and traffic; the other services (databases, web servers, containers, system services).</dd>
+  <dt>Ports</dt><dd>Every socket, filtered by state (listening, connected, all), category, <em>at risk</em>, or any text (port, process, project, address). Pin ports to keep them on top, watch them to be <a href="#notifications">notified</a> when they open or close, and <a href="#export">export</a> what is shown.</dd>
+  <dt>Connections</dt><dd>A service map: every process is a card, and an arrow goes from a client to the server it uses, with the traffic between them. Cards fall into columns by role (entry points, applications, their dependencies, remote hosts); processes that talk to no other process are listed underneath. Hover a card to follow its links, search to highlight, and pause to study a moment.</dd>
+  <dt>Projects</dt><dd><a href="#projects">Recent projects</a>, started again with one click, and the <a href="#compose">Docker Compose</a> check.</dd>
+  <dt>Activity</dt><dd>Listening ports that opened or closed since the app started, the watched ports and the <a href="#baseline">baseline</a>. <em>Relevant</em>, the default, applies the <a href="#notifications">notification filters</a>; <em>Everything</em> shows every event. Each entry can mute its process.</dd>
+  <dt>Settings</dt><dd>Theme, refresh interval, the <a href="#admin">administrator view</a>, start at login, the global shortcut, the editor, notifications and their filters, muted processes, <a href="#remote">other machines</a>, keeping the app in the tray, and reduced motion.</dd>
+</dl>
+
+<h3 id="keys">Keyboard</h3>
+<table>
+  <thead><tr><th>Keys</th><th>Action</th></tr></thead>
+  <tbody>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>K</kbd> (<kbd>⌘</kbd>+<kbd>K</kbd> on macOS)</td><td>Find a port from anywhere in the window</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd> (<kbd>⌘</kbd>+<kbd>⌥</kbd>+<kbd>P</kbd>)</td><td>Show portop and its port finder from any app (the <a href="#login">global shortcut</a>; change it in Settings)</td></tr>
+    <tr><td><kbd>/</kbd></td><td>Go to the port filter</td></tr>
+    <tr><td><kbd>1</kbd> to <kbd>6</kbd></td><td>Switch views</td></tr>
+    <tr><td><kbd>Esc</kbd></td><td>Close the finder, a dialog or the details panel</td></tr>
+  </tbody>
+</table>
+
+<figure class="themed"><img class="themed-light" src="../assets/desktop-ports-light.png" alt="The ports view: every socket with its process, project, exposure and category" loading="lazy"><img class="themed-dark" src="../assets/desktop-ports-dark.png" alt="The ports view: every socket with its process, project, exposure and category" loading="lazy"><figcaption>Ports: every socket with the program's icon, its project, exposure and category.</figcaption></figure>
+
+<figure class="themed"><img class="themed-light" src="../assets/desktop-connections-light.png" alt="The connections view: processes, their ports and the links between them as a graph" loading="lazy"><img class="themed-dark" src="../assets/desktop-connections-dark.png" alt="The connections view: processes, their ports and the links between them as a graph" loading="lazy"><figcaption>Connections: nginx in front of a Next.js app, which calls an API backed by PostgreSQL and Redis; arrows point from client to server.</figcaption></figure>
+
+<h2 id="icons">Icons</h2>
+<p>A program and a project each have an icon. In the ports table the <em>Process</em> column shows the program's (node, nginx, Chrome) and the <em>Project</em> column the project's; dev server cards and the connections map show the project's when there is one.</p>
+<ul>
+  <li><strong>A program's icon</strong> is its own when the system has one (the <code>.desktop</code> entry's on Linux, the app bundle's on macOS, the one inside the <code>.exe</code> on Windows); otherwise a bundled logo found by its name: runtimes (node, python, java, php, ruby, dotnet…), servers and databases that ship no icon (nginx, Apache, Caddy, PostgreSQL, MySQL, MongoDB, Redis, Kafka, Elasticsearch, Grafana, Docker…), editors (VS Code, JetBrains IDEs, Cursor, Zed, Neovim…) and common apps (Chrome, Firefox, Spotify, Discord, Slack, Steam…); for a script, its interpreter's language.</li>
+  <li><strong>A project's icon</strong> is its favicon or logo (<code>favicon.svg</code>, <code>public/favicon.png</code>, <code>static/logo.svg</code> and similar), otherwise its framework's logo (Vite, Next.js, Django, Rails, Laravel…), otherwise its language's.</li>
+</ul>
+<p>Anything else gets a colored monogram. The logos come with the app, about 180 of them, from <a href="https://devicon.dev">Devicon</a> (MIT) and <a href="https://simpleicons.org">Simple Icons</a> (CC0), so nothing is downloaded and no one learns what runs on your machine. The names and logos belong to their owners; <code>scripts/gen-logos.py</code> lists them all.</p>
+
+<h2 id="details">Process details</h2>
+<p>Click any row or card for the details: command line, working directory, user, start time, CPU and memory, the process's sockets, and its traffic over the last minutes or the last hour (<em>3 min</em> and <em>1 h</em> above the chart; the hour is kept in 30-second points while the app runs). From there you can open its folder or project, open it in your editor, restart it, or stop it.</p>
+
+<h2 id="actions">Stopping and restarting</h2>
+<p>Stop sends SIGTERM and Force kill sends SIGKILL; Windows has no SIGTERM, so there both end the process at once. Both need the button held for a moment, and both check that the process still has the start time the app read, so a PID reused by another program is never signalled. <em>Stop all</em> above the dev server cards stops every dev server the same way.</p>
+<p>A process of another user (root, a service account) is stopped through your system's administrator prompt: <code>pkexec</code> on Linux, the password dialog on macOS, UAC on Windows. The prompt runs <code>portop-desktop --signal-pid</code>, which repeats the start-time check as administrator. With the <a href="#admin">administrator view</a> on, no prompt is shown again.</p>
+<p><em>Restart</em> is offered for your own processes whose command and directory portop can read: it stops the process, waits for it to exit, and runs the same command from the same directory in a new terminal window, where its output and errors stay visible.</p>
+<p><em>Free a port</em>, at the top of the overview, takes a port number, shows who holds it and stops it; it also lists the next free ports above it, ready to copy.</p>
+
+<h2 id="projects">Projects and your editor</h2>
+<p>Every dev server portop sees is remembered with its folder and the command that started it, up to 40 of them. In <em>Projects</em>, a stopped one starts again with <em>Start</em>, in a new terminal window, from the same folder and with the same command; <em>Forget</em> removes it. The list is kept in <code>desktop-recent.json</code> next to the settings, readable by you only.</p>
+<p><em>Open in editor</em>, on dev server cards, recent projects and process details, opens the project folder in the editor chosen in Settings, or the first one found: VS Code, Cursor, Windsurf, Zed, Sublime Text, JetBrains IDEs or VSCodium. <em>Other command…</em> takes any command that opens a folder given as its last argument.</p>
+
+<figure class="themed"><img class="themed-light" src="../assets/desktop-projects-light.png" alt="The projects view: recent projects that can be started again and a Docker Compose check" loading="lazy"><img class="themed-dark" src="../assets/desktop-projects-dark.png" alt="The projects view: recent projects that can be started again and a Docker Compose check" loading="lazy"><figcaption>Projects: recent dev servers to start again, and a Compose project checked against what listens.</figcaption></figure>
+
+<h2 id="compose">Docker Compose</h2>
+<p><em>Check a Compose project…</em> reads a project's compose files, as <a href="compose.html"><code>portop --compose</code></a> does, and lists each published port: listening as expected, taken by another program, or not listening. Projects checked before are a click away.</p>
+
+<h2 id="containers">Containers</h2>
+<p>A port that belongs to a container shows a box button. It opens the container: <em>Start</em>, <em>Stop</em> and <em>Restart</em> (through the Docker or Podman API; stopping and restarting ask to hold the button), and its last 300 lines of output. The button is hidden when no container engine answers.</p>
+
+<h2 id="exposure">Exposed ports</h2>
+<p>A dev server, database or container that listens on every interface (or on a network address) and that the <a href="firewall.html">firewall</a> does not block can be reached from the network, which is usually a mistake: a database bound to <code>0.0.0.0</code> during development, say. Such ports are marked <em>at risk</em>, listed above the overview, and, with <em>Warn about exposed ports</em> on, notified once when they appear. Web servers are left out: they are meant to be reachable.</p>
+
+<h2 id="baseline">Baseline</h2>
+<p>The baseline is the set of listening ports you expect, the same file <a href="baseline.html"><code>portop --save-baseline</code> and <code>--diff</code></a> use. <em>Save current ports as baseline</em>, in Activity, records it; from then on the overview says how many ports were added or have gone, and Activity lists them.</p>
+
+<figure class="themed"><img class="themed-light" src="../assets/desktop-activity-light.png" alt="The activity view: ports that opened or closed, watched ports and the baseline" loading="lazy"><img class="themed-dark" src="../assets/desktop-activity-dark.png" alt="The activity view: ports that opened or closed, watched ports and the baseline" loading="lazy"><figcaption>Activity: what opened and closed, the watched ports, and the changes since the baseline.</figcaption></figure>
+
+<h2 id="export">Export</h2>
+<p><em>Export JSON</em> and <em>CSV</em>, in Ports, save the sockets as a file: JSON with the fields of <a href="scripting.html"><code>portop --json</code></a>, CSV for a spreadsheet (values that a spreadsheet would read as a formula are escaped).</p>
+
+<h2 id="remote">Other machines</h2>
+<p>The window can show the ports of another machine that runs <a href="web-dashboard.html"><code>portop --web --web-auth</code></a>. Add it in Settings with a name, its address and user; choose it in the machine menu at the top left, type the dashboard password, and the views show that machine, read only. The password stays in memory until the app quits and is never saved.</p>
+<p>An address with <code>https://</code> must have a certificate this system trusts. A self-signed one shows its SHA-256 fingerprint; compare it with the one the server printed and trust it, and the app checks that exact certificate from then on.</p>
+
+<h2 id="tray">Tray</h2>
+<p>The tray icon (the menu bar on macOS) lists the running dev servers, each with <em>Open in browser</em> and <em>Stop</em>, which asks for confirmation, and <em>Start a recent project</em>. Closing the window keeps portop in the tray unless <em>Keep running in the tray</em> is off.</p>
+
+<h2 id="login">Start at login and global shortcut</h2>
+<p><em>Start at login</em> starts portop in the tray when you sign in (a login item on macOS, an autostart entry on Linux, the Run key on Windows). The global shortcut shows the window and its port finder from any app. Wayland gives applications no global shortcuts, so on a Wayland session the setting is hidden; under X11 it works.</p>
+
+<h2 id="notifications">Notifications</h2>
+<p>Notifications use the system's own: <code>notify-send</code> on Linux, Notification Center on macOS, toasts on Windows.</p>
+<ul>
+  <li><strong>Watched ports</strong> notify at once, when they open and when they close. Add them in Activity, or with the bell on a row of Ports.</li>
+  <li><strong>New ports</strong> notify only when <em>Notify about new ports</em> is on, and only if the port is still open five seconds later, is in one of the chosen categories (dev servers, databases, web servers and containers by default), is TCP unless <em>Include UDP ports</em> is on, and does not belong to a muted process.</li>
+</ul>
+<div class="admonition tip">
+  <p class="admonition-title">Why the defaults</p>
+  <p>Browsers, video calls and music players open and close short-lived ports, mostly UDP, many times a minute. Leaving out apps, system services and UDP keeps notifications to the ports you start yourself. If one program still gets through, mute it from its entry in Activity.</p>
+</div>
+<figure class="themed"><img class="themed-light" src="../assets/desktop-settings-light.png" alt="Settings: general options, notifications with the category filter, UDP and muted processes" loading="lazy"><img class="themed-dark" src="../assets/desktop-settings-dark.png" alt="Settings: general options, notifications with the category filter, UDP and muted processes" loading="lazy"><figcaption>Settings, with the notification filters.</figcaption></figure>
+
+<h2 id="admin">Administrator view</h2>
+<p>The app runs as your user. Like <a href="first-run.html#permissions">portop without sudo</a>, it then sees every port but not which process owns the sockets of root, services and other users, nor their details; those show as <em>hidden</em>, and the overview groups them in one tile.</p>
+<p><em>Show all</em>, in Settings or on the overview's warning, asks for the administrator password once and then shows every process with its details, and stops other users' processes without asking again. The window itself never runs as administrator, which a web view should not do: it starts portop's helper instead (the same executable, with <code>--elevated-helper</code>), through <code>pkexec</code> on Linux, the password dialog on macOS or UAC on Windows. The helper scans and answers the window only, on a loopback port behind a random token written to a folder only you can read. <em>Administrator view · Stop</em>, in the sidebar, ends it; it also ends when portop quits.</p>
+<div class="admonition tip">
+  <p class="admonition-title">Already running as administrator</p>
+  <p>Started with <em>Run as administrator</em> on Windows, portop sees everything from the start and Settings says so. On Linux and macOS, use <em>Show all</em> rather than starting the app with sudo.</p>
+</div>
+
+<h2 id="availability">Features your system lacks</h2>
+<p>The app checks what works where it runs and hides what cannot: container buttons without a Docker or Podman engine, <em>Restart</em> and <em>Start</em> without a terminal to open, the global shortcut on Wayland, <em>Show all</em> on Linux without <code>pkexec</code>. When a feature is missing for a reason you can fix, Settings says so; when you view another machine, actions that only make sense on this one are hidden.</p>
+
+<h2 id="data">Settings and data</h2>
+<p>Preferences are saved in <code>desktop.json</code> next to <a href="configuration.html"><code>config.yml</code></a>, and recent projects in <code>desktop-recent.json</code>, both readable by your user only. The page is built into the executable and its Content-Security-Policy allows no outside resources. The app connects only to machines you add under <a href="#remote">other machines</a>, to your container engine, and to addresses of this machine when you open one.</p>
+
+<div class="admonition note">
+  <p class="admonition-title">Built with Wails v3</p>
+  <p>The app uses <a href="https://wails.io">Wails</a> v3, which is in beta; portop pins one release and updates it deliberately. The scanning code is the same as the terminal UI's.</p>
+</div>
