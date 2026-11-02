@@ -1,5 +1,5 @@
-// Package scanner enumerates TCP/UDP sockets and their owning processes.
-// Linux uses /proc; macOS uses lsof; Windows uses the IP Helper API.
+// Package scanner enumerates TCP, UDP and MPTCP sockets and their owning processes.
+// Linux uses /proc and socket diagnostics; macOS uses lsof; Windows uses the IP Helper API.
 package scanner
 
 import (
@@ -17,9 +17,18 @@ import (
 type Protocol string
 
 const (
-	TCP Protocol = "TCP"
-	UDP Protocol = "UDP"
+	TCP   Protocol = "TCP"
+	MPTCP Protocol = "MPTCP"
+	UDP   Protocol = "UDP"
 )
+
+// Transport returns the protocol used by service databases and firewall rules.
+func (p Protocol) Transport() Protocol {
+	if p == MPTCP {
+		return TCP
+	}
+	return p
+}
 
 // State is the socket state, as reported by the kernel for TCP sockets.
 // UDP sockets are always reported as StateUnconn since UDP has no

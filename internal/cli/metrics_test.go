@@ -25,10 +25,13 @@ func metricRows() []app.Row {
 
 func TestWriteMetrics(t *testing.T) {
 	var b bytes.Buffer
-	writeMetrics(&b, metricRows(), 1500*time.Microsecond)
+	rows := append(metricRows(), app.Row{Protocol: scanner.MPTCP, LocalAddr: net.ParseIP("0.0.0.0"), LocalPort: 443, State: scanner.StateListen})
+	writeMetrics(&b, rows, 1500*time.Microsecond)
 	out := b.String()
 	for _, want := range []string{
 		`portop_sockets{protocol="tcp",state="ESTABLISHED"} 1`,
+		`portop_sockets{protocol="mptcp",state="LISTEN"} 1`,
+		`portop_listening_ports{protocol="mptcp",scope="all"} 1`,
 		`portop_sockets{protocol="tcp",state="LISTEN"} 2`,
 		`portop_listening_ports{protocol="tcp",scope="all"} 1`,
 		`portop_listening_ports{protocol="tcp",scope="loopback"} 1`,

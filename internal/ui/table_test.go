@@ -166,3 +166,19 @@ func TestPortCellNamesListeningUDP(t *testing.T) {
 		t.Fatalf("PORT cell = %q, want %q", got, ":53 "+name)
 	}
 }
+
+func TestMPTCPProtocolCell(t *testing.T) {
+	r := app.Row{Protocol: scanner.MPTCP, LocalPort: 443, State: scanner.StateListen}
+	if got := cellValue(r, "PROTO"); got != "MPTCP" {
+		t.Fatalf("protocol = %q", got)
+	}
+	r.IPv6 = true
+	if got := cellValue(r, "PROTO"); got != "MPTCP6" {
+		t.Fatalf("IPv6 protocol = %q", got)
+	}
+	if name, ok := services.Lookup(443, "TCP"); ok {
+		if got := cellValue(r, "PORT"); got != ":443 "+name {
+			t.Fatalf("MPTCP service name = %q", got)
+		}
+	}
+}

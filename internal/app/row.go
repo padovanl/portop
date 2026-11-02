@@ -93,7 +93,8 @@ func (r Row) Matches(query string) bool {
 }
 
 func (r Row) matchesTerm(term string) bool {
-	return strings.Contains(strconv.Itoa(int(r.LocalPort)), term) ||
+	return strings.Contains(strings.ToLower(string(r.Protocol)), term) ||
+		strings.Contains(strconv.Itoa(int(r.LocalPort)), term) ||
 		strings.Contains(strconv.Itoa(r.PID), term) ||
 		strings.Contains(strings.ToLower(r.ProcessName), term) ||
 		strings.Contains(strings.ToLower(r.Username), term) ||
@@ -156,7 +157,7 @@ func (c *Collector) applyTraffic(rows []Row, now map[traffic.Key]traffic.Counter
 	elapsed := at.Sub(c.trafficAt).Seconds()
 	for i := range rows {
 		r := &rows[i]
-		if r.Protocol != scanner.TCP || r.State != scanner.StateEstablished {
+		if r.Protocol.Transport() != scanner.TCP || r.State != scanner.StateEstablished {
 			continue
 		}
 		k := traffic.KeyFor(r.LocalAddr, r.LocalPort, r.RemoteAddr, r.RemotePort)
@@ -180,7 +181,7 @@ func applyFirewall(rows []Row, policy firewall.Policy) {
 	for i := range rows {
 		r := &rows[i]
 		if r.Listening() && r.Scope() != ScopeLoopback {
-			r.Firewall = string(policy.Verdict(strings.ToLower(string(r.Protocol)), r.LocalPort))
+			r.Firewall = string(policy.Verdict(strings.ToLower(string(r.Protocol.Transport())), r.LocalPort))
 		}
 	}
 }

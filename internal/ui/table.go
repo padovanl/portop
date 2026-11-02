@@ -291,7 +291,7 @@ func cellValue(r app.Row, colTitle string) string {
 	case "PORT":
 		v := ":" + strconv.Itoa(int(r.LocalPort))
 		if r.Listening() {
-			if name, ok := services.Lookup(r.LocalPort, string(r.Protocol)); ok {
+			if name, ok := services.Lookup(r.LocalPort, string(r.Protocol.Transport())); ok {
 				v += " " + name
 			}
 		}

@@ -176,3 +176,19 @@ func TestFreeForceReachesWorkers(t *testing.T) {
 		t.Fatalf("exit %d, signals %v, want SIGTERM to the master only", code, f.signals)
 	}
 }
+
+func TestPortSpecIncludesMPTCPListeners(t *testing.T) {
+	rows := []app.Row{
+		{Protocol: scanner.MPTCP, LocalPort: 443, State: scanner.StateListen},
+		{Protocol: scanner.MPTCP, LocalPort: 443, State: scanner.StateEstablished},
+		{Protocol: scanner.UDP, LocalPort: 443, State: scanner.StateUnconn},
+	}
+	got := (portSpec{port: 443, proto: scanner.TCP}).listeners(rows)
+	if len(got) != 1 || got[0].Protocol != scanner.MPTCP {
+		t.Fatalf("TCP port lookup: %+v", got)
+	}
+	jr := toJSONRow(got[0])
+	if jr.Protocol != "MPTCP" || jr.RXBytes != nil || jr.TXBytes != nil {
+		t.Fatalf("MPTCP JSON: %+v", jr)
+	}
+}
