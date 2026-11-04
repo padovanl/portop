@@ -168,7 +168,7 @@ func TestPortCellNamesListeningUDP(t *testing.T) {
 }
 
 func TestMPTCPProtocolCell(t *testing.T) {
-	r := app.Row{Protocol: scanner.MPTCP, LocalPort: 443, State: scanner.StateListen}
+	r := app.Row{Protocol: scanner.TCP, MPTCP: true, LocalPort: 443, State: scanner.StateListen}
 	if got := cellValue(r, "PROTO"); got != "MPTCP" {
 		t.Fatalf("protocol = %q", got)
 	}

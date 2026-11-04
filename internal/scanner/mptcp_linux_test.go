@@ -52,7 +52,7 @@ func TestParseMPTCPDiag(t *testing.T) {
 			binary.NativeEndian.PutUint32(data[68:], 12345)
 			data = append(data, ulpAttributes("mptcp")...)
 			c, ok := parseMPTCPDiag(data)
-			if !ok || c.Protocol != MPTCP || !c.LocalAddr.Equal(local) || !c.RemoteAddr.Equal(remote) ||
+			if !ok || c.Protocol != TCP || !c.MPTCP || !c.LocalAddr.Equal(local) || !c.RemoteAddr.Equal(remote) ||
 				c.LocalPort != 8080 || c.RemotePort != 443 || c.State != tc.want || c.UID != 1000 ||
 				c.Inode != 12345 || c.IPv6 != (tc.family == unix.AF_INET6) {
 				t.Fatalf("parsed socket: %+v, %v", c, ok)
@@ -156,7 +156,7 @@ func TestLinuxLiveMPTCPSockets(t *testing.T) {
 			} {
 				found := false
 				for _, c := range conns {
-					if c.Protocol == MPTCP && int(c.LocalPort) == want.port && c.State == want.state {
+					if c.MPTCP && c.Protocol == TCP && int(c.LocalPort) == want.port && c.State == want.state {
 						if c.IPv6 != (network == "tcp6") {
 							t.Fatalf("bad MPTCP socket: %+v", c)
 						}
@@ -194,18 +194,18 @@ func TestMPTCPRequiresULPName(t *testing.T) {
 }
 
 func TestMarkMPTCPPreservesRows(t *testing.T) {
-	subflow := Connection{Protocol: MPTCP, LocalAddr: net.ParseIP("192.0.2.1"), LocalPort: 50000,
+	subflow := Connection{Protocol: TCP, MPTCP: true, LocalAddr: net.ParseIP("192.0.2.1"), LocalPort: 50000,
 		RemoteAddr: net.ParseIP("192.0.2.2"), RemotePort: 443}
 	tcp := subflow
-	tcp.Protocol, tcp.PID, tcp.Inode = TCP, 123, 456
+	tcp.MPTCP, tcp.PID, tcp.Inode = false, 123, 456
 	other := tcp
 	other.RemotePort = 8443
 	udp := tcp
 	udp.Protocol = UDP
 	rows := []Connection{tcp, other, udp}
 	markMPTCP(rows, []Connection{subflow, subflow})
-	if len(rows) != 3 || rows[0].Protocol != MPTCP || rows[0].PID != 123 || rows[0].Inode != 456 ||
-		rows[1].Protocol != TCP || rows[2].Protocol != UDP {
+	if len(rows) != 3 || !rows[0].MPTCP || rows[0].Protocol != TCP || rows[0].PID != 123 || rows[0].Inode != 456 ||
+		rows[1].MPTCP || rows[2].MPTCP || rows[2].Protocol != UDP {
 		t.Fatalf("marking changed unrelated sockets or metadata: %+v", rows)
 	}
 }

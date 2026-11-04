@@ -112,14 +112,6 @@ portop --compose ./stack    # audit a Compose project's ports
 portop --web                # dashboard on http://127.0.0.1:8088
 ```
 
-On Linux, portop identifies TCP sockets whose kernel upper-layer protocol is
-Multipath TCP (MPTCP). These rows show `MPTCP` (`MPTCP6` for IPv6 in the terminal)
-and match `portop mptcp` or `portop --json mptcp`. Each row remains one TCP
-socket or subflow, with its existing traffic counters; portop adds no parent
-rows or aggregate counters. The label identifies MPTCP sockets, including
-listeners, and does not confirm successful negotiation with a peer. If socket
-diagnostics are unavailable, the rows retain their TCP labels.
-
 Run `sudo portop` (an Administrator terminal on Windows) to see other users'
 processes and read the firewall. In the table, press `?` for help and `,` for
 settings. The [documentation](https://padovanl.github.io/portop/docs/) covers

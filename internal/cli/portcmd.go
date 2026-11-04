@@ -50,7 +50,7 @@ func parsePortSpec(s string) (portSpec, error) {
 func (p portSpec) listeners(rows []app.Row) []app.Row {
 	var out []app.Row
 	for _, r := range rows {
-		if r.Protocol.Transport() == p.proto && r.LocalPort == p.port && r.Listening() {
+		if r.Protocol == p.proto && r.LocalPort == p.port && r.Listening() {
 			out = append(out, r)
 		}
 	}

@@ -48,7 +48,7 @@ func writeMetrics(w io.Writer, rows []app.Row, took time.Duration) {
 
 	fmt.Fprintln(w, "# HELP portop_listening_ports Listening sockets by protocol and exposure (loopback, all interfaces or one address).")
 	fmt.Fprintln(w, "# TYPE portop_listening_ports gauge")
-	for _, proto := range []string{"tcp", "mptcp", "udp"} {
+	for _, proto := range []string{"tcp", "udp"} {
 		for _, scope := range []string{app.ScopeAll, app.ScopeAddress, app.ScopeLoopback} {
 			fmt.Fprintf(w, "portop_listening_ports{protocol=%s,scope=%s} %d\n", label(proto), label(scope), listening[scopeKey{proto, scope}])
 		}

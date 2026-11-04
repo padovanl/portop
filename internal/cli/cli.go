@@ -541,6 +541,7 @@ type jsonRow struct {
 	RemoteHost    string   `json:"remote_host,omitempty"`
 	State         string   `json:"state"`
 	IPv6          bool     `json:"ipv6"`
+	MPTCP         bool     `json:"mptcp,omitempty"` // Multipath TCP (Linux); protocol stays "TCP"
 	PID           int      `json:"pid,omitempty"`
 	Process       string   `json:"process,omitempty"`
 	User          string   `json:"user,omitempty"`
@@ -563,6 +564,7 @@ func toJSONRow(r app.Row) jsonRow {
 		LocalPort:    r.LocalPort,
 		State:        string(r.State),
 		IPv6:         r.IPv6,
+		MPTCP:        r.MPTCP,
 		PID:          r.PID,
 		Process:      r.ProcessName,
 		User:         r.Username,

@@ -179,16 +179,20 @@ func TestFreeForceReachesWorkers(t *testing.T) {
 
 func TestPortSpecIncludesMPTCPListeners(t *testing.T) {
 	rows := []app.Row{
-		{Protocol: scanner.MPTCP, LocalPort: 443, State: scanner.StateListen},
-		{Protocol: scanner.MPTCP, LocalPort: 443, State: scanner.StateEstablished},
+		{Protocol: scanner.TCP, MPTCP: true, LocalPort: 443, State: scanner.StateListen},
+		{Protocol: scanner.TCP, MPTCP: true, LocalPort: 443, State: scanner.StateEstablished},
 		{Protocol: scanner.UDP, LocalPort: 443, State: scanner.StateUnconn},
 	}
 	got := (portSpec{port: 443, proto: scanner.TCP}).listeners(rows)
-	if len(got) != 1 || got[0].Protocol != scanner.MPTCP {
+	if len(got) != 1 || !got[0].MPTCP {
 		t.Fatalf("TCP port lookup: %+v", got)
 	}
+	// Scripts keep matching protocol "TCP"; the flag says the rest.
 	jr := toJSONRow(got[0])
-	if jr.Protocol != "MPTCP" || jr.RXBytes != nil || jr.TXBytes != nil {
+	if jr.Protocol != "TCP" || !jr.MPTCP || jr.RXBytes != nil || jr.TXBytes != nil {
 		t.Fatalf("MPTCP JSON: %+v", jr)
+	}
+	if plain := toJSONRow(rows[2]); plain.MPTCP {
+		t.Fatalf("UDP row flagged as MPTCP: %+v", plain)
 	}
 }

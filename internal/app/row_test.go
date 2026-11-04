@@ -275,8 +275,8 @@ func TestApplyTraffic(t *testing.T) {
 }
 
 func TestMPTCPRow(t *testing.T) {
-	row := Row{Protocol: scanner.MPTCP, LocalAddr: net.ParseIP("0.0.0.0"), LocalPort: 443, State: scanner.StateListen}
-	if !row.Listening() || !row.Matches("mptcp 443") || row.Matches("udp") {
+	row := Row{Protocol: scanner.TCP, MPTCP: true, LocalAddr: net.ParseIP("0.0.0.0"), LocalPort: 443, State: scanner.StateListen}
+	if !row.Listening() || !row.Matches("mptcp 443") || row.Matches("udp") || row.ProtocolLabel() != "MPTCP" {
 		t.Fatalf("MPTCP listener filtering failed: %+v", row)
 	}
 	row.State = scanner.StateEstablished

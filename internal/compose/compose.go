@@ -452,7 +452,7 @@ func findListener(port ConfiguredPort, rows []app.Row) *app.Row {
 	}
 	for i := range rows {
 		r := rows[i]
-		if r.Protocol.Transport() != proto || r.LocalPort != port.Published || r.State != state {
+		if r.Protocol != proto || r.LocalPort != port.Published || r.State != state {
 			continue
 		}
 		if !hostMatches(port.HostIP, r.LocalAddr.String()) {

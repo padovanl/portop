@@ -116,3 +116,14 @@ func TestDiffAcceptsBaselinesWithoutScope(t *testing.T) {
 		t.Fatalf("added=%+v removed=%+v, want no changes", added, removed)
 	}
 }
+
+// Go servers listen with Multipath TCP by default on Linux (Go 1.24+): a
+// baseline saved before portop noticed it must not report them as changed.
+func TestMPTCPDoesNotChangeBaseline(t *testing.T) {
+	row := app.Row{Protocol: scanner.TCP, LocalAddr: net.ParseIP("0.0.0.0"), LocalPort: 8080, State: scanner.StateListen, ProcessName: "caddy"}
+	saved := FromRows([]app.Row{row})
+	row.MPTCP = true
+	if added, removed := Diff(saved, FromRows([]app.Row{row})); len(added) != 0 || len(removed) != 0 {
+		t.Fatalf("MPTCP changed the baseline: added %+v, removed %+v", added, removed)
+	}
+}

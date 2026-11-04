@@ -30,6 +30,7 @@ type Row struct {
 	RemoteHost  string // reverse DNS, empty until resolved
 	State       scanner.State
 	IPv6        bool
+	MPTCP       bool // a Multipath TCP subflow or listener; Protocol is still TCP
 	PID         int
 	ProcessName string
 	Username    string // owner of the socket; empty if unknown
@@ -92,8 +93,17 @@ func (r Row) Matches(query string) bool {
 	return true
 }
 
+// ProtocolLabel is the protocol as the table shows it: MPTCP for a
+// Multipath TCP socket, TCP or UDP otherwise.
+func (r Row) ProtocolLabel() string {
+	if r.MPTCP {
+		return "MPTCP"
+	}
+	return string(r.Protocol)
+}
+
 func (r Row) matchesTerm(term string) bool {
-	return strings.Contains(strings.ToLower(string(r.Protocol)), term) ||
+	return strings.Contains(strings.ToLower(r.ProtocolLabel()), term) ||
 		strings.Contains(strconv.Itoa(int(r.LocalPort)), term) ||
 		strings.Contains(strconv.Itoa(r.PID), term) ||
 		strings.Contains(strings.ToLower(r.ProcessName), term) ||
@@ -157,7 +167,7 @@ func (c *Collector) applyTraffic(rows []Row, now map[traffic.Key]traffic.Counter
 	elapsed := at.Sub(c.trafficAt).Seconds()
 	for i := range rows {
 		r := &rows[i]
-		if r.Protocol.Transport() != scanner.TCP || r.State != scanner.StateEstablished {
+		if r.Protocol != scanner.TCP || r.State != scanner.StateEstablished {
 			continue
 		}
 		k := traffic.KeyFor(r.LocalAddr, r.LocalPort, r.RemoteAddr, r.RemotePort)
@@ -181,7 +191,7 @@ func applyFirewall(rows []Row, policy firewall.Policy) {
 	for i := range rows {
 		r := &rows[i]
 		if r.Listening() && r.Scope() != ScopeLoopback {
-			r.Firewall = string(policy.Verdict(strings.ToLower(string(r.Protocol.Transport())), r.LocalPort))
+			r.Firewall = string(policy.Verdict(strings.ToLower(string(r.Protocol)), r.LocalPort))
 		}
 	}
 }
@@ -273,6 +283,7 @@ func (c *Collector) Collect(ctx context.Context, opts Options) ([]Row, error) {
 			RemotePort:  conn.RemotePort,
 			State:       conn.State,
 			IPv6:        conn.IPv6,
+			MPTCP:       conn.MPTCP,
 			PID:         conn.PID,
 			ProcessName: conn.ProcessName,
 			Username:    c.username(conn),

@@ -139,7 +139,8 @@ func parseMPTCPDiag(data []byte) (Connection, bool) {
 		state = StateUnknown
 	}
 	return Connection{
-		Protocol:   MPTCP,
+		Protocol:   TCP,
+		MPTCP:      true,
 		LocalAddr:  append(net.IP(nil), data[8:8+size]...),
 		LocalPort:  binary.BigEndian.Uint16(data[4:]),
 		RemoteAddr: append(net.IP(nil), data[24:24+size]...),
@@ -185,7 +186,7 @@ func markMPTCP(conns, subflows []Connection) {
 	}
 	for i := range conns {
 		if conns[i].Protocol == TCP && found[key(conns[i])] {
-			conns[i].Protocol = MPTCP
+			conns[i].MPTCP = true
 		}
 	}
 }

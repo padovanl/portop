@@ -1,5 +1,6 @@
-// Package scanner enumerates TCP, UDP and MPTCP sockets and their owning processes.
-// Linux uses /proc and socket diagnostics; macOS uses lsof; Windows uses the IP Helper API.
+// Package scanner enumerates TCP/UDP sockets and their owning processes.
+// Linux uses /proc (and socket diagnostics to spot Multipath TCP); macOS
+// uses lsof; Windows uses the IP Helper API.
 package scanner
 
 import (
@@ -17,18 +18,9 @@ import (
 type Protocol string
 
 const (
-	TCP   Protocol = "TCP"
-	MPTCP Protocol = "MPTCP"
-	UDP   Protocol = "UDP"
+	TCP Protocol = "TCP"
+	UDP Protocol = "UDP"
 )
-
-// Transport returns the protocol used by service databases and firewall rules.
-func (p Protocol) Transport() Protocol {
-	if p == MPTCP {
-		return TCP
-	}
-	return p
-}
 
 // State is the socket state, as reported by the kernel for TCP sockets.
 // UDP sockets are always reported as StateUnconn since UDP has no
@@ -78,6 +70,10 @@ type Connection struct {
 	Inode      uint64
 	IPv6       bool
 	UID        uint32
+	// MPTCP marks a TCP socket whose upper-layer protocol is Multipath
+	// TCP (Linux): a subflow, or a listener that accepts MPTCP. Protocol
+	// stays TCP, so baselines, filters and metrics do not change with it.
+	MPTCP bool
 
 	PID         int    // 0 if the owning process could not be determined
 	ProcessName string // empty if unknown

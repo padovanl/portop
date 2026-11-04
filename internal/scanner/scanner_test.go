@@ -146,13 +146,3 @@ func TestResolveProcessesPicksTheMaster(t *testing.T) {
 		t.Fatalf("PID %d, owners %v: want master 4242 with workers 424 and 4243", c.PID, c.Owners)
 	}
 }
-
-func TestProtocolTransport(t *testing.T) {
-	for _, tc := range []struct{ protocol, want Protocol }{
-		{TCP, TCP}, {UDP, UDP}, {MPTCP, TCP},
-	} {
-		if got := tc.protocol.Transport(); got != tc.want {
-			t.Errorf("%s transport = %s, want %s", tc.protocol, got, tc.want)
-		}
-	}
-}
