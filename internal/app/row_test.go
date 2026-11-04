@@ -273,3 +273,19 @@ func TestApplyTraffic(t *testing.T) {
 		t.Fatalf("rate across a reused connection: %+v", rows[0])
 	}
 }
+
+func TestMPTCPRow(t *testing.T) {
+	row := Row{Protocol: scanner.TCP, MPTCP: true, LocalAddr: net.ParseIP("0.0.0.0"), LocalPort: 443, State: scanner.StateListen}
+	if !row.Listening() || !row.Matches("mptcp 443") || row.Matches("udp") || row.ProtocolLabel() != "MPTCP" {
+		t.Fatalf("MPTCP listener filtering failed: %+v", row)
+	}
+	row.State = scanner.StateEstablished
+	row.RemoteAddr, row.RemotePort = net.ParseIP("192.0.2.1"), 443
+	rows := []Row{row}
+	collector := NewCollector()
+	key := traffic.KeyFor(row.LocalAddr, row.LocalPort, row.RemoteAddr, row.RemotePort)
+	collector.applyTraffic(rows, map[traffic.Key]traffic.Counter{key: {RX: 100, TX: 200}}, time.Now())
+	if !rows[0].TrafficKnown || rows[0].RXBytes != 100 || rows[0].TXBytes != 200 {
+		t.Fatal("MPTCP subflow lost its TCP counters")
+	}
+}

@@ -6,7 +6,7 @@
   <thead><tr><th>Column</th><th>Shows</th></tr></thead>
   <tbody>
     <tr><td><code>PORT</code></td><td>Local port and its service name (<code>:22 ssh</code>), colored by <a href="#exposure">exposure</a> on listening rows.</td></tr>
-    <tr><td><code>PROTO</code></td><td><code>TCP</code> or <code>UDP</code>; <code>6</code> marks IPv6.</td></tr>
+    <tr><td><code>PROTO</code></td><td><code>TCP</code> or <code>UDP</code>; <code>6</code> marks IPv6. On Linux, <code>MPTCP</code> marks a <a href="#mptcp">Multipath TCP</a> socket.</td></tr>
     <tr><td><code>STATE</code></td><td>The TCP state. A bound, unconnected UDP socket is <code>UNCONN</code> and counts as listening.</td></tr>
     <tr><td><code>PROCESS</code></td><td>The owning process; <code>nginx +3</code> when three <a href="containers.html#workers">workers</a> share the socket.</td></tr>
     <tr><td><code>PID</code>, <code>CPU</code></td><td>Process ID and CPU use since the previous refresh.</td></tr>
@@ -19,6 +19,11 @@
     <tr><td><code>SYSTEMD</code></td><td>The systemd unit on Linux. On Windows it is <code>SERVICE</code>: the services hosted by the process.</td></tr>
   </tbody>
 </table>
+
+<h2 id="mptcp">Multipath TCP</h2>
+<p>On Linux, portop asks the kernel's socket diagnostics which TCP sockets use Multipath TCP and shows them as <code>MPTCP</code> (<code>MPTCP6</code> for IPv6). Each row is still one TCP socket: a listener that accepts MPTCP, or one subflow of a connection, with its own traffic. The label does not mean the peer negotiated MPTCP; a client that does not speak it falls back to plain TCP on the same listener.</p>
+<p>Go 1.24 and later open MPTCP listeners by default where the kernel supports it, so most Go servers (Caddy, Traefik, Grafana, Prometheus) show <code>MPTCP</code>. Everything else treats them as TCP: service names, the firewall verdict, <code>--wait</code>, <code>--free</code>, <code>--compose</code>, baselines and metrics are unchanged. Filter with <code>portop mptcp</code>; in <a href="command-line.html#json">JSON</a> the row keeps <code>"protocol": "TCP"</code> and adds <code>"mptcp": true</code>. Where the diagnostics are not available, the rows read <code>TCP</code>.</p>
+
 
 <h2 id="exposure">Exposure</h2>
 <p>A listening port is colored by who can reach it, at any terminal width:</p>

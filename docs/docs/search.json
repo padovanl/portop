@@ -116,7 +116,14 @@
   "title": "The table",
   "section": "Columns",
   "anchor": "columns",
-  "text": "Column Shows PORT Local port and its service name ( :22 ssh ), colored by exposure on listening rows. PROTO TCP or UDP ; 6 marks IPv6. STATE The TCP state. A bound, unconnected UDP socket is UNCONN and counts as listening. PROCESS The owning process; nginx +3 when three workers share the socket. PID"
+  "text": "Column Shows PORT Local port and its service name ( :22 ssh ), colored by exposure on listening rows. PROTO TCP or UDP ; 6 marks IPv6. On Linux, MPTCP marks a Multipath TCP socket. STATE The TCP state. A bound, unconnected UDP socket is UNCONN and counts as listening. PROCESS The owning process; ngi"
+ },
+ {
+  "page": "the-table",
+  "title": "The table",
+  "section": "Multipath TCP",
+  "anchor": "mptcp",
+  "text": "On Linux, portop asks the kernel's socket diagnostics which TCP sockets use Multipath TCP and shows them as MPTCP ( MPTCP6 for IPv6). Each row is still one TCP socket: a listener that accepts MPTCP, or one subflow of a connection, with its own traffic. The label does not mean the peer negotiated MPT"
  },
  {
   "page": "the-table",

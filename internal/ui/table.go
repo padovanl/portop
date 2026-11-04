@@ -297,7 +297,7 @@ func cellValue(r app.Row, colTitle string) string {
 		}
 		return v
 	case "PROTO":
-		v := string(r.Protocol)
+		v := r.ProtocolLabel()
 		if r.IPv6 {
 			v += "6"
 		}

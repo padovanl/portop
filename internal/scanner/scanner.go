@@ -1,5 +1,6 @@
 // Package scanner enumerates TCP/UDP sockets and their owning processes.
-// Linux uses /proc; macOS uses lsof; Windows uses the IP Helper API.
+// Linux uses /proc (and socket diagnostics to spot Multipath TCP); macOS
+// uses lsof; Windows uses the IP Helper API.
 package scanner
 
 import (
@@ -69,6 +70,10 @@ type Connection struct {
 	Inode      uint64
 	IPv6       bool
 	UID        uint32
+	// MPTCP marks a TCP socket whose upper-layer protocol is Multipath
+	// TCP (Linux): a subflow, or a listener that accepts MPTCP. Protocol
+	// stays TCP, so baselines, filters and metrics do not change with it.
+	MPTCP bool
 
 	PID         int    // 0 if the owning process could not be determined
 	ProcessName string // empty if unknown
