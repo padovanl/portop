@@ -65,6 +65,64 @@ func TestUFW(t *testing.T) {
 	}
 }
 
+// Rules without a port open every port to their sources (issue #37).
+const ufwAllPortsStatus = `Status: active
+Logging: on (low)
+Default: deny (incoming), allow (outgoing), disabled (routed)
+New profiles: skip
+
+To                         Action      From
+--                         ------      ----
+Anywhere                   ALLOW IN    192.168.1.0/24
+22/tcp                     ALLOW IN    Anywhere
+OpenSSH                    ALLOW IN    Anywhere
+Anywhere/tcp               ALLOW IN    10.8.0.0/16
+Anywhere                   DENY IN     203.0.113.0/24
+5000/tcp                   DENY IN     Anywhere
+10.0.0.5 on eth1           ALLOW IN    172.16.0.0/12
+Anywhere (v6)              ALLOW IN    fd00::/8 (v6)
+22/tcp (v6)                ALLOW IN    Anywhere (v6)
+`
+
+func TestUFWAllPortRules(t *testing.T) {
+	p, ok := parseUFW(ufwAllPortsStatus)
+	if !ok {
+		t.Fatal("status not recognised")
+	}
+	cases := []struct {
+		proto string
+		port  uint16
+		want  Verdict
+	}{
+		{"udp", 3702, Restricted}, // the issue: reachable from 192.168.1.0/24
+		{"tcp", 8080, Restricted},
+		// A rule for some sources decides only for them: 22 is open to
+		// everyone through the next rule.
+		{"tcp", 22, Allowed},
+		// Allowed from some sources before a deny for everyone else.
+		{"tcp", 5000, Restricted},
+	}
+	for _, c := range cases {
+		if got := p.Verdict(c.proto, c.port); got != c.want {
+			t.Errorf("%d/%s = %q, want %q", c.port, c.proto, got, c.want)
+		}
+	}
+
+	rules := p.(*ufwPolicy).rules
+	if len(rules) != 8 {
+		t.Fatalf("parsed %d rules, want 8 (the OpenSSH profile skipped): %+v", len(rules), rules)
+	}
+	if tcpOnly := rules[2]; len(tcpOnly.ports) != 1 || tcpOnly.ports[0] != (portRange{"tcp", 1, 65535}) {
+		t.Errorf("Anywhere/tcp: %+v", tcpOnly)
+	}
+
+	// Only a deny for some sources, then the default: blocked.
+	deny := "Status: active\nDefault: deny (incoming), allow (outgoing)\n\nTo Action From\n-- ------ ----\nAnywhere DENY IN 203.0.113.0/24\n"
+	if p, ok := parseUFW(deny); !ok || p.Verdict("tcp", 80) != Blocked {
+		t.Error("a deny for some sources made the port reachable")
+	}
+}
+
 const firewalldZone = `public (active)
   target: default
   icmp-block-inversion: no

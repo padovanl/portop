@@ -149,3 +149,13 @@ func TestLoadDirUsesTheFilesComposeLoads(t *testing.T) {
 		}
 	}
 }
+
+func TestFindMPTCPListenerForTCPPort(t *testing.T) {
+	rows := []app.Row{{Protocol: scanner.TCP, MPTCP: true, LocalAddr: net.ParseIP("0.0.0.0"), LocalPort: 8080, State: scanner.StateListen}}
+	if got := findListener(ConfiguredPort{Protocol: "TCP", Published: 8080}, rows); got == nil {
+		t.Fatal("TCP published port did not match MPTCP listener")
+	}
+	if got := findListener(ConfiguredPort{Protocol: "UDP", Published: 8080}, rows); got != nil {
+		t.Fatal("UDP published port matched MPTCP listener")
+	}
+}

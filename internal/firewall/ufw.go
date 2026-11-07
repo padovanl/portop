@@ -1,6 +1,9 @@
 package firewall
 
-import "strings"
+import (
+	"net"
+	"strings"
+)
 
 // ufwRule is one line of `ufw status verbose`, in evaluation order.
 type ufwRule struct {
@@ -49,7 +52,8 @@ func parseUFW(out string) (Policy, bool) {
 
 // parseUFWRule reads "80,443/tcp ALLOW IN Anywhere" and its variants with
 // a destination address ("10.0.0.5 22/tcp"), an interface ("on eth0") or
-// a "(v6)" marker. Rules naming an application profile are skipped.
+// a "(v6)" marker, and rules for every port ("Anywhere ALLOW IN
+// 192.168.1.0/24"). Rules naming an application profile are skipped.
 func parseUFWRule(line string) (ufwRule, bool) {
 	fields := strings.Fields(line)
 	actionAt := -1
@@ -73,7 +77,13 @@ func parseUFWRule(line string) (ufwRule, bool) {
 		}
 	}
 	if ports == nil {
-		return ufwRule{}, false
+		// "Anywhere ALLOW IN 192.168.1.0/24" opens every port to a source;
+		// an application profile ("OpenSSH") is skipped, its ports unknown.
+		proto, ok := ufwAllPorts(fields[:actionAt])
+		if !ok {
+			return ufwRule{}, false
+		}
+		ports = []portRange{{proto, 1, 65535}}
 	}
 	rest := fields[actionAt+1:]
 	if len(rest) > 0 && (rest[0] == "IN" || rest[0] == "OUT" || rest[0] == "FWD") {
@@ -85,7 +95,42 @@ func parseUFWRule(line string) (ufwRule, bool) {
 	return ufwRule{ports: ports, action: fields[actionAt], anyFrom: len(rest) > 0 && rest[0] == "Anywhere"}, true
 }
 
+// ufwAllPorts reports whether the To column names no port, only
+// destinations: Anywhere or an address, with "(v6)", "on IFACE" or a
+// "/tcp" or "/udp" suffix ("Anywhere/tcp" from "ufw allow proto tcp
+// from ..."). proto is "" for both protocols.
+func ufwAllPorts(to []string) (proto string, ok bool) {
+	for i := 0; i < len(to); i++ {
+		f := to[i]
+		switch {
+		case f == "(v6)":
+			continue
+		case f == "on":
+			i++ // the interface name
+			continue
+		}
+		for _, p := range []string{"tcp", "udp"} {
+			if strings.HasSuffix(f, "/"+p) {
+				f, proto = strings.TrimSuffix(f, "/"+p), p
+			}
+		}
+		if f == "Anywhere" || net.ParseIP(f) != nil {
+			ok = true
+			continue
+		}
+		if _, _, err := net.ParseCIDR(f); err == nil {
+			ok = true
+			continue
+		}
+		return "", false
+	}
+	return proto, ok
+}
+
+// Verdict follows ufw's first match per packet: a rule for some sources
+// decides only for them, so the others go on to the next rules.
 func (p *ufwPolicy) Verdict(proto string, port uint16) Verdict {
+	someAllowed := false
 	for _, r := range p.rules {
 		for _, pr := range r.ports {
 			if !pr.covers(proto, port) {
@@ -96,18 +141,25 @@ func (p *ufwPolicy) Verdict(proto string, port uint16) Verdict {
 				if r.anyFrom {
 					return Allowed
 				}
-				return Restricted
+				someAllowed = true
 			default:
 				if r.anyFrom {
+					if someAllowed {
+						return Restricted
+					}
 					return Blocked
 				}
 				// A deny for some sources says nothing about the rest:
 				// keep looking, then fall back to the default.
 			}
+			break
 		}
 	}
-	if p.defaultIncoming == "allow" {
+	switch {
+	case p.defaultIncoming == "allow":
 		return Allowed
+	case someAllowed:
+		return Restricted
 	}
 	return Blocked
 }

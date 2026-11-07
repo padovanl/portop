@@ -107,6 +107,7 @@
     <tr><td><code>remote_address</code>, <code>remote_port</code>, <code>remote_host</code></td><td>optional</td><td>Peer and its reverse-DNS name</td></tr>
     <tr><td><code>state</code></td><td>string</td><td>TCP state, or <code>UNCONN</code> for a bound UDP socket</td></tr>
     <tr><td><code>ipv6</code></td><td>boolean</td><td>Read from an IPv6 table</td></tr>
+    <tr><td><code>mptcp</code></td><td>boolean</td><td>A Multipath TCP socket on Linux (<code>protocol</code> stays <code>TCP</code>); omitted when false</td></tr>
     <tr><td><code>scope</code></td><td>string</td><td><code>all</code>, <code>address</code> or <code>loopback</code></td></tr>
     <tr><td><code>pid</code>, <code>process</code>, <code>user</code></td><td>optional</td><td>Owner; names are raw, not sanitized</td></tr>
     <tr><td><code>workers</code></td><td>optional array</td><td>Other processes holding the socket</td></tr>

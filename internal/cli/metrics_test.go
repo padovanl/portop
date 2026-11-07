@@ -85,3 +85,15 @@ func TestMetricsEndpoint(t *testing.T) {
 		t.Fatalf("after %d failures: %d, want the lockout", maxLoginFailures, rec.Code)
 	}
 }
+
+// A Multipath TCP socket is counted as TCP: the protocol label of the
+// series must not change when portop starts noticing MPTCP.
+func TestMetricsCountMPTCPAsTCP(t *testing.T) {
+	var b bytes.Buffer
+	rows := []app.Row{{Protocol: scanner.TCP, MPTCP: true, LocalAddr: net.ParseIP("0.0.0.0"), LocalPort: 443, State: scanner.StateListen}}
+	writeMetrics(&b, rows, time.Millisecond)
+	out := b.String()
+	if !strings.Contains(out, `portop_listening_ports{protocol="tcp",scope="all"} 1`) || strings.Contains(strings.ToLower(out), "mptcp") {
+		t.Fatalf("metrics:\n%s", out)
+	}
+}
