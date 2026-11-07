@@ -368,7 +368,7 @@
   "title": "Firewall",
   "section": "What each system reports",
   "anchor": "sources",
-  "text": "System Read from Unknown when Linux ufw rules and default policy; firewalld's default zone (ports, services, target); an empty nftables ruleset means no firewall portop is not root (the tools refuse), or nftables input rules or firewalld rich rules apply macOS The application firewall's global state"
+  "text": "System Read from Unknown when Linux ufw rules (for given ports or every port, from anywhere or some sources) and default policy; firewalld's default zone (ports, services, target); an empty nftables ruleset means no firewall portop is not root (the tools refuse), or nftables input rules or firewalld"
  },
  {
   "page": "traffic",

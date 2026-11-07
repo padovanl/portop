@@ -17,7 +17,7 @@
 <table>
   <thead><tr><th>System</th><th>Read from</th><th>Unknown when</th></tr></thead>
   <tbody>
-    <tr><td>Linux</td><td>ufw rules and default policy; firewalld's default zone (ports, services, target); an empty nftables ruleset means no firewall</td><td>portop is not root (the tools refuse), or nftables input rules or firewalld rich rules apply</td></tr>
+    <tr><td>Linux</td><td>ufw rules (for given ports or every port, from anywhere or some sources) and default policy; firewalld's default zone (ports, services, target); an empty nftables ruleset means no firewall</td><td>portop is not root (the tools refuse), or nftables input rules or firewalld rich rules apply</td></tr>
     <tr><td>macOS</td><td>The application firewall's global state</td><td>It is on but not blocking everything, since it decides per application</td></tr>
     <tr><td>Windows</td><td>Windows Firewall profiles</td><td>Any active profile is on, since rules are per program and slow to enumerate</td></tr>
   </tbody>
