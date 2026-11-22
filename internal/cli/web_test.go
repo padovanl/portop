@@ -1,3 +1,6 @@
+// Match the main package's defaults when tests run in GOPATH mode.
+//go:debug default=go1.26
+
 package cli
 
 import (
